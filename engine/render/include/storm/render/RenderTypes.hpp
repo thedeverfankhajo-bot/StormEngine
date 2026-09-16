@@ -12,15 +12,12 @@ class ResourceHandle {
 public:
     using Id = std::uint32_t;
     static constexpr Id invalidId = std::numeric_limits<Id>::max();
-
     constexpr ResourceHandle() noexcept = default;
     explicit constexpr ResourceHandle(Id id) noexcept : id_(id) {}
-
     constexpr Id id() const noexcept { return id_; }
     constexpr bool valid() const noexcept { return id_ != invalidId; }
     friend constexpr bool operator==(ResourceHandle a, ResourceHandle b) noexcept { return a.id_ == b.id_; }
     friend constexpr bool operator!=(ResourceHandle a, ResourceHandle b) noexcept { return !(a == b); }
-
 private:
     Id id_{invalidId};
 };
@@ -30,7 +27,6 @@ struct TextureTag;
 struct ShaderTag;
 struct MaterialTag;
 struct MeshTag;
-
 using BufferHandle = ResourceHandle<BufferTag>;
 using TextureHandle = ResourceHandle<TextureTag>;
 using ShaderHandle = ResourceHandle<ShaderTag>;
@@ -40,24 +36,12 @@ using MeshHandle = ResourceHandle<MeshTag>;
 enum class BufferUsage { Static, Dynamic, Stream };
 enum class PrimitiveTopology { Points, Lines, Triangles, TriangleStrip };
 enum class IndexType { UInt16, UInt32 };
-
 enum class ShaderStage { Vertex, Fragment };
 enum class VertexFormat { Float32, Float32x2, Float32x3, Float32x4 };
 
-struct BufferDesc {
-    std::uint64_t size{0};
-    BufferUsage usage{BufferUsage::Static};
-};
-
-struct TextureDesc {
-    std::uint32_t width{1};
-    std::uint32_t height{1};
-    std::uint32_t mipLevels{1};
-};
-
-struct ShaderDesc {
-    ShaderStage stage{ShaderStage::Vertex};
-};
+struct BufferDesc { std::uint64_t size{0}; BufferUsage usage{BufferUsage::Static}; };
+struct TextureDesc { std::uint32_t width{1}; std::uint32_t height{1}; std::uint32_t mipLevels{1}; };
+struct ShaderDesc { ShaderStage stage{ShaderStage::Vertex}; };
 
 struct VertexAttribute {
     std::uint32_t location{0};
@@ -67,14 +51,10 @@ struct VertexAttribute {
 
 struct VertexLayout {
     static constexpr std::size_t maxAttributes = 8;
-
     std::array<VertexAttribute, maxAttributes> attributes{};
     std::uint32_t attributeCount{0};
     std::uint32_t stride{0};
-
-    constexpr bool valid() const noexcept {
-        return attributeCount > 0 && attributeCount <= maxAttributes && stride > 0;
-    }
+    constexpr bool valid() const noexcept { return attributeCount > 0 && attributeCount <= maxAttributes && stride > 0; }
 };
 
 struct MeshDesc {
@@ -98,9 +78,9 @@ struct DrawCommand {
     std::int32_t baseVertex{0};
     IndexType indexType{IndexType::UInt32};
     ShaderHandle shader{};
+    ShaderHandle fragmentShader{};
     MaterialHandle material{};
     VertexLayout vertexLayout{};
-
     constexpr bool indexed() const noexcept { return indexCount > 0; }
 };
 
