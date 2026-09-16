@@ -1,0 +1,125 @@
+#include "storm/render/GlesContext.hpp"
+
+#if defined(__ANDROID__)
+
+#include <EGL/egl.h>
+#include <GLES3/gl3.h>
+
+namespace storm::render {
+
+GlesContext::~GlesContext() {
+    shutdown();
+}
+
+bool GlesContext::initializePbuffer(int width, int height) noexcept {
+    shutdown();
+    if (width <= 0 || height <= 0)
+        return false;
+
+    EGLDisplay display = eglGetDisplay(EGL_DEFAULT_DISPLAY);
+    if (display == EGL_NO_DISPLAY)
+        return false;
+
+    EGLint major = 0;
+    EGLint minor = 0;
+    if (eglInitialize(display, &major, &minor) != EGL_TRUE)
+        return false;
+
+    const EGLint configAttribs[] = {
+        EGL_SURFACE_TYPE, EGL_PBUFFER_BIT,
+        EGL_RENDERABLE_TYPE, EGL_OPENGL_ES3_BIT,
+        EGL_RED_SIZE, 8,
+        EGL_GREEN_SIZE, 8,
+        EGL_BLUE_SIZE, 8,
+        EGL_ALPHA_SIZE, 8,
+        EGL_NONE
+    };
+
+    EGLConfig config = nullptr;
+    EGLint configCount = 0;
+    if (eglChooseConfig(display, configAttribs, &config, 1, &configCount) != EGL_TRUE || configCount == 0) {
+        eglTerminate(display);
+        return false;
+    }
+
+    const EGLint surfaceAttribs[] = {
+        EGL_WIDTH, width,
+        EGL_HEIGHT, height,
+        EGL_NONE
+    };
+    EGLSurface surface = eglCreatePbufferSurface(display, config, surfaceAttribs);
+    if (surface == EGL_NO_SURFACE) {
+        eglTerminate(display);
+        return false;
+    }
+
+    const EGLint contextAttribs[] = {
+        EGL_CONTEXT_CLIENT_VERSION, 3,
+        EGL_NONE
+    };
+    if (eglBindAPI(EGL_OPENGL_ES_API) != EGL_TRUE) {
+        eglDestroySurface(display, surface);
+        eglTerminate(display);
+        return false;
+    }
+
+    EGLContext context = eglCreateContext(display, config, EGL_NO_CONTEXT, contextAttribs);
+    if (context == EGL_NO_CONTEXT) {
+        eglDestroySurface(display, surface);
+        eglTerminate(display);
+        return false;
+    }
+
+    display_ = display;
+    surface_ = surface;
+    context_ = context;
+    valid_ = true;
+    return makeCurrent();
+}
+
+bool GlesContext::makeCurrent() noexcept {
+    if (!valid_)
+        return false;
+    return eglMakeCurrent(static_cast<EGLDisplay>(display_), static_cast<EGLSurface>(surface_),
+                          static_cast<EGLSurface>(surface_), static_cast<EGLContext>(context_)) == EGL_TRUE;
+}
+
+bool GlesContext::swap() noexcept {
+    if (!valid_)
+        return false;
+    return eglSwapBuffers(static_cast<EGLDisplay>(display_), static_cast<EGLSurface>(surface_)) == EGL_TRUE;
+}
+
+void GlesContext::shutdown() noexcept {
+    const auto display = static_cast<EGLDisplay>(display_);
+    const auto surface = static_cast<EGLSurface>(surface_);
+    const auto context = static_cast<EGLContext>(context_);
+
+    if (display != EGL_NO_DISPLAY) {
+        eglMakeCurrent(display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
+        if (context != EGL_NO_CONTEXT)
+            eglDestroyContext(display, context);
+        if (surface != EGL_NO_SURFACE)
+            eglDestroySurface(display, surface);
+        eglTerminate(display);
+    }
+
+    display_ = nullptr;
+    surface_ = nullptr;
+    context_ = nullptr;
+    valid_ = false;
+}
+
+} // namespace storm::render
+
+#else
+
+namespace storm::render {
+GlesContext::~GlesContext() = default;
+bool GlesContext::initializePbuffer(int, int) noexcept { return false; }
+void GlesContext::shutdown() noexcept { valid_ = false; display_ = nullptr; surface_ = nullptr; context_ = nullptr; }
+bool GlesContext::makeCurrent() noexcept { return false; }
+bool GlesContext::swap() noexcept { return false; }
+} // namespace storm::render
+
+#endif
