@@ -1,5 +1,6 @@
 #pragma once
 
+#include "SystemPhase.hpp"
 #include <string_view>
 
 namespace storm::ecs {
@@ -22,6 +23,7 @@ public:
     virtual ~System() = default;
 
     virtual std::string_view name() const noexcept = 0;
+    virtual SystemPhase phase() const noexcept = 0;
     virtual void update(SystemContext& context, float deltaTime) = 0;
 };
 
