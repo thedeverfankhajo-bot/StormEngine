@@ -11,12 +11,14 @@ void testFixedStepAccumulation() {
     clock.advance(0.25f);
 
     assert(clock.pendingFixedSteps() == 2);
-    assert(clock.accumulatorSeconds() > 0.149f);
-    assert(clock.accumulatorSeconds() < 0.151f);
+    assert(clock.accumulatorSeconds() > 0.049f);
+    assert(clock.accumulatorSeconds() < 0.051f);
 
     assert(clock.consumeFixedStep());
     assert(clock.consumeFixedStep());
     assert(!clock.consumeFixedStep());
+    assert(clock.accumulatorSeconds() > 0.049f);
+    assert(clock.accumulatorSeconds() < 0.051f);
 }
 
 void testFrameDeltaClamp() {
