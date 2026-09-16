@@ -9,6 +9,7 @@ option(STORM_BUILD_TESTS "Build StormEngine tests" ON)
 
 add_library(storm_core
     engine/core/src/Engine.cpp
+    engine/render/src/NullRenderDevice.cpp
 )
 
 target_include_directories(storm_core PUBLIC
@@ -60,7 +61,7 @@ if(STORM_BUILD_TESTS)
     target_link_libraries(storm_render_tests PRIVATE storm_core)
     add_test(NAME storm_render_tests COMMAND storm_render_tests)
 
-    add_executable(storm_render_queue_tests tests/render_queue_tests.cpp)
-    target_link_libraries(storm_render_queue_tests PRIVATE storm_core)
-    add_test(NAME storm_render_queue_tests COMMAND storm_render_queue_tests)
+    add_executable(storm_render_device_tests tests/render_device_tests.cpp)
+    target_link_libraries(storm_render_device_tests PRIVATE storm_core)
+    add_test(NAME storm_render_device_tests COMMAND storm_render_device_tests)
 endif()
