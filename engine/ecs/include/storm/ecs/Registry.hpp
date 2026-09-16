@@ -3,6 +3,7 @@
 #include "Entity.hpp"
 #include "ComponentType.hpp"
 #include <cassert>
+#include <functional>
 #include <memory>
 #include <unordered_map>
 #include <utility>
@@ -19,7 +20,6 @@ public:
             alive_[id] = true;
             return Entity{id, generations_[id]};
         }
-
         const Entity::Id id = static_cast<Entity::Id>(alive_.size());
         alive_.push_back(true);
         generations_.push_back(0);
@@ -28,6 +28,7 @@ public:
 
     void destroy(Entity entity) {
         if (!valid(entity)) return;
+        removeAllComponents(entity.id());
         alive_[entity.id()] = false;
         ++generations_[entity.id()];
         freeIds_.push_back(entity.id());
@@ -73,26 +74,37 @@ public:
         if (it != storages_.end()) static_cast<Storage<T>*>(it->second.get())->remove(entity.id());
     }
 
+    template <typename... Components, typename Func>
+    void each(Func&& func) {
+        for (Entity::Id id = 0; id < alive_.size(); ++id) {
+            if (!alive_[id]) continue;
+            Entity entity{id, generations_[id]};
+            if ((has<Components>(entity) && ...))
+                std::invoke(std::forward<Func>(func), entity, get<Components>(entity)...);
+        }
+    }
+
 private:
-    struct IStorage { virtual ~IStorage() = default; };
+    struct IStorage {
+        virtual ~IStorage() = default;
+        virtual void remove(Entity::Id id) = 0;
+    };
 
     template <typename T>
     struct Storage final : IStorage {
         std::unordered_map<Entity::Id, T> values;
-
         template <typename... Args>
         T& emplace(Entity::Id id, Args&&... args) {
             auto [it, inserted] = values.try_emplace(id, std::forward<Args>(args)...);
             if (!inserted) it->second = T(std::forward<Args>(args)...);
             return it->second;
         }
-
         bool has(Entity::Id id) const { return values.find(id) != values.end(); }
         T* tryGet(Entity::Id id) {
             auto it = values.find(id);
             return it == values.end() ? nullptr : &it->second;
         }
-        void remove(Entity::Id id) { values.erase(id); }
+        void remove(Entity::Id id) override { values.erase(id); }
     };
 
     template <typename T>
@@ -106,6 +118,13 @@ private:
             return *raw;
         }
         return *static_cast<Storage<T>*>(it->second.get());
+    }
+
+    void removeAllComponents(Entity::Id id) {
+        for (auto& [type, storage] : storages_) {
+            (void)type;
+            storage->remove(id);
+        }
     }
 
     std::vector<bool> alive_;
