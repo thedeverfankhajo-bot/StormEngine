@@ -65,7 +65,8 @@ int main() {
     world.destroyEntity(parent);
     assert(!world.valid(parent));
     assert(!world.hasParent(child));
-    assert(!world.hasParent(grandchild));
+    assert(world.hasParent(grandchild));
+    assert(world.parentOf(grandchild) == child);
 
     world.addTransform(entity);
     world.destroyEntity(entity);
