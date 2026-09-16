@@ -15,9 +15,7 @@ add_library(storm_core
 )
 
 if(STORM_BUILD_GLES)
-    target_sources(storm_core PRIVATE
-        engine/render/src/GlesRenderDevice.cpp
-    )
+    target_sources(storm_core PRIVATE engine/render/src/GlesRenderDevice.cpp)
     if(ANDROID)
         target_link_libraries(storm_core PRIVATE GLESv3 EGL)
     endif()
@@ -30,17 +28,14 @@ target_include_directories(storm_core PUBLIC
     engine/render/include
 )
 
+if(ANDROID)
+    add_library(storm_android_smoke SHARED android/app/src/main/cpp/native_smoke.cpp)
+    target_link_libraries(storm_android_smoke PRIVATE storm_core GLESv3 EGL)
+endif()
+
 if(NOT ANDROID)
     add_executable(storm_sandbox examples/sandbox/main.cpp)
     target_link_libraries(storm_sandbox PRIVATE storm_core)
-endif()
-
-if(ANDROID)
-    add_library(storm_android SHARED
-        android/app/src/main/cpp/StormAndroidSmoke.cpp
-    )
-    target_link_libraries(storm_android PRIVATE storm_core GLESv3 EGL log)
-    target_compile_definitions(storm_android PRIVATE STORM_BUILD_GLES=1)
 endif()
 
 if(STORM_BUILD_TESTS AND NOT ANDROID)

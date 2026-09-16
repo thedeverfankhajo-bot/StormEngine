@@ -5,16 +5,18 @@ import android.os.Bundle;
 import android.widget.TextView;
 
 public final class MainActivity extends Activity {
-    static { System.loadLibrary("storm_android"); }
+    static {
+        System.loadLibrary("storm_android_smoke");
+    }
 
-    private static native String runGpuSmokeTest();
+    private static native String nativeRunSmoke();
 
     @Override
-    protected void onCreate(Bundle state) {
-        super.onCreate(state);
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
         TextView view = new TextView(this);
-        view.setText(runGpuSmokeTest());
-        view.setTextSize(18.0f);
+        view.setText(nativeRunSmoke());
+        view.setTextSize(14.0f);
         setContentView(view);
     }
 }

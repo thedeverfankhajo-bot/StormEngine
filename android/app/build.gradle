@@ -12,7 +12,10 @@ android {
         versionName '0.1.0'
 
         externalNativeBuild {
-            cmake { cppFlags '-std=c++20' }
+            cmake {
+                cppFlags '-std=c++20'
+                arguments '-DSTORM_BUILD_TESTS=OFF', '-DSTORM_BUILD_GLES=ON'
+            }
         }
     }
 
