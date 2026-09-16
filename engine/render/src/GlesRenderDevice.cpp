@@ -27,6 +27,16 @@ GLenum toIndexType(IndexType type) noexcept {
     return type == IndexType::UInt16 ? GL_UNSIGNED_SHORT : GL_UNSIGNED_INT;
 }
 
+GLint componentCount(VertexFormat format) noexcept {
+    switch (format) {
+    case VertexFormat::Float32: return 1;
+    case VertexFormat::Float32x2: return 2;
+    case VertexFormat::Float32x3: return 3;
+    case VertexFormat::Float32x4: return 4;
+    }
+    return 0;
+}
+
 GLuint compileShader(GLenum type, const char* source) noexcept {
     const GLuint shader = glCreateShader(type);
     if (shader == 0)
@@ -196,9 +206,12 @@ void GlesRenderDevice::beginFrame() {
 }
 
 bool GlesRenderDevice::submit(const DrawCommand& command) {
-    if (!frameActive_ || !command.vertexBuffer.valid() || command.vertexCount == 0)
+    if (!frameActive_ || !command.vertexBuffer.valid() || command.vertexCount == 0 ||
+        !command.vertexLayout.valid())
         return false;
     if (buffers_.find(command.vertexBuffer.id()) == buffers_.end())
+        return false;
+    if (command.baseVertex != 0)
         return false;
 
     if (!pipelineReady_) {
@@ -218,8 +231,17 @@ bool GlesRenderDevice::submit(const DrawCommand& command) {
     glUseProgram(static_cast<GLuint>(program_));
     glBindVertexArray(static_cast<GLuint>(vao_));
     glBindBuffer(GL_ARRAY_BUFFER, static_cast<GLuint>(command.vertexBuffer.id()));
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * static_cast<GLsizei>(sizeof(float)), nullptr);
+
+    for (std::uint32_t i = 0; i < command.vertexLayout.attributeCount; ++i) {
+        const auto& attribute = command.vertexLayout.attributes[i];
+        const GLint components = componentCount(attribute.format);
+        if (components == 0)
+            return false;
+        glEnableVertexAttribArray(attribute.location);
+        glVertexAttribPointer(attribute.location, components, GL_FLOAT, GL_FALSE,
+                              static_cast<GLsizei>(command.vertexLayout.stride),
+                              reinterpret_cast<const void*>(static_cast<std::uintptr_t>(attribute.offset)));
+    }
 
     if (command.indexed()) {
         if (!command.indexBuffer.valid() || buffers_.find(command.indexBuffer.id()) == buffers_.end())
