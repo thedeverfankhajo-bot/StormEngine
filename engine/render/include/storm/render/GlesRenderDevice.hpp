@@ -4,6 +4,10 @@
 #include <cstddef>
 #include <cstdint>
 
+#if defined(__ANDROID__)
+#include <unordered_set>
+#endif
+
 namespace storm::render {
 
 // OpenGL ES 3.x backend. The caller must make a valid GLES context current
@@ -37,6 +41,11 @@ private:
     std::uint32_t nextTextureId_{1};
     std::size_t submittedDraws_{0};
     bool frameActive_{false};
+
+#if defined(__ANDROID__)
+    std::unordered_set<std::uint32_t> buffers_;
+    std::unordered_set<std::uint32_t> textures_;
+#endif
 };
 
 } // namespace storm::render
