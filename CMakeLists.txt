@@ -14,9 +14,12 @@ add_library(storm_core
 )
 
 if(STORM_BUILD_GLES)
-    target_sources(storm_core PRIVATE engine/render/src/GlesRenderDevice.cpp)
+    target_sources(storm_core PRIVATE
+        engine/render/src/GlesRenderDevice.cpp
+        engine/render/src/GlesContext.cpp
+    )
     if(ANDROID)
-        target_link_libraries(storm_core PRIVATE GLESv3)
+        target_link_libraries(storm_core PRIVATE GLESv3 EGL)
     endif()
 endif()
 
