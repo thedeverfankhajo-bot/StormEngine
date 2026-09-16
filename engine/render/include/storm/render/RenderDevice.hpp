@@ -12,6 +12,8 @@ public:
 
     virtual BufferHandle createBuffer(const BufferDesc& desc) = 0;
     virtual void destroyBuffer(BufferHandle handle) = 0;
+    virtual bool updateBuffer(BufferHandle handle, const void* data, std::size_t size,
+                              std::size_t offset = 0) = 0;
 
     virtual TextureHandle createTexture(const TextureDesc& desc) = 0;
     virtual void destroyTexture(TextureHandle handle) = 0;
