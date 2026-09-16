@@ -24,9 +24,7 @@ public:
         auto system = std::make_unique<T>(std::forward<Args>(args)...);
         T& reference = *system;
         systems_.push_back(std::move(system));
-        std::stable_sort(systems_.begin(), systems_.end(), [](const auto& left, const auto& right) {
-            return static_cast<std::uint8_t>(left->phase()) < static_cast<std::uint8_t>(right->phase());
-        });
+        dirty_ = true;
         return reference;
     }
 
@@ -44,9 +42,10 @@ public:
     }
 
     void update(Registry& registry, float deltaTime) {
+        rebuildOrderIfNeeded();
         SystemContext context{registry};
-        for (auto& system : systems_)
-            system->update(context, deltaTime);
+        for (const std::size_t index : executionOrder_)
+            systems_[index]->update(context, deltaTime);
     }
 
     bool contains(std::string_view systemName) const noexcept {
@@ -56,7 +55,24 @@ public:
     }
 
 private:
+    void rebuildOrderIfNeeded() {
+        if (!dirty_) return;
+
+        executionOrder_.resize(systems_.size());
+        for (std::size_t i = 0; i < executionOrder_.size(); ++i)
+            executionOrder_[i] = i;
+
+        std::stable_sort(executionOrder_.begin(), executionOrder_.end(), [this](std::size_t a, std::size_t b) {
+            return static_cast<std::uint8_t>(systems_[a]->phase()) <
+                   static_cast<std::uint8_t>(systems_[b]->phase());
+        });
+
+        dirty_ = false;
+    }
+
     std::vector<std::unique_ptr<System>> systems_;
+    std::vector<std::size_t> executionOrder_;
+    bool dirty_{true};
 };
 
 } // namespace storm::ecs
