@@ -3,6 +3,7 @@
 #include "RenderTypes.hpp"
 #include <cstddef>
 #include <cstdint>
+#include <string>
 
 namespace storm::render {
 
@@ -18,12 +19,16 @@ public:
     virtual TextureHandle createTexture(const TextureDesc& desc) = 0;
     virtual void destroyTexture(TextureHandle handle) = 0;
 
+    virtual ShaderHandle createShader(const ShaderDesc& desc, const std::string& source) = 0;
+    virtual void destroyShader(ShaderHandle handle) = 0;
+
     virtual void beginFrame() = 0;
     virtual bool submit(const DrawCommand& command) = 0;
     virtual void endFrame() = 0;
 
     [[nodiscard]] virtual std::size_t liveBufferCount() const noexcept = 0;
     [[nodiscard]] virtual std::size_t liveTextureCount() const noexcept = 0;
+    [[nodiscard]] virtual std::size_t liveShaderCount() const noexcept = 0;
     [[nodiscard]] virtual std::size_t submittedDrawCount() const noexcept = 0;
 };
 
