@@ -1,6 +1,7 @@
 #pragma once
 
 #include "System.hpp"
+#include "SystemDependencyGraph.hpp"
 #include <algorithm>
 #include <cassert>
 #include <cstddef>
@@ -26,6 +27,13 @@ public:
         systems_.push_back(std::move(system));
         dirty_ = true;
         return reference;
+    }
+
+    bool dependsOn(std::string_view system, std::string_view dependency) {
+        rebuildGraphIfNeeded();
+        if (!graph_.addDependency(system, dependency)) return false;
+        dirty_ = true;
+        return true;
     }
 
     bool empty() const noexcept { return systems_.empty(); }
@@ -54,25 +62,48 @@ public:
         });
     }
 
+    bool hasValidOrder() {
+        rebuildOrderIfNeeded();
+        return validOrder_;
+    }
+
 private:
+    void rebuildGraphIfNeeded() {
+        if (!graphDirty_) return;
+        graph_ = SystemDependencyGraph{};
+        for (const auto& system : systems_)
+            graph_.addSystem(system->name());
+        graphDirty_ = false;
+    }
+
     void rebuildOrderIfNeeded() {
         if (!dirty_) return;
+        rebuildGraphIfNeeded();
 
-        executionOrder_.resize(systems_.size());
-        for (std::size_t i = 0; i < executionOrder_.size(); ++i)
-            executionOrder_[i] = i;
+        std::vector<std::size_t> dependencyOrder;
+        validOrder_ = graph_.buildOrder(dependencyOrder);
+        if (!validOrder_) {
+            executionOrder_.clear();
+            dirty_ = false;
+            return;
+        }
 
-        std::stable_sort(executionOrder_.begin(), executionOrder_.end(), [this](std::size_t a, std::size_t b) {
-            return static_cast<std::uint8_t>(systems_[a]->phase()) <
-                   static_cast<std::uint8_t>(systems_[b]->phase());
+        std::stable_sort(dependencyOrder.begin(), dependencyOrder.end(), [this](std::size_t a, std::size_t b) {
+            const auto phaseA = static_cast<std::uint8_t>(systems_[a]->phase());
+            const auto phaseB = static_cast<std::uint8_t>(systems_[b]->phase());
+            return phaseA < phaseB;
         });
 
+        executionOrder_ = std::move(dependencyOrder);
         dirty_ = false;
     }
 
     std::vector<std::unique_ptr<System>> systems_;
     std::vector<std::size_t> executionOrder_;
+    SystemDependencyGraph graph_;
     bool dirty_{true};
+    bool graphDirty_{true};
+    bool validOrder_{true};
 };
 
 } // namespace storm::ecs
