@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <cassert>
 #include <string>
 #include <vector>
@@ -28,7 +29,6 @@ void testPhaseOrderingIsRegistrationIndependent() {
     scheduler.add<TestSystem>("render", storm::ecs::SystemPhase::Render, log);
     scheduler.add<TestSystem>("input", storm::ecs::SystemPhase::Input, log);
     scheduler.add<TestSystem>("physics", storm::ecs::SystemPhase::Physics, log);
-
     storm::ecs::Registry registry;
     scheduler.update(registry, 1.0f / 60.0f);
     assert((log == std::vector<std::string>{"input", "physics", "render"}));
@@ -42,7 +42,6 @@ void testExplicitDependencySurvivesRebuild() {
     assert(scheduler.dependsOn("b", "a"));
     scheduler.add<TestSystem>("c", storm::ecs::SystemPhase::Gameplay, log);
     assert(scheduler.hasValidOrder());
-
     storm::ecs::Registry registry;
     scheduler.update(registry, 0.016f);
     const auto a = std::find(log.begin(), log.end(), "a");
