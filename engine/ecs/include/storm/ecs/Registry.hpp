@@ -6,7 +6,6 @@
 #include <cassert>
 #include <functional>
 #include <memory>
-#include <type_traits>
 #include <unordered_map>
 #include <utility>
 #include <vector>
@@ -154,11 +153,11 @@ private:
     }
 
     template <typename Candidate, typename... Components, typename Func>
-    void tryQueryCandidate(Func&& func) {
-        if (!isSmallest<Candidate, Components...>()) return;
+    bool tryQueryCandidate(Func&& func) {
+        if (!isSmallest<Candidate, Components...>()) return false;
 
         const Storage<Candidate>* storage = findStorage<Candidate>();
-        if (!storage || storage->size() == 0) return;
+        if (!storage || storage->size() == 0) return true;
 
         for (std::size_t i = 0; i < storage->size(); ++i) {
             const Entity::Id id = storage->entityAt(i);
@@ -168,14 +167,14 @@ private:
             if ((has<Components>(entity) && ...))
                 std::invoke(std::forward<Func>(func), entity, get<Components>(entity)...);
         }
+        return true;
     }
 
     template <typename First, typename... Rest, typename Func>
     void eachSmallest(Func&& func) {
         if constexpr (sizeof...(Rest) == 0) {
-            tryQueryCandidate<First>(std::forward<Func>(func));
-        } else {
-            tryQueryCandidate<First, Rest...>(func);
+            (void)tryQueryCandidate<First>(std::forward<Func>(func));
+        } else if (!tryQueryCandidate<First, Rest...>(func)) {
             eachSmallest<Rest...>(std::forward<Func>(func));
         }
     }
