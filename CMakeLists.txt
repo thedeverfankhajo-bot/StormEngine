@@ -14,6 +14,7 @@ add_library(storm_core
 target_include_directories(storm_core PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/engine/core/include
     ${CMAKE_CURRENT_SOURCE_DIR}/engine/math/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/engine/ecs/include
 )
 
 target_compile_features(storm_core PUBLIC cxx_std_20)
