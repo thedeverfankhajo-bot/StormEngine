@@ -20,6 +20,13 @@ void NullRenderDevice::destroyBuffer(BufferHandle handle) {
     buffers_.erase(handle.id());
 }
 
+bool NullRenderDevice::updateBuffer(BufferHandle handle, const void* data, std::size_t size,
+                                    std::size_t offset) {
+    if (!handle.valid() || data == nullptr || size == 0)
+        return false;
+    return buffers_.find(handle.id()) != buffers_.end();
+}
+
 TextureHandle NullRenderDevice::createTexture(const TextureDesc& desc) {
     if (desc.width == 0 || desc.height == 0 || desc.mipLevels == 0)
         return {};
