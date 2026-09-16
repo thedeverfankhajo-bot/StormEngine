@@ -1,10 +1,12 @@
 #pragma once
 
-#include "Entity.hpp"
+#include "ComponentStorage.hpp"
 #include "ComponentType.hpp"
+#include "Entity.hpp"
 #include <cassert>
 #include <functional>
 #include <memory>
+#include <type_traits>
 #include <unordered_map>
 #include <utility>
 #include <vector>
@@ -20,6 +22,7 @@ public:
             alive_[id] = true;
             return Entity{id, generations_[id]};
         }
+
         const Entity::Id id = static_cast<Entity::Id>(alive_.size());
         alive_.push_back(true);
         generations_.push_back(0);
@@ -49,7 +52,8 @@ public:
     bool has(Entity entity) const {
         if (!valid(entity)) return false;
         const auto it = storages_.find(componentType<T>());
-        return it != storages_.end() && static_cast<const Storage<T>*>(it->second.get())->has(entity.id());
+        return it != storages_.end() &&
+               static_cast<const Storage<T>*>(it->second.get())->has(entity.id());
     }
 
     template <typename T>
@@ -61,8 +65,23 @@ public:
     }
 
     template <typename T>
+    const T* tryGet(Entity entity) const {
+        if (!valid(entity)) return nullptr;
+        const auto it = storages_.find(componentType<T>());
+        if (it == storages_.end()) return nullptr;
+        return static_cast<const Storage<T>*>(it->second.get())->tryGet(entity.id());
+    }
+
+    template <typename T>
     T& get(Entity entity) {
         T* value = tryGet<T>(entity);
+        assert(value);
+        return *value;
+    }
+
+    template <typename T>
+    const T& get(Entity entity) const {
+        const T* value = tryGet<T>(entity);
         assert(value);
         return *value;
     }
@@ -71,17 +90,28 @@ public:
     void remove(Entity entity) {
         if (!valid(entity)) return;
         const auto it = storages_.find(componentType<T>());
-        if (it != storages_.end()) static_cast<Storage<T>*>(it->second.get())->remove(entity.id());
+        if (it != storages_.end())
+            static_cast<Storage<T>*>(it->second.get())->remove(entity.id());
     }
 
     template <typename... Components, typename Func>
     void each(Func&& func) {
-        for (Entity::Id id = 0; id < alive_.size(); ++id) {
-            if (!alive_[id]) continue;
-            Entity entity{id, generations_[id]};
-            if ((has<Components>(entity) && ...))
-                std::invoke(std::forward<Func>(func), entity, get<Components>(entity)...);
+        if constexpr (sizeof...(Components) == 0) {
+            return;
+        } else {
+            for (Entity::Id id = 0; id < alive_.size(); ++id) {
+                if (!alive_[id]) continue;
+                Entity entity{id, generations_[id]};
+                if ((has<Components>(entity) && ...))
+                    std::invoke(std::forward<Func>(func), entity, get<Components>(entity)...);
+            }
         }
+    }
+
+    template <typename T>
+    std::size_t componentCount() const {
+        const auto it = storages_.find(componentType<T>());
+        return it == storages_.end() ? 0 : static_cast<const Storage<T>*>(it->second.get())->size();
     }
 
 private:
@@ -92,19 +122,17 @@ private:
 
     template <typename T>
     struct Storage final : IStorage {
-        std::unordered_map<Entity::Id, T> values;
+        ComponentStorage<T> data;
+
         template <typename... Args>
         T& emplace(Entity::Id id, Args&&... args) {
-            auto [it, inserted] = values.try_emplace(id, std::forward<Args>(args)...);
-            if (!inserted) it->second = T(std::forward<Args>(args)...);
-            return it->second;
+            return data.emplace(id, std::forward<Args>(args)...);
         }
-        bool has(Entity::Id id) const { return values.find(id) != values.end(); }
-        T* tryGet(Entity::Id id) {
-            auto it = values.find(id);
-            return it == values.end() ? nullptr : &it->second;
-        }
-        void remove(Entity::Id id) override { values.erase(id); }
+        bool has(Entity::Id id) const noexcept { return data.has(id); }
+        T* tryGet(Entity::Id id) noexcept { return data.tryGet(id); }
+        const T* tryGet(Entity::Id id) const noexcept { return data.tryGet(id); }
+        void remove(Entity::Id id) override { data.remove(id); }
+        std::size_t size() const noexcept { return data.size(); }
     };
 
     template <typename T>
