@@ -1,6 +1,7 @@
 #pragma once
 
 #include <array>
+#include <cstddef>
 #include <cstdint>
 #include <limits>
 #include <type_traits>
@@ -22,11 +23,7 @@ private:
     Id id_{invalidId};
 };
 
-struct BufferTag;
-struct TextureTag;
-struct ShaderTag;
-struct MaterialTag;
-struct MeshTag;
+struct BufferTag; struct TextureTag; struct ShaderTag; struct MaterialTag; struct MeshTag;
 using BufferHandle = ResourceHandle<BufferTag>;
 using TextureHandle = ResourceHandle<TextureTag>;
 using ShaderHandle = ResourceHandle<ShaderTag>;
@@ -43,11 +40,7 @@ struct BufferDesc { std::uint64_t size{0}; BufferUsage usage{BufferUsage::Static
 struct TextureDesc { std::uint32_t width{1}; std::uint32_t height{1}; std::uint32_t mipLevels{1}; };
 struct ShaderDesc { ShaderStage stage{ShaderStage::Vertex}; };
 
-struct VertexAttribute {
-    std::uint32_t location{0};
-    VertexFormat format{VertexFormat::Float32x3};
-    std::uint32_t offset{0};
-};
+struct VertexAttribute { std::uint32_t location{0}; VertexFormat format{VertexFormat::Float32x3}; std::uint32_t offset{0}; };
 
 struct VertexLayout {
     static constexpr std::size_t maxAttributes = 8;
@@ -58,28 +51,19 @@ struct VertexLayout {
 };
 
 struct MeshDesc {
-    BufferHandle vertexBuffer{};
-    BufferHandle indexBuffer{};
-    std::uint32_t vertexCount{0};
-    std::uint32_t indexCount{0};
-    IndexType indexType{IndexType::UInt32};
-    PrimitiveTopology topology{PrimitiveTopology::Triangles};
+    BufferHandle vertexBuffer{}; BufferHandle indexBuffer{};
+    std::uint32_t vertexCount{0}; std::uint32_t indexCount{0};
+    IndexType indexType{IndexType::UInt32}; PrimitiveTopology topology{PrimitiveTopology::Triangles};
     VertexLayout vertexLayout{};
 };
 
 struct DrawCommand {
     PrimitiveTopology topology{PrimitiveTopology::Triangles};
-    BufferHandle vertexBuffer{};
-    BufferHandle indexBuffer{};
-    std::uint32_t vertexCount{0};
-    std::uint32_t indexCount{0};
-    std::uint32_t firstVertex{0};
-    std::uint32_t firstIndex{0};
-    std::int32_t baseVertex{0};
+    BufferHandle vertexBuffer{}; BufferHandle indexBuffer{};
+    std::uint32_t vertexCount{0}; std::uint32_t indexCount{0};
+    std::uint32_t firstVertex{0}; std::uint32_t firstIndex{0}; std::int32_t baseVertex{0};
     IndexType indexType{IndexType::UInt32};
-    ShaderHandle shader{};
-    ShaderHandle fragmentShader{};
-    MaterialHandle material{};
+    ShaderHandle shader{}; ShaderHandle fragmentShader{}; MaterialHandle material{};
     VertexLayout vertexLayout{};
     constexpr bool indexed() const noexcept { return indexCount > 0; }
 };
