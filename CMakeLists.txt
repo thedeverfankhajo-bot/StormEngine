@@ -51,4 +51,8 @@ if(STORM_BUILD_TESTS)
     add_executable(storm_camera_tests tests/camera_tests.cpp)
     target_link_libraries(storm_camera_tests PRIVATE storm_core)
     add_test(NAME storm_camera_tests COMMAND storm_camera_tests)
+
+    add_executable(storm_world_tests tests/world_tests.cpp)
+    target_link_libraries(storm_world_tests PRIVATE storm_core)
+    add_test(NAME storm_world_tests COMMAND storm_world_tests)
 endif()
