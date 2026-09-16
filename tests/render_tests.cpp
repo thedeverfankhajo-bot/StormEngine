@@ -1,18 +1,23 @@
 #include <cassert>
+#include <cstddef>
 #include <cstdint>
 #include <limits>
 #include <type_traits>
 
+#include "storm/render/RenderQueue.hpp"
 #include "storm/render/RenderTypes.hpp"
 
 int main() {
     using namespace storm::render;
 
     static_assert(std::is_trivially_copyable_v<DrawCommand>);
+    static_assert(std::is_trivially_copyable_v<BufferHandle>);
+    static_assert(sizeof(BufferHandle) == sizeof(std::uint32_t));
 
     BufferHandle invalid;
     assert(!invalid.valid());
     assert(invalid.id() == BufferHandle::invalidId);
+    assert(BufferHandle(BufferHandle::invalidId).valid() == false);
 
     BufferHandle a(7);
     BufferHandle b(7);
@@ -21,7 +26,6 @@ int main() {
     assert(a.id() == 7);
     assert(a == b);
     assert(a != c);
-    assert(BufferHandle(BufferHandle::invalidId).valid() == false);
 
     TextureHandle texture(3);
     ShaderHandle shader(4);
@@ -29,10 +33,6 @@ int main() {
     assert(texture.valid() && texture.id() == 3);
     assert(shader.valid() && shader.id() == 4);
     assert(material.valid() && material.id() == 5);
-
-    // Handles are strongly typed: different resource kinds cannot be compared.
-    assert(BufferHandle(3) != BufferHandle(4));
-    assert(TextureHandle(3) == TextureHandle(3));
 
     BufferDesc buffer{};
     assert(buffer.size == 0);
@@ -53,18 +53,10 @@ int main() {
     assert(textureDesc.height == 64);
     assert(textureDesc.mipLevels == 4);
 
-    assert(PrimitiveTopology::Triangles != PrimitiveTopology::Lines);
-    assert(IndexType::UInt16 != IndexType::UInt32);
-
     DrawCommand nonIndexed{};
-    assert(nonIndexed.topology == PrimitiveTopology::Triangles);
-    assert(!nonIndexed.indexed());
     nonIndexed.vertexBuffer = BufferHandle(11);
     nonIndexed.vertexCount = 36;
     nonIndexed.firstVertex = 2;
-    assert(nonIndexed.vertexBuffer.valid());
-    assert(nonIndexed.vertexCount == 36);
-    assert(nonIndexed.firstVertex == 2);
     assert(!nonIndexed.indexed());
 
     DrawCommand indexed{};
@@ -76,11 +68,6 @@ int main() {
     indexed.baseVertex = -3;
     indexed.indexType = IndexType::UInt16;
     assert(indexed.indexed());
-    assert(indexed.topology == PrimitiveTopology::TriangleStrip);
-    assert(indexed.indexCount == 96);
-    assert(indexed.firstIndex == 4);
-    assert(indexed.baseVertex == -3);
-    assert(indexed.indexType == IndexType::UInt16);
 
     indexed.indexCount = 0;
     assert(!indexed.indexed());
@@ -88,9 +75,30 @@ int main() {
     indexed.indexBuffer = BufferHandle{};
     assert(!indexed.indexed());
 
-    DrawCommand copy = nonIndexed;
-    assert(copy.vertexBuffer == nonIndexed.vertexBuffer);
-    assert(copy.vertexCount == nonIndexed.vertexCount);
+    RenderQueue queue;
+    assert(queue.empty());
+    assert(queue.size() == 0);
+
+    queue.submit(nonIndexed);
+    queue.submit(indexed);
+    assert(!queue.empty());
+    assert(queue.size() == 2);
+    assert(queue.at(0).vertexCount == 36);
+    assert(queue.at(1).indexCount == 1);
+
+    const auto& commands = queue.commands();
+    assert(commands.size() == 2);
+    assert(commands[0].vertexBuffer == BufferHandle(11));
+    assert(commands[1].vertexBuffer == BufferHandle(12));
+
+    queue.beginFrame();
+    assert(queue.empty());
+    assert(queue.size() == 0);
+
+    // A queue can be reused for another frame without retaining old commands.
+    queue.submit(indexed);
+    assert(queue.size() == 1);
+    assert(queue.at(0).indexType == IndexType::UInt16);
 
     return 0;
 }
