@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <cassert>
 #include <cstddef>
+#include <cstdint>
 #include <memory>
 #include <string_view>
 #include <type_traits>
@@ -26,6 +27,7 @@ public:
         T& reference = *system;
         systems_.push_back(std::move(system));
         dirty_ = true;
+        graphDirty_ = true;
         return reference;
     }
 
@@ -51,6 +53,8 @@ public:
 
     void update(Registry& registry, float deltaTime) {
         rebuildOrderIfNeeded();
+        if (!validOrder_) return;
+
         SystemContext context{registry};
         for (const std::size_t index : executionOrder_)
             systems_[index]->update(context, deltaTime);
@@ -70,31 +74,29 @@ public:
 private:
     void rebuildGraphIfNeeded() {
         if (!graphDirty_) return;
+
         graph_ = SystemDependencyGraph{};
         for (const auto& system : systems_)
             graph_.addSystem(system->name());
+
+        // Phase ordering is a dependency rule as well: every earlier phase
+        // must complete before a later phase can execute.
+        for (std::size_t later = 0; later < systems_.size(); ++later) {
+            for (std::size_t earlier = 0; earlier < later; ++earlier) {
+                const auto earlierPhase = static_cast<std::uint8_t>(systems_[earlier]->phase());
+                const auto laterPhase = static_cast<std::uint8_t>(systems_[later]->phase());
+                if (earlierPhase < laterPhase)
+                    graph_.addDependency(systems_[later]->name(), systems_[earlier]->name());
+            }
+        }
+
         graphDirty_ = false;
     }
 
     void rebuildOrderIfNeeded() {
         if (!dirty_) return;
         rebuildGraphIfNeeded();
-
-        std::vector<std::size_t> dependencyOrder;
-        validOrder_ = graph_.buildOrder(dependencyOrder);
-        if (!validOrder_) {
-            executionOrder_.clear();
-            dirty_ = false;
-            return;
-        }
-
-        std::stable_sort(dependencyOrder.begin(), dependencyOrder.end(), [this](std::size_t a, std::size_t b) {
-            const auto phaseA = static_cast<std::uint8_t>(systems_[a]->phase());
-            const auto phaseB = static_cast<std::uint8_t>(systems_[b]->phase());
-            return phaseA < phaseB;
-        });
-
-        executionOrder_ = std::move(dependencyOrder);
+        validOrder_ = graph_.buildOrder(executionOrder_);
         dirty_ = false;
     }
 
