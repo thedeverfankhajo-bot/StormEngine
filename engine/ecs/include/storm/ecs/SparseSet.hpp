@@ -1,10 +1,10 @@
 #pragma once
 
 #include "Entity.hpp"
+#include <algorithm>
 #include <cassert>
 #include <cstddef>
 #include <limits>
-#include <utility>
 #include <vector>
 
 namespace storm::ecs {
