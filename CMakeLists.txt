@@ -30,10 +30,20 @@ target_include_directories(storm_core PUBLIC
     engine/render/include
 )
 
-add_executable(storm_sandbox examples/sandbox/main.cpp)
-target_link_libraries(storm_sandbox PRIVATE storm_core)
+if(NOT ANDROID)
+    add_executable(storm_sandbox examples/sandbox/main.cpp)
+    target_link_libraries(storm_sandbox PRIVATE storm_core)
+endif()
 
-if(STORM_BUILD_TESTS)
+if(ANDROID)
+    add_library(storm_android SHARED
+        android/app/src/main/cpp/StormAndroidSmoke.cpp
+    )
+    target_link_libraries(storm_android PRIVATE storm_core GLESv3 EGL log)
+    target_compile_definitions(storm_android PRIVATE STORM_BUILD_GLES=1)
+endif()
+
+if(STORM_BUILD_TESTS AND NOT ANDROID)
     enable_testing()
 
     function(storm_add_test target source)
