@@ -45,6 +45,25 @@ void NullRenderDevice::destroyTexture(TextureHandle handle) {
     textures_.erase(handle.id());
 }
 
+ShaderHandle NullRenderDevice::createShader(const ShaderDesc& desc, const std::string& source) {
+    if (source.empty())
+        return {};
+    if (desc.stage != ShaderStage::Vertex && desc.stage != ShaderStage::Fragment)
+        return {};
+
+    const auto id = nextShaderId_++;
+    if (id == ShaderHandle::invalidId)
+        return {};
+    shaders_.insert(id);
+    return ShaderHandle(id);
+}
+
+void NullRenderDevice::destroyShader(ShaderHandle handle) {
+    if (!handle.valid())
+        return;
+    shaders_.erase(handle.id());
+}
+
 void NullRenderDevice::beginFrame() {
     frameActive_ = true;
     submittedDraws_ = 0;
@@ -64,6 +83,9 @@ bool NullRenderDevice::submit(const DrawCommand& command) {
     } else if (command.indexBuffer.valid()) {
         return false;
     }
+
+    if (command.shader.valid() && shaders_.find(command.shader.id()) == shaders_.end())
+        return false;
 
     ++submittedDraws_;
     return true;
