@@ -165,7 +165,7 @@ private:
 
             Entity entity{id, generations_[id]};
             if ((has<Components>(entity) && ...))
-                std::invoke(std::forward<Func>(func), entity, get<Components>(entity)...);
+                std::invoke(std::forward<Func>(func), entity, get<Candidate>(entity), get<Components>(entity)...);
         }
         return true;
     }
