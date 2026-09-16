@@ -160,6 +160,8 @@ std::size_t GlesRenderDevice::liveTextureCount() const noexcept {
     return textures_.size();
 }
 
+} // namespace storm::render
+
 #else
 
 namespace storm::render {
