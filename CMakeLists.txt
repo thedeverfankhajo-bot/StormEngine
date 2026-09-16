@@ -26,7 +26,12 @@ target_link_libraries(storm_sandbox PRIVATE storm_core)
 
 if(STORM_BUILD_TESTS)
     enable_testing()
+
     add_executable(storm_core_tests tests/core_tests.cpp)
     target_link_libraries(storm_core_tests PRIVATE storm_core)
     add_test(NAME storm_core_tests COMMAND storm_core_tests)
+
+    add_executable(storm_ecs_tests tests/ecs_tests.cpp)
+    target_link_libraries(storm_ecs_tests PRIVATE storm_core)
+    add_test(NAME storm_ecs_tests COMMAND storm_ecs_tests)
 endif()
