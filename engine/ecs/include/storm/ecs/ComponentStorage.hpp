@@ -13,12 +13,18 @@ public:
     T& emplace(Entity::Id entity, Args&&... args) {
         const std::size_t existing = entities_.position(entity);
         if (existing != SparseSet::kInvalidPosition) {
-            components_[existing] = T(std::forward<Args>(args)...);
+            T value(std::forward<Args>(args)...);
+            components_[existing] = std::move(value);
             return components_[existing];
         }
 
-        entities_.insert(entity);
         components_.emplace_back(std::forward<Args>(args)...);
+        try {
+            entities_.insert(entity);
+        } catch (...) {
+            components_.pop_back();
+            throw;
+        }
         return components_.back();
     }
 
@@ -41,7 +47,6 @@ public:
         const std::size_t last = components_.size() - 1;
         if (position != last)
             components_[position] = std::move(components_[last]);
-
         components_.pop_back();
         entities_.erase(entity);
     }
