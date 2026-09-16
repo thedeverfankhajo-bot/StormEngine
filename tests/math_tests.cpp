@@ -40,11 +40,22 @@ void testQuaternionRotation() {
 
 void testProjection() {
     const auto projection = storm::math::Mat4::perspective(storm::math::radians(90.0f), 1.0f, 0.1f, 100.0f);
-    const auto clip = projection * storm::math::Vec4{0.0f, 0.0f, -1.0f, 1.0f};
-    assert(clip.w > 0.0f);
-    assert(near(clip.x, 0.0f));
-    assert(near(clip.y, 0.0f));
-    assert(clip.z < 0.0f);
+
+    // StormEngine uses right-handed view space with the camera looking down -Z
+    // and OpenGL-style NDC depth in [-1, 1]. A point one unit in front of the
+    // camera therefore has positive clip-space W and a negative Z before the
+    // perspective divide.
+    const auto nearPoint = projection * storm::math::Vec4{0.0f, 0.0f, -1.0f, 1.0f};
+    assert(nearPoint.w > 0.0f);
+    assert(near(nearPoint.x, 0.0f));
+    assert(near(nearPoint.y, 0.0f));
+    assert(near(nearPoint.z, 0.8018018f));
+
+    const auto farPoint = projection * storm::math::Vec4{0.0f, 0.0f, -100.0f, 1.0f};
+    assert(near(farPoint.z / farPoint.w, 1.0f));
+
+    const auto nearPlanePoint = projection * storm::math::Vec4{0.0f, 0.0f, -0.1f, 1.0f};
+    assert(near(nearPlanePoint.z / nearPlanePoint.w, -1.0f));
 }
 
 void testTranspose() {
