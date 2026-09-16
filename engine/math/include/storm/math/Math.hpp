@@ -3,6 +3,10 @@
 #include "storm/math/Vec2.hpp"
 #include "storm/math/Vec3.hpp"
 #include "storm/math/Vec4.hpp"
+#include "storm/math/Mat3.hpp"
+#include "storm/math/Mat4.hpp"
+#include "storm/math/Quaternion.hpp"
+#include "storm/math/Transform.hpp"
 
 namespace storm::math {
 
