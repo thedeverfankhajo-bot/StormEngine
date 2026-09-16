@@ -32,9 +32,13 @@ public:
     }
 
     bool dependsOn(std::string_view system, std::string_view dependency) {
-        rebuildGraphIfNeeded();
-        if (!graph_.addDependency(system, dependency)) return false;
+        if (system == dependency) return false;
+        const auto duplicate = std::find(explicitDependencies_.begin(), explicitDependencies_.end(),
+            std::pair<std::string_view, std::string_view>{system, dependency});
+        if (duplicate != explicitDependencies_.end()) return true;
+        explicitDependencies_.emplace_back(system, dependency);
         dirty_ = true;
+        graphDirty_ = true;
         return true;
     }
 
@@ -54,7 +58,6 @@ public:
     void update(Registry& registry, float deltaTime) {
         rebuildOrderIfNeeded();
         if (!validOrder_) return;
-
         SystemContext context{registry};
         for (const std::size_t index : executionOrder_)
             systems_[index]->update(context, deltaTime);
@@ -74,33 +77,47 @@ public:
 private:
     void rebuildGraphIfNeeded() {
         if (!graphDirty_) return;
-
         graph_ = SystemDependencyGraph{};
-        for (const auto& system : systems_)
-            graph_.addSystem(system->name());
-
-        // Phase ordering is a dependency rule as well: every earlier phase
-        // must complete before a later phase can execute.
-        for (std::size_t later = 0; later < systems_.size(); ++later) {
-            for (std::size_t earlier = 0; earlier < later; ++earlier) {
-                const auto earlierPhase = static_cast<std::uint8_t>(systems_[earlier]->phase());
-                const auto laterPhase = static_cast<std::uint8_t>(systems_[later]->phase());
-                if (earlierPhase < laterPhase)
-                    graph_.addDependency(systems_[later]->name(), systems_[earlier]->name());
+        for (const auto& system : systems_) {
+            if (!graph_.addSystem(system->name())) {
+                validOrder_ = false;
+                graphDirty_ = false;
+                return;
             }
         }
 
+        for (std::size_t a = 0; a < systems_.size(); ++a) {
+            for (std::size_t b = a + 1; b < systems_.size(); ++b) {
+                const auto phaseA = static_cast<std::uint8_t>(systems_[a]->phase());
+                const auto phaseB = static_cast<std::uint8_t>(systems_[b]->phase());
+                if (phaseA < phaseB)
+                    graph_.addDependency(systems_[b]->name(), systems_[a]->name());
+                else if (phaseB < phaseA)
+                    graph_.addDependency(systems_[a]->name(), systems_[b]->name());
+            }
+        }
+
+        for (const auto& [system, dependency] : explicitDependencies_)
+            if (!graph_.addDependency(system, dependency)) {
+                validOrder_ = false;
+                graphDirty_ = false;
+                return;
+            }
         graphDirty_ = false;
     }
 
     void rebuildOrderIfNeeded() {
         if (!dirty_) return;
         rebuildGraphIfNeeded();
-        validOrder_ = graph_.buildOrder(executionOrder_);
+        if (validOrder_)
+            validOrder_ = graph_.buildOrder(executionOrder_);
+        else
+            executionOrder_.clear();
         dirty_ = false;
     }
 
     std::vector<std::unique_ptr<System>> systems_;
+    std::vector<std::pair<std::string_view, std::string_view>> explicitDependencies_;
     std::vector<std::size_t> executionOrder_;
     SystemDependencyGraph graph_;
     bool dirty_{true};
