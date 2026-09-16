@@ -34,4 +34,8 @@ if(STORM_BUILD_TESTS)
     add_executable(storm_ecs_tests tests/ecs_tests.cpp)
     target_link_libraries(storm_ecs_tests PRIVATE storm_core)
     add_test(NAME storm_ecs_tests COMMAND storm_ecs_tests)
+
+    add_executable(storm_game_loop_tests tests/game_loop_tests.cpp)
+    target_link_libraries(storm_game_loop_tests PRIVATE storm_core)
+    add_test(NAME storm_game_loop_tests COMMAND storm_game_loop_tests)
 endif()
