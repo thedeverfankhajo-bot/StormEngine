@@ -89,13 +89,13 @@ void testQueryWhenFirstComponentIsNotSmallest() {
     const auto c = registry.create();
     registry.emplace<Position>(a, 1, 0); registry.emplace<Velocity>(a, 10, 0);
     registry.emplace<Position>(b, 2, 0); registry.emplace<Velocity>(b, 20, 0);
-    registry.emplace<Position>(c, 3, 0); registry.emplace<Velocity>(c, 30, 0);
-    registry.remove<Position>(c);
+    registry.emplace<Position>(c, 3, 0); // Position is intentionally the larger storage.
     std::vector<storm::ecs::Entity::Id> visited;
     registry.each<Position, Velocity>([&](auto entity, Position&, Velocity&) { visited.push_back(entity.id()); });
     assert(visited.size() == 2);
-    assert(visited[0] != c.id());
-    assert(visited[1] != c.id());
+    assert(visited[0] == a.id() || visited[0] == b.id());
+    assert(visited[1] == a.id() || visited[1] == b.id());
+    assert(visited[0] != visited[1]);
 }
 
 } // namespace
