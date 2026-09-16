@@ -1,0 +1,36 @@
+name: Build, Test, and Run Sandbox
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug -DSTORM_BUILD_TESTS=ON
+
+      - name: Build
+        run: cmake --build build --parallel
+
+      - name: Test
+        run: ctest --test-dir build --output-on-failure
+
+      - name: Run sandbox
+        run: ./build/storm_sandbox
+
+      - name: Package build artifacts
+        run: |
+          mkdir -p artifacts
+          cp build/storm_sandbox artifacts/
+          cp build/*_tests artifacts/
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: stormengine-linux-debug
+          path: artifacts/
