@@ -3,10 +3,9 @@
 #include "Entity.hpp"
 #include "ComponentType.hpp"
 #include <cassert>
-#include <cstddef>
 #include <memory>
-#include <typeindex>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 
 namespace storm::ecs {
@@ -35,25 +34,21 @@ public:
     }
 
     bool valid(Entity entity) const noexcept {
-        return entity.valid() &&
-               entity.id() < alive_.size() &&
-               alive_[entity.id()] &&
-               generations_[entity.id()] == entity.generation();
+        return entity.valid() && entity.id() < alive_.size() &&
+               alive_[entity.id()] && generations_[entity.id()] == entity.generation();
     }
 
     template <typename T, typename... Args>
     T& emplace(Entity entity, Args&&... args) {
         assert(valid(entity));
-        auto& storage = storageFor<T>();
-        return storage.emplace(entity.id(), std::forward<Args>(args)...);
+        return storageFor<T>().emplace(entity.id(), std::forward<Args>(args)...);
     }
 
     template <typename T>
     bool has(Entity entity) const {
         if (!valid(entity)) return false;
         const auto it = storages_.find(componentType<T>());
-        if (it == storages_.end()) return false;
-        return static_cast<const Storage<T>*>(it->second.get())->has(entity.id());
+        return it != storages_.end() && static_cast<const Storage<T>*>(it->second.get())->has(entity.id());
     }
 
     template <typename T>
@@ -75,14 +70,11 @@ public:
     void remove(Entity entity) {
         if (!valid(entity)) return;
         const auto it = storages_.find(componentType<T>());
-        if (it != storages_.end())
-            static_cast<Storage<T>*>(it->second.get())->remove(entity.id());
+        if (it != storages_.end()) static_cast<Storage<T>*>(it->second.get())->remove(entity.id());
     }
 
 private:
-    struct IStorage {
-        virtual ~IStorage() = default;
-    };
+    struct IStorage { virtual ~IStorage() = default; };
 
     template <typename T>
     struct Storage final : IStorage {
