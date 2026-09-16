@@ -96,16 +96,8 @@ public:
 
     template <typename... Components, typename Func>
     void each(Func&& func) {
-        if constexpr (sizeof...(Components) == 0) {
-            return;
-        } else {
-            for (Entity::Id id = 0; id < alive_.size(); ++id) {
-                if (!alive_[id]) continue;
-                Entity entity{id, generations_[id]};
-                if ((has<Components>(entity) && ...))
-                    std::invoke(std::forward<Func>(func), entity, get<Components>(entity)...);
-            }
-        }
+        static_assert(sizeof...(Components) > 0, "Registry::each requires at least one component");
+        eachSmallest<Components...>(std::forward<Func>(func));
     }
 
     template <typename T>
@@ -133,6 +125,7 @@ private:
         const T* tryGet(Entity::Id id) const noexcept { return data.tryGet(id); }
         void remove(Entity::Id id) override { data.remove(id); }
         std::size_t size() const noexcept { return data.size(); }
+        Entity::Id entityAt(std::size_t index) const noexcept { return data.entityAt(index); }
     };
 
     template <typename T>
@@ -146,6 +139,45 @@ private:
             return *raw;
         }
         return *static_cast<Storage<T>*>(it->second.get());
+    }
+
+    template <typename T>
+    const Storage<T>* findStorage() const noexcept {
+        const auto it = storages_.find(componentType<T>());
+        return it == storages_.end() ? nullptr : static_cast<const Storage<T>*>(it->second.get());
+    }
+
+    template <typename Candidate, typename... Others>
+    bool isSmallest() const {
+        const std::size_t count = componentCount<Candidate>();
+        return ((count <= componentCount<Others>()) && ...);
+    }
+
+    template <typename Candidate, typename... Components, typename Func>
+    void tryQueryCandidate(Func&& func) {
+        if (!isSmallest<Candidate, Components...>()) return;
+
+        const Storage<Candidate>* storage = findStorage<Candidate>();
+        if (!storage || storage->size() == 0) return;
+
+        for (std::size_t i = 0; i < storage->size(); ++i) {
+            const Entity::Id id = storage->entityAt(i);
+            if (id >= alive_.size() || !alive_[id]) continue;
+
+            Entity entity{id, generations_[id]};
+            if ((has<Components>(entity) && ...))
+                std::invoke(std::forward<Func>(func), entity, get<Components>(entity)...);
+        }
+    }
+
+    template <typename First, typename... Rest, typename Func>
+    void eachSmallest(Func&& func) {
+        if constexpr (sizeof...(Rest) == 0) {
+            tryQueryCandidate<First>(std::forward<Func>(func));
+        } else {
+            tryQueryCandidate<First, Rest...>(func);
+            eachSmallest<Rest...>(std::forward<Func>(func));
+        }
     }
 
     void removeAllComponents(Entity::Id id) {
