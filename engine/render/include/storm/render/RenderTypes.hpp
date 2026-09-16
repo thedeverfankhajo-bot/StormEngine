@@ -1,5 +1,6 @@
 #pragma once
 
+#include <array>
 #include <cstdint>
 #include <limits>
 #include <type_traits>
@@ -41,7 +42,6 @@ enum class PrimitiveTopology { Points, Lines, Triangles, TriangleStrip };
 enum class IndexType { UInt16, UInt32 };
 
 enum class ShaderStage { Vertex, Fragment };
-
 enum class VertexFormat { Float32, Float32x2, Float32x3, Float32x4 };
 
 struct BufferDesc {
@@ -65,6 +65,18 @@ struct VertexAttribute {
     std::uint32_t offset{0};
 };
 
+struct VertexLayout {
+    static constexpr std::size_t maxAttributes = 8;
+
+    std::array<VertexAttribute, maxAttributes> attributes{};
+    std::uint32_t attributeCount{0};
+    std::uint32_t stride{0};
+
+    constexpr bool valid() const noexcept {
+        return attributeCount > 0 && attributeCount <= maxAttributes && stride > 0;
+    }
+};
+
 struct MeshDesc {
     BufferHandle vertexBuffer{};
     BufferHandle indexBuffer{};
@@ -72,6 +84,7 @@ struct MeshDesc {
     std::uint32_t indexCount{0};
     IndexType indexType{IndexType::UInt32};
     PrimitiveTopology topology{PrimitiveTopology::Triangles};
+    VertexLayout vertexLayout{};
 };
 
 struct DrawCommand {
@@ -86,6 +99,7 @@ struct DrawCommand {
     IndexType indexType{IndexType::UInt32};
     ShaderHandle shader{};
     MaterialHandle material{};
+    VertexLayout vertexLayout{};
 
     constexpr bool indexed() const noexcept { return indexCount > 0; }
 };
@@ -95,6 +109,9 @@ static_assert(std::is_trivially_copyable_v<TextureHandle>);
 static_assert(std::is_trivially_copyable_v<ShaderHandle>);
 static_assert(std::is_trivially_copyable_v<MaterialHandle>);
 static_assert(std::is_trivially_copyable_v<MeshHandle>);
+static_assert(std::is_trivially_copyable_v<VertexAttribute>);
+static_assert(std::is_trivially_copyable_v<VertexLayout>);
+static_assert(std::is_trivially_copyable_v<DrawCommand>);
 static_assert(sizeof(BufferHandle) == sizeof(BufferHandle::Id));
 
 } // namespace storm::render
