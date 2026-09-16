@@ -3,6 +3,7 @@
 #include "Vec3.hpp"
 #include "Vec4.hpp"
 #include <cmath>
+#include <limits>
 
 namespace storm::math {
 
@@ -57,6 +58,44 @@ struct Mat4 {
         const float c = std::cos(radians), s = std::sin(radians);
         result.m[0][0] = c; result.m[0][1] = -s;
         result.m[1][0] = s; result.m[1][1] = c;
+        return result;
+    }
+
+    // Right-handed OpenGL-style perspective projection, depth range [-1, 1].
+    static Mat4 perspective(float verticalFovRadians, float aspect, float nearPlane, float farPlane) {
+        Mat4 result;
+        if (!(verticalFovRadians > 0.0f) || !(aspect > 0.0f) ||
+            !(nearPlane > 0.0f) || !(farPlane > nearPlane)) {
+            return result;
+        }
+        const float tanHalfFov = std::tan(verticalFovRadians * 0.5f);
+        if (!(tanHalfFov > 0.0f) || !std::isfinite(tanHalfFov)) return result;
+        result.m[0][0] = 1.0f / (aspect * tanHalfFov);
+        result.m[1][1] = 1.0f / tanHalfFov;
+        result.m[2][2] = -(farPlane + nearPlane) / (farPlane - nearPlane);
+        result.m[2][3] = -(2.0f * farPlane * nearPlane) / (farPlane - nearPlane);
+        result.m[3][2] = -1.0f;
+        return result;
+    }
+
+    static Mat4 orthographic(float left, float right, float bottom, float top,
+                             float nearPlane, float farPlane) {
+        Mat4 result(1.0f);
+        if (left == right || bottom == top || nearPlane == farPlane) return Mat4{};
+        result.m[0][0] = 2.0f / (right - left);
+        result.m[1][1] = 2.0f / (top - bottom);
+        result.m[2][2] = -2.0f / (farPlane - nearPlane);
+        result.m[0][3] = -(right + left) / (right - left);
+        result.m[1][3] = -(top + bottom) / (top - bottom);
+        result.m[2][3] = -(farPlane + nearPlane) / (farPlane - nearPlane);
+        return result;
+    }
+
+    constexpr Mat4 transposed() const {
+        Mat4 result;
+        for (int row = 0; row < 4; ++row)
+            for (int col = 0; col < 4; ++col)
+                result.m[row][col] = m[col][row];
         return result;
     }
 
