@@ -4,6 +4,7 @@
 #include "ComponentType.hpp"
 #include "Entity.hpp"
 #include <cassert>
+#include <cstdint>
 #include <functional>
 #include <memory>
 #include <unordered_map>
@@ -31,8 +32,10 @@ public:
         if (!valid(entity)) return;
         removeAllComponents(entity.id());
         alive_[entity.id()] = false;
-        ++generations_[entity.id()];
-        freeIds_.push_back(entity.id());
+        if (generations_[entity.id()] != UINT32_MAX) {
+            ++generations_[entity.id()];
+            freeIds_.push_back(entity.id());
+        }
     }
 
     bool valid(Entity entity) const noexcept {
@@ -50,8 +53,7 @@ public:
     bool has(Entity entity) const {
         if (!valid(entity)) return false;
         const auto it = storages_.find(componentType<T>());
-        return it != storages_.end() &&
-               static_cast<const Storage<T>*>(it->second.get())->has(entity.id());
+        return it != storages_.end() && static_cast<const Storage<T>*>(it->second.get())->has(entity.id());
     }
 
     template <typename T>
@@ -88,8 +90,7 @@ public:
     void remove(Entity entity) {
         if (!valid(entity)) return;
         const auto it = storages_.find(componentType<T>());
-        if (it != storages_.end())
-            static_cast<Storage<T>*>(it->second.get())->remove(entity.id());
+        if (it != storages_.end()) static_cast<Storage<T>*>(it->second.get())->remove(entity.id());
     }
 
     template <typename... Components, typename Func>
@@ -149,17 +150,17 @@ private:
         }
     }
 
+    template <typename T>
+    const Storage<T>* findStorage() const noexcept {
+        const auto it = storages_.find(componentType<T>());
+        return it == storages_.end() ? nullptr : static_cast<const Storage<T>*>(it->second.get());
+    }
+
     void removeAllComponents(Entity::Id id) {
         for (auto& [type, storage] : storages_) {
             (void)type;
             storage->remove(id);
         }
-    }
-
-    template <typename T>
-    const Storage<T>* findStorage() const noexcept {
-        const auto it = storages_.find(componentType<T>());
-        return it == storages_.end() ? nullptr : static_cast<const Storage<T>*>(it->second.get());
     }
 
     std::vector<bool> alive_;
