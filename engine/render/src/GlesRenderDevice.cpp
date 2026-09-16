@@ -26,9 +26,76 @@ GLenum toTopology(PrimitiveTopology topology) noexcept {
 GLenum toIndexType(IndexType type) noexcept {
     return type == IndexType::UInt16 ? GL_UNSIGNED_SHORT : GL_UNSIGNED_INT;
 }
+
+GLuint compileShader(GLenum type, const char* source) noexcept {
+    const GLuint shader = glCreateShader(type);
+    if (shader == 0)
+        return 0;
+    glShaderSource(shader, 1, &source, nullptr);
+    glCompileShader(shader);
+
+    GLint compiled = GL_FALSE;
+    glGetShaderiv(shader, GL_COMPILE_STATUS, &compiled);
+    if (compiled != GL_TRUE) {
+        glDeleteShader(shader);
+        return 0;
+    }
+    return shader;
+}
+
+GLuint createTriangleProgram() noexcept {
+    constexpr const char* vertexSource = R"glsl(
+#version 300 es
+layout(location = 0) in vec3 aPosition;
+void main() {
+    gl_Position = vec4(aPosition, 1.0);
+}
+)glsl";
+    constexpr const char* fragmentSource = R"glsl(
+#version 300 es
+precision mediump float;
+out vec4 outColor;
+void main() {
+    outColor = vec4(0.95, 0.25, 0.08, 1.0);
+}
+)glsl";
+
+    const GLuint vertex = compileShader(GL_VERTEX_SHADER, vertexSource);
+    const GLuint fragment = compileShader(GL_FRAGMENT_SHADER, fragmentSource);
+    if (vertex == 0 || fragment == 0) {
+        if (vertex != 0) glDeleteShader(vertex);
+        if (fragment != 0) glDeleteShader(fragment);
+        return 0;
+    }
+
+    const GLuint program = glCreateProgram();
+    if (program == 0) {
+        glDeleteShader(vertex);
+        glDeleteShader(fragment);
+        return 0;
+    }
+
+    glAttachShader(program, vertex);
+    glAttachShader(program, fragment);
+    glLinkProgram(program);
+    glDeleteShader(vertex);
+    glDeleteShader(fragment);
+
+    GLint linked = GL_FALSE;
+    glGetProgramiv(program, GL_LINK_STATUS, &linked);
+    if (linked != GL_TRUE) {
+        glDeleteProgram(program);
+        return 0;
+    }
+    return program;
+}
 } // namespace
 
 GlesRenderDevice::~GlesRenderDevice() {
+    if (vao_ != 0)
+        glDeleteVertexArrays(1, reinterpret_cast<const GLuint*>(&vao_));
+    if (program_ != 0)
+        glDeleteProgram(static_cast<GLuint>(program_));
     for (const auto id : buffers_) {
         const GLuint glId = static_cast<GLuint>(id);
         glDeleteBuffers(1, &glId);
@@ -71,6 +138,18 @@ void GlesRenderDevice::destroyBuffer(BufferHandle handle) {
     const GLuint glId = static_cast<GLuint>(handle.id());
     if (buffers_.erase(handle.id()) != 0)
         glDeleteBuffers(1, &glId);
+}
+
+bool GlesRenderDevice::updateBuffer(BufferHandle handle, const void* data, std::size_t size,
+                                    std::size_t offset) {
+    if (!handle.valid() || data == nullptr || size == 0)
+        return false;
+    if (buffers_.find(handle.id()) == buffers_.end())
+        return false;
+
+    glBindBuffer(GL_ARRAY_BUFFER, static_cast<GLuint>(handle.id()));
+    glBufferSubData(GL_ARRAY_BUFFER, static_cast<GLintptr>(offset), static_cast<GLsizeiptr>(size), data);
+    return glGetError() == GL_NO_ERROR;
 }
 
 TextureHandle GlesRenderDevice::createTexture(const TextureDesc& desc) {
@@ -122,7 +201,25 @@ bool GlesRenderDevice::submit(const DrawCommand& command) {
     if (buffers_.find(command.vertexBuffer.id()) == buffers_.end())
         return false;
 
+    if (!pipelineReady_) {
+        program_ = createTriangleProgram();
+        if (program_ == 0)
+            return false;
+
+        glGenVertexArrays(1, reinterpret_cast<GLuint*>(&vao_));
+        if (vao_ == 0) {
+            glDeleteProgram(static_cast<GLuint>(program_));
+            program_ = 0;
+            return false;
+        }
+        pipelineReady_ = true;
+    }
+
+    glUseProgram(static_cast<GLuint>(program_));
+    glBindVertexArray(static_cast<GLuint>(vao_));
     glBindBuffer(GL_ARRAY_BUFFER, static_cast<GLuint>(command.vertexBuffer.id()));
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * static_cast<GLsizei>(sizeof(float)), nullptr);
 
     if (command.indexed()) {
         if (!command.indexBuffer.valid() || buffers_.find(command.indexBuffer.id()) == buffers_.end())
@@ -168,6 +265,7 @@ namespace storm::render {
 GlesRenderDevice::~GlesRenderDevice() = default;
 BufferHandle GlesRenderDevice::createBuffer(const BufferDesc&) { return {}; }
 void GlesRenderDevice::destroyBuffer(BufferHandle) {}
+bool GlesRenderDevice::updateBuffer(BufferHandle, const void*, std::size_t, std::size_t) { return false; }
 TextureHandle GlesRenderDevice::createTexture(const TextureDesc&) { return {}; }
 void GlesRenderDevice::destroyTexture(TextureHandle) {}
 void GlesRenderDevice::beginFrame() { frameActive_ = true; submittedDraws_ = 0; }
