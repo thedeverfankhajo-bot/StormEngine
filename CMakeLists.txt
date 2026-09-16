@@ -15,6 +15,7 @@ target_include_directories(storm_core PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/engine/core/include
     ${CMAKE_CURRENT_SOURCE_DIR}/engine/math/include
     ${CMAKE_CURRENT_SOURCE_DIR}/engine/ecs/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/engine/render/include
 )
 
 target_compile_features(storm_core PUBLIC cxx_std_20)
@@ -46,4 +47,8 @@ if(STORM_BUILD_TESTS)
     add_executable(storm_math_tests tests/math_tests.cpp)
     target_link_libraries(storm_math_tests PRIVATE storm_core)
     add_test(NAME storm_math_tests COMMAND storm_math_tests)
+
+    add_executable(storm_camera_tests tests/camera_tests.cpp)
+    target_link_libraries(storm_camera_tests PRIVATE storm_core)
+    add_test(NAME storm_camera_tests COMMAND storm_camera_tests)
 endif()
