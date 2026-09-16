@@ -44,8 +44,9 @@ bool NullRenderDevice::submit(const DrawCommand& command) {
     if (command.indexCount > 0) {
         if (!command.indexBuffer.valid() || buffers_.find(command.indexBuffer.id()) == buffers_.end()) return false;
     } else if (command.indexBuffer.valid()) return false;
-    if (command.shader.valid() && shaders_.find(command.shader.id()) == shaders_.end()) return false;
-    if (command.fragmentShader.valid() && shaders_.find(command.fragmentShader.id()) == shaders_.end()) return false;
+    if (!command.shader.valid() || !command.fragmentShader.valid()) return false;
+    if (shaders_.find(command.shader.id()) == shaders_.end() ||
+        shaders_.find(command.fragmentShader.id()) == shaders_.end()) return false;
     ++submittedDraws_;
     return true;
 }
