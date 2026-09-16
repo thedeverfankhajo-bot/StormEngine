@@ -1,6 +1,7 @@
 #include <cassert>
 #include <cmath>
 
+#include "storm/math/Math.hpp"
 #include "storm/render/Camera.hpp"
 
 namespace {
