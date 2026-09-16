@@ -38,4 +38,8 @@ if(STORM_BUILD_TESTS)
     add_executable(storm_game_loop_tests tests/game_loop_tests.cpp)
     target_link_libraries(storm_game_loop_tests PRIVATE storm_core)
     add_test(NAME storm_game_loop_tests COMMAND storm_game_loop_tests)
+
+    add_executable(storm_scheduler_tests tests/scheduler_tests.cpp)
+    target_link_libraries(storm_scheduler_tests PRIVATE storm_core)
+    add_test(NAME storm_scheduler_tests COMMAND storm_scheduler_tests)
 endif()
