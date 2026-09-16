@@ -6,4 +6,5 @@
 #include "Query.hpp"
 #include "SystemPhase.hpp"
 #include "System.hpp"
+#include "SystemDependencyGraph.hpp"
 #include "SystemScheduler.hpp"
