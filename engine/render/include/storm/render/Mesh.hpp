@@ -12,6 +12,7 @@ public:
     [[nodiscard]] const MeshDesc& description() const noexcept { return desc_; }
     [[nodiscard]] bool valid() const noexcept {
         return desc_.vertexBuffer.valid() && desc_.vertexCount > 0 &&
+               desc_.vertexLayout.valid() &&
                (desc_.indexCount == 0 || desc_.indexBuffer.valid());
     }
     [[nodiscard]] bool indexed() const noexcept { return desc_.indexCount > 0; }
@@ -24,6 +25,7 @@ public:
         command.vertexCount = desc_.vertexCount;
         command.indexCount = desc_.indexCount;
         command.indexType = desc_.indexType;
+        command.vertexLayout = desc_.vertexLayout;
         return command;
     }
 
