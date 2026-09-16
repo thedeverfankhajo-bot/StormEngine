@@ -11,12 +11,12 @@ option(STORM_BUILD_GLES "Build OpenGL ES 3.x backend" OFF)
 add_library(storm_core
     engine/core/src/Engine.cpp
     engine/render/src/NullRenderDevice.cpp
+    engine/render/src/GlesContext.cpp
 )
 
 if(STORM_BUILD_GLES)
     target_sources(storm_core PRIVATE
         engine/render/src/GlesRenderDevice.cpp
-        engine/render/src/GlesContext.cpp
     )
     if(ANDROID)
         target_link_libraries(storm_core PRIVATE GLESv3 EGL)
