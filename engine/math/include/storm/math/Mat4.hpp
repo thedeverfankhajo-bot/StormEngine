@@ -3,7 +3,6 @@
 #include "Vec3.hpp"
 #include "Vec4.hpp"
 #include <cmath>
-#include <limits>
 
 namespace storm::math {
 
@@ -11,7 +10,6 @@ struct Mat4 {
     float m[4][4]{};
 
     constexpr Mat4() = default;
-
     constexpr Mat4(float diagonal) {
         m[0][0] = diagonal;
         m[1][1] = diagonal;
@@ -61,13 +59,11 @@ struct Mat4 {
         return result;
     }
 
-    // Right-handed OpenGL-style perspective projection, depth range [-1, 1].
+    // Right-handed OpenGL-style projection, with NDC depth in [-1, 1].
     static Mat4 perspective(float verticalFovRadians, float aspect, float nearPlane, float farPlane) {
         Mat4 result;
         if (!(verticalFovRadians > 0.0f) || !(aspect > 0.0f) ||
-            !(nearPlane > 0.0f) || !(farPlane > nearPlane)) {
-            return result;
-        }
+            !(nearPlane > 0.0f) || !(farPlane > nearPlane)) return result;
         const float tanHalfFov = std::tan(verticalFovRadians * 0.5f);
         if (!(tanHalfFov > 0.0f) || !std::isfinite(tanHalfFov)) return result;
         result.m[0][0] = 1.0f / (aspect * tanHalfFov);
@@ -80,8 +76,8 @@ struct Mat4 {
 
     static Mat4 orthographic(float left, float right, float bottom, float top,
                              float nearPlane, float farPlane) {
-        Mat4 result(1.0f);
         if (left == right || bottom == top || nearPlane == farPlane) return Mat4{};
+        Mat4 result(1.0f);
         result.m[0][0] = 2.0f / (right - left);
         result.m[1][1] = 2.0f / (top - bottom);
         result.m[2][2] = -2.0f / (farPlane - nearPlane);
