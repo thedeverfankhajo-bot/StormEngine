@@ -9,6 +9,8 @@ class NullRenderDevice final : public RenderDevice {
 public:
     BufferHandle createBuffer(const BufferDesc& desc) override;
     void destroyBuffer(BufferHandle handle) override;
+    bool updateBuffer(BufferHandle handle, const void* data, std::size_t size,
+                      std::size_t offset = 0) override;
 
     TextureHandle createTexture(const TextureDesc& desc) override;
     void destroyTexture(TextureHandle handle) override;
