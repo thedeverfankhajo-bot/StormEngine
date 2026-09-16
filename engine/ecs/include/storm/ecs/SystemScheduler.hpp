@@ -7,6 +7,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <memory>
+#include <string>
 #include <string_view>
 #include <type_traits>
 #include <utility>
@@ -32,9 +33,11 @@ public:
     }
 
     bool dependsOn(std::string_view system, std::string_view dependency) {
-        if (system == dependency) return false;
-        const auto duplicate = std::find(explicitDependencies_.begin(), explicitDependencies_.end(),
-            std::pair<std::string_view, std::string_view>{system, dependency});
+        if (system == dependency || !contains(system) || !contains(dependency)) return false;
+        const auto duplicate = std::find_if(explicitDependencies_.begin(), explicitDependencies_.end(),
+            [system, dependency](const auto& pair) {
+                return pair.first == system && pair.second == dependency;
+            });
         if (duplicate != explicitDependencies_.end()) return true;
         explicitDependencies_.emplace_back(system, dependency);
         dirty_ = true;
@@ -97,12 +100,13 @@ private:
             }
         }
 
-        for (const auto& [system, dependency] : explicitDependencies_)
+        for (const auto& [system, dependency] : explicitDependencies_) {
             if (!graph_.addDependency(system, dependency)) {
                 validOrder_ = false;
                 graphDirty_ = false;
                 return;
             }
+        }
         graphDirty_ = false;
     }
 
@@ -117,7 +121,7 @@ private:
     }
 
     std::vector<std::unique_ptr<System>> systems_;
-    std::vector<std::pair<std::string_view, std::string_view>> explicitDependencies_;
+    std::vector<std::pair<std::string, std::string>> explicitDependencies_;
     std::vector<std::size_t> executionOrder_;
     SystemDependencyGraph graph_;
     bool dirty_{true};
