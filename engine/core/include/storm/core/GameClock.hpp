@@ -21,13 +21,21 @@ public:
     void advance(float realDeltaSeconds) noexcept {
         frameDeltaSeconds_ = std::clamp(realDeltaSeconds, 0.0f, maxFrameDeltaSeconds_);
         accumulatorSeconds_ += frameDeltaSeconds_;
-        fixedSteps_ = static_cast<unsigned int>(
+
+        if (fixedDeltaSeconds_ <= 0.0f) {
+            fixedSteps_ = 0;
+            accumulatorSeconds_ = 0.0f;
+            return;
+        }
+
+        const auto steps = static_cast<unsigned int>(
             std::floor(accumulatorSeconds_ / fixedDeltaSeconds_));
+        fixedSteps_ += steps;
+        accumulatorSeconds_ -= static_cast<float>(steps) * fixedDeltaSeconds_;
     }
 
     bool consumeFixedStep() noexcept {
         if (fixedSteps_ == 0) return false;
-        accumulatorSeconds_ -= fixedDeltaSeconds_;
         --fixedSteps_;
         return true;
     }
