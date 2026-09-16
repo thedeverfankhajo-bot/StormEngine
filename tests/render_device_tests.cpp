@@ -27,7 +27,6 @@ int main() {
     draw.vertexBuffer = vertexBuffer;
     draw.vertexCount = 3;
 
-    // Submission outside a frame is rejected.
     assert(!device.submit(draw));
 
     device.beginFrame();
@@ -63,7 +62,6 @@ int main() {
     assert(device.liveBufferCount() == 0);
     assert(device.liveTextureCount() == 0);
 
-    // Destruction is idempotent for the null backend.
     device.destroyBuffer(indexBuffer);
     device.destroyTexture(texture);
 
