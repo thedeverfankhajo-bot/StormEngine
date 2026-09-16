@@ -5,13 +5,14 @@
 #include <cstdint>
 
 #if defined(__ANDROID__)
+#include <unordered_map>
 #include <unordered_set>
 #endif
 
 namespace storm::render {
 
 // OpenGL ES 3.x backend. The caller must make a valid GLES context current
-// before using the device. The backend owns GL buffer/texture lifetime.
+// before using the device. The backend owns GL buffer/texture/shader lifetime.
 class GlesRenderDevice final : public RenderDevice {
 public:
     GlesRenderDevice() = default;
@@ -28,12 +29,16 @@ public:
     TextureHandle createTexture(const TextureDesc& desc) override;
     void destroyTexture(TextureHandle handle) override;
 
+    ShaderHandle createShader(const ShaderDesc& desc, const std::string& source) override;
+    void destroyShader(ShaderHandle handle) override;
+
     void beginFrame() override;
     bool submit(const DrawCommand& command) override;
     void endFrame() override;
 
     [[nodiscard]] std::size_t liveBufferCount() const noexcept override;
     [[nodiscard]] std::size_t liveTextureCount() const noexcept override;
+    [[nodiscard]] std::size_t liveShaderCount() const noexcept override;
     [[nodiscard]] std::size_t submittedDrawCount() const noexcept override { return submittedDraws_; }
 
 private:
@@ -41,12 +46,14 @@ private:
 
     std::uint32_t nextBufferId_{1};
     std::uint32_t nextTextureId_{1};
+    std::uint32_t nextShaderId_{1};
     std::size_t submittedDraws_{0};
     bool frameActive_{false};
 
 #if defined(__ANDROID__)
     std::unordered_set<std::uint32_t> buffers_;
     std::unordered_set<std::uint32_t> textures_;
+    std::unordered_map<std::uint32_t, std::uint32_t> shaders_;
     std::uint32_t program_{0};
     std::uint32_t vao_{0};
     bool pipelineReady_{false};
