@@ -49,9 +49,17 @@ bool NullRenderDevice::submit(const DrawCommand& command) {
     if (buffers_.find(command.vertexBuffer.id()) == buffers_.end())
         return false;
 
-    if (command.indexed()) {
+    // indexCount declares an indexed draw, so an index buffer is mandatory.
+    // This deliberately validates the declaration independently of indexed()
+    // so malformed commands cannot silently become non-indexed draws.
+    if (command.indexCount > 0) {
+        if (!command.indexBuffer.valid())
+            return false;
         if (buffers_.find(command.indexBuffer.id()) == buffers_.end())
             return false;
+    } else if (command.indexBuffer.valid()) {
+        // A buffer without an index count is ambiguous and is rejected.
+        return false;
     }
 
     ++submittedDraws_;
