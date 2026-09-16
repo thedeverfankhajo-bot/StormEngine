@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <limits>
+#include <type_traits>
 
 namespace storm::render {
 
@@ -46,6 +47,11 @@ enum class PrimitiveTopology {
     TriangleStrip
 };
 
+enum class IndexType {
+    UInt16,
+    UInt32
+};
+
 struct BufferDesc {
     std::uint64_t size{0};
     BufferUsage usage{BufferUsage::Static};
@@ -56,5 +62,25 @@ struct TextureDesc {
     std::uint32_t height{1};
     std::uint32_t mipLevels{1};
 };
+
+struct DrawCommand {
+    PrimitiveTopology topology{PrimitiveTopology::Triangles};
+    BufferHandle vertexBuffer{};
+    BufferHandle indexBuffer{};
+    std::uint32_t vertexCount{0};
+    std::uint32_t indexCount{0};
+    std::uint32_t firstVertex{0};
+    std::uint32_t firstIndex{0};
+    std::int32_t baseVertex{0};
+    IndexType indexType{IndexType::UInt32};
+
+    constexpr bool indexed() const noexcept { return indexBuffer.valid() && indexCount > 0; }
+};
+
+static_assert(std::is_trivially_copyable_v<BufferHandle>);
+static_assert(std::is_trivially_copyable_v<TextureHandle>);
+static_assert(std::is_trivially_copyable_v<ShaderHandle>);
+static_assert(std::is_trivially_copyable_v<MaterialHandle>);
+static_assert(sizeof(BufferHandle) == sizeof(BufferHandle::Id));
 
 } // namespace storm::render
