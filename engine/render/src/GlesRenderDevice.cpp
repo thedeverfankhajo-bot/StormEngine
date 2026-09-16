@@ -3,12 +3,9 @@
 #if defined(__ANDROID__)
 
 #include <GLES3/gl3.h>
-#include <unordered_set>
 
 namespace storm::render {
 namespace {
-std::unordered_set<std::uint32_t> gBuffers;
-std::unordered_set<std::uint32_t> gTextures;
 GLenum toUsage(BufferUsage usage) noexcept {
     switch (usage) {
     case BufferUsage::Dynamic: return GL_DYNAMIC_DRAW;
@@ -30,10 +27,14 @@ GLenum toIndexType(IndexType type) noexcept {
 }
 
 GlesRenderDevice::~GlesRenderDevice() {
-    for (const auto id : gBuffers) { const GLuint glId = static_cast<GLuint>(id); glDeleteBuffers(1, &glId); }
-    for (const auto id : gTextures) { const GLuint glId = static_cast<GLuint>(id); glDeleteTextures(1, &glId); }
-    gBuffers.clear();
-    gTextures.clear();
+    for (const auto id : buffers_) {
+        const GLuint glId = static_cast<GLuint>(id);
+        glDeleteBuffers(1, &glId);
+    }
+    for (const auto id : textures_) {
+        const GLuint glId = static_cast<GLuint>(id);
+        glDeleteTextures(1, &glId);
+    }
 }
 
 std::uint32_t GlesRenderDevice::allocateHandle(std::uint32_t& next) {
@@ -49,14 +50,14 @@ BufferHandle GlesRenderDevice::createBuffer(const BufferDesc& desc) {
     glBindBuffer(GL_ARRAY_BUFFER, glId);
     glBufferData(GL_ARRAY_BUFFER, static_cast<GLsizeiptr>(desc.size), nullptr, toUsage(desc.usage));
     if (glGetError() != GL_NO_ERROR) { glDeleteBuffers(1, &glId); return {}; }
-    gBuffers.insert(glId);
+    buffers_.insert(glId);
     return BufferHandle(glId);
 }
 
 void GlesRenderDevice::destroyBuffer(BufferHandle handle) {
     if (!handle.valid()) return;
     const GLuint glId = static_cast<GLuint>(handle.id());
-    if (gBuffers.erase(handle.id()) != 0) glDeleteBuffers(1, &glId);
+    if (buffers_.erase(handle.id()) != 0) glDeleteBuffers(1, &glId);
 }
 
 TextureHandle GlesRenderDevice::createTexture(const TextureDesc& desc) {
@@ -73,24 +74,24 @@ TextureHandle GlesRenderDevice::createTexture(const TextureDesc& desc) {
                  GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
     if (desc.mipLevels > 1) glGenerateMipmap(GL_TEXTURE_2D);
     if (glGetError() != GL_NO_ERROR) { glDeleteTextures(1, &glId); return {}; }
-    gTextures.insert(glId);
+    textures_.insert(glId);
     return TextureHandle(glId);
 }
 
 void GlesRenderDevice::destroyTexture(TextureHandle handle) {
     if (!handle.valid()) return;
     const GLuint glId = static_cast<GLuint>(handle.id());
-    if (gTextures.erase(handle.id()) != 0) glDeleteTextures(1, &glId);
+    if (textures_.erase(handle.id()) != 0) glDeleteTextures(1, &glId);
 }
 
 void GlesRenderDevice::beginFrame() { frameActive_ = true; submittedDraws_ = 0; }
 
 bool GlesRenderDevice::submit(const DrawCommand& command) {
     if (!frameActive_ || !command.vertexBuffer.valid() || command.vertexCount == 0) return false;
-    if (gBuffers.find(command.vertexBuffer.id()) == gBuffers.end()) return false;
+    if (buffers_.find(command.vertexBuffer.id()) == buffers_.end()) return false;
     glBindBuffer(GL_ARRAY_BUFFER, static_cast<GLuint>(command.vertexBuffer.id()));
     if (command.indexed()) {
-        if (!command.indexBuffer.valid() || gBuffers.find(command.indexBuffer.id()) == gBuffers.end()) return false;
+        if (!command.indexBuffer.valid() || buffers_.find(command.indexBuffer.id()) == buffers_.end()) return false;
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, static_cast<GLuint>(command.indexBuffer.id()));
         const std::size_t indexSize = command.indexType == IndexType::UInt16 ? sizeof(std::uint16_t) : sizeof(std::uint32_t);
         const void* offset = reinterpret_cast<const void*>(static_cast<std::uintptr_t>(command.firstIndex) * indexSize);
@@ -104,8 +105,8 @@ bool GlesRenderDevice::submit(const DrawCommand& command) {
 }
 
 void GlesRenderDevice::endFrame() { frameActive_ = false; }
-std::size_t GlesRenderDevice::liveBufferCount() const noexcept { return gBuffers.size(); }
-std::size_t GlesRenderDevice::liveTextureCount() const noexcept { return gTextures.size(); }
+std::size_t GlesRenderDevice::liveBufferCount() const noexcept { return buffers_.size(); }
+std::size_t GlesRenderDevice::liveTextureCount() const noexcept { return textures_.size(); }
 
 #else
 
