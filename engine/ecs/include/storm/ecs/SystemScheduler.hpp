@@ -24,6 +24,9 @@ public:
         auto system = std::make_unique<T>(std::forward<Args>(args)...);
         T& reference = *system;
         systems_.push_back(std::move(system));
+        std::stable_sort(systems_.begin(), systems_.end(), [](const auto& left, const auto& right) {
+            return static_cast<std::uint8_t>(left->phase()) < static_cast<std::uint8_t>(right->phase());
+        });
         return reference;
     }
 
