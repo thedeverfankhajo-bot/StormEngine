@@ -11,7 +11,7 @@
 namespace storm::render {
 
 // OpenGL ES 3.x backend. The caller must make a valid GLES context current
-// before using the device. The backend owns GL buffer/texture object lifetime.
+// before using the device. The backend owns GL buffer/texture lifetime.
 class GlesRenderDevice final : public RenderDevice {
 public:
     GlesRenderDevice() = default;
@@ -22,6 +22,8 @@ public:
 
     BufferHandle createBuffer(const BufferDesc& desc) override;
     void destroyBuffer(BufferHandle handle) override;
+    bool updateBuffer(BufferHandle handle, const void* data, std::size_t size,
+                      std::size_t offset = 0) override;
 
     TextureHandle createTexture(const TextureDesc& desc) override;
     void destroyTexture(TextureHandle handle) override;
@@ -45,6 +47,9 @@ private:
 #if defined(__ANDROID__)
     std::unordered_set<std::uint32_t> buffers_;
     std::unordered_set<std::uint32_t> textures_;
+    std::uint32_t program_{0};
+    std::uint32_t vao_{0};
+    bool pipelineReady_{false};
 #endif
 };
 
