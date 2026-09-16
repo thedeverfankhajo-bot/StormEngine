@@ -57,7 +57,11 @@ int main() {
     nonIndexed.vertexBuffer = BufferHandle(11);
     nonIndexed.vertexCount = 36;
     nonIndexed.firstVertex = 2;
+    nonIndexed.shader = ShaderHandle(20);
+    nonIndexed.fragmentShader = ShaderHandle(21);
     assert(!nonIndexed.indexed());
+    assert(nonIndexed.shader.valid());
+    assert(nonIndexed.fragmentShader.valid());
 
     DrawCommand indexed{};
     indexed.topology = PrimitiveTopology::TriangleStrip;
@@ -67,7 +71,10 @@ int main() {
     indexed.firstIndex = 4;
     indexed.baseVertex = -3;
     indexed.indexType = IndexType::UInt16;
+    indexed.shader = ShaderHandle(22);
+    indexed.fragmentShader = ShaderHandle(23);
     assert(indexed.indexed());
+    assert(indexed.fragmentShader.id() == 23);
 
     indexed.indexCount = 0;
     assert(!indexed.indexed());
@@ -89,6 +96,7 @@ int main() {
     const auto& commands = queue.commands();
     assert(commands.size() == 2);
     assert(commands[0].vertexBuffer == BufferHandle(11));
+    assert(commands[0].fragmentShader == ShaderHandle(21));
     assert(commands[1].vertexBuffer == BufferHandle(12));
 
     queue.beginFrame();
