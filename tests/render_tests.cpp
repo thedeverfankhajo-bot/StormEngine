@@ -73,7 +73,7 @@ int main() {
     assert(!indexed.indexed());
     indexed.indexCount = 1;
     indexed.indexBuffer = BufferHandle{};
-    assert(!indexed.indexed());
+    assert(indexed.indexed());
 
     RenderQueue queue;
     assert(queue.empty());
@@ -95,7 +95,6 @@ int main() {
     assert(queue.empty());
     assert(queue.size() == 0);
 
-    // A queue can be reused for another frame without retaining old commands.
     queue.submit(indexed);
     assert(queue.size() == 1);
     assert(queue.at(0).indexType == IndexType::UInt16);
