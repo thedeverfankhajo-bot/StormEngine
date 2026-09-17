@@ -1,5 +1,7 @@
 #include "storm/render/NullRenderDevice.hpp"
 
+#include <limits>
+
 namespace storm::render {
 
 BufferHandle NullRenderDevice::createBuffer(const BufferDesc& desc) {
@@ -62,8 +64,9 @@ bool NullRenderDevice::submit(const DrawCommand& command) {
     if (vertexIt == buffers_.end()) return false;
 
     const std::uint64_t vertexEnd = static_cast<std::uint64_t>(command.firstVertex) + command.vertexCount;
+    if (vertexEnd > std::numeric_limits<std::uint64_t>::max() / command.vertexLayout.stride) return false;
     const std::uint64_t vertexBytes = vertexEnd * command.vertexLayout.stride;
-    if (vertexEnd < command.firstVertex || vertexBytes < vertexEnd || vertexBytes > vertexIt->second) return false;
+    if (vertexBytes > vertexIt->second) return false;
 
     if (command.indexed()) {
         if (!command.indexBuffer.valid()) return false;
@@ -72,8 +75,7 @@ bool NullRenderDevice::submit(const DrawCommand& command) {
         const std::uint64_t indexSize = command.indexType == IndexType::UInt16 ? 2u : 4u;
         const std::uint64_t indexOffset = static_cast<std::uint64_t>(command.firstIndex) * indexSize;
         const std::uint64_t indexBytes = static_cast<std::uint64_t>(command.indexCount) * indexSize;
-        if (indexOffset / indexSize != command.firstIndex || indexBytes / indexSize != command.indexCount ||
-            indexOffset > indexIt->second || indexBytes > indexIt->second - indexOffset) return false;
+        if (indexOffset > indexIt->second || indexBytes > indexIt->second - indexOffset) return false;
     } else if (command.indexBuffer.valid()) {
         return false;
     }
