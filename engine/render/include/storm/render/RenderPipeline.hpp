@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Material.hpp"
 #include "RenderTypes.hpp"
 
 namespace storm::render {
@@ -35,6 +36,13 @@ public:
         result.fragmentShader = fragmentShader_;
         result.material = material_;
         result.topology = topology_;
+        return result;
+    }
+
+    [[nodiscard]] DrawCommand apply(const DrawCommand& command,
+                                    const Material& material) const noexcept {
+        DrawCommand result = apply(command);
+        result.materialData = &material;
         return result;
     }
 
