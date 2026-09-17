@@ -67,7 +67,12 @@ int main() {
     assert(applied.shader == ShaderHandle(11));
     assert(applied.fragmentShader == ShaderHandle(12));
     assert(applied.material == MaterialHandle(13));
+    assert(applied.materialData == nullptr);
     assert(applied.topology == PrimitiveTopology::TriangleStrip);
+
+    const DrawCommand withMaterial = pipeline.apply(source, material);
+    assert(withMaterial.material == MaterialHandle(13));
+    assert(withMaterial.materialData == &material);
 
     pipeline.setVertexShader(ShaderHandle(21));
     pipeline.setFragmentShader(ShaderHandle(22));
