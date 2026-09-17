@@ -41,13 +41,16 @@ GLuint compileShader(GLenum type, const char* source) noexcept {
     if (compiled != GL_TRUE) { glDeleteShader(shader); return 0; }
     return shader;
 }
+constexpr std::uint64_t maxGlSize = static_cast<std::uint64_t>(std::numeric_limits<GLsizeiptr>::max());
+constexpr std::uint64_t maxGlCount = static_cast<std::uint64_t>(std::numeric_limits<GLsizei>::max());
+constexpr std::uint64_t maxGlInt = static_cast<std::uint64_t>(std::numeric_limits<GLint>::max());
 } // namespace
 
 GlesRenderDevice::~GlesRenderDevice() {
-    if (vao_ != 0) glDeleteVertexArrays(1, reinterpret_cast<const GLuint*>(&vao_));
+    if (vao_ != 0) { const GLuint id = static_cast<GLuint>(vao_); glDeleteVertexArrays(1, &id); }
     if (program_ != 0) glDeleteProgram(static_cast<GLuint>(program_));
     for (const auto& [handle, shader] : shaders_) { (void)handle; glDeleteShader(static_cast<GLuint>(shader)); }
-    for (const auto& [handle, size] : buffers_) { (void)size; const GLuint glId = static_cast<GLuint>(handle); glDeleteBuffers(1, &glId); }
+    for (const auto& [handle, size] : buffers_) { (void)size; const GLuint id = static_cast<GLuint>(handle); glDeleteBuffers(1, &id); }
     for (const auto id : textures_) { const GLuint glId = static_cast<GLuint>(id); glDeleteTextures(1, &glId); }
 }
 
@@ -57,8 +60,7 @@ std::uint32_t GlesRenderDevice::allocateHandle(std::uint32_t& next) {
 }
 
 BufferHandle GlesRenderDevice::createBuffer(const BufferDesc& desc) {
-    if (desc.size == 0 || desc.size > static_cast<std::uint64_t>(std::numeric_limits<std::size_t>::max()) ||
-        desc.size > static_cast<std::uint64_t>(std::numeric_limits<GLsizeiptr>::max())) return {};
+    if (desc.size == 0 || desc.size > maxGlSize) return {};
     GLuint glId = 0;
     glGenBuffers(1, &glId);
     if (glId == 0) return {};
@@ -70,20 +72,22 @@ BufferHandle GlesRenderDevice::createBuffer(const BufferDesc& desc) {
 }
 void GlesRenderDevice::destroyBuffer(BufferHandle handle) {
     if (!handle.valid()) return;
-    const GLuint glId = static_cast<GLuint>(handle.id());
-    if (buffers_.erase(handle.id()) != 0) glDeleteBuffers(1, &glId);
+    const GLuint id = static_cast<GLuint>(handle.id());
+    if (buffers_.erase(handle.id()) != 0) glDeleteBuffers(1, &id);
 }
 bool GlesRenderDevice::updateBuffer(BufferHandle handle, const void* data, std::size_t size, std::size_t offset) {
     if (!handle.valid() || data == nullptr || size == 0) return false;
     const auto it = buffers_.find(handle.id());
-    if (it == buffers_.end() || offset > static_cast<std::size_t>(it->second) ||
-        size > static_cast<std::size_t>(it->second) - offset) return false;
+    if (it == buffers_.end() || offset > it->second || size > it->second - offset ||
+        size > maxGlSize || offset > maxGlSize) return false;
     glBindBuffer(GL_ARRAY_BUFFER, static_cast<GLuint>(handle.id()));
     glBufferSubData(GL_ARRAY_BUFFER, static_cast<GLintptr>(offset), static_cast<GLsizeiptr>(size), data);
     return glGetError() == GL_NO_ERROR;
 }
 TextureHandle GlesRenderDevice::createTexture(const TextureDesc& desc) {
-    if (desc.width == 0 || desc.height == 0 || desc.mipLevels == 0) return {};
+    if (desc.width == 0 || desc.height == 0 || desc.mipLevels == 0 ||
+        desc.width > static_cast<std::uint32_t>(std::numeric_limits<GLsizei>::max()) ||
+        desc.height > static_cast<std::uint32_t>(std::numeric_limits<GLsizei>::max())) return {};
     GLuint glId = 0;
     glGenTextures(1, &glId);
     if (glId == 0) return {};
@@ -100,8 +104,8 @@ TextureHandle GlesRenderDevice::createTexture(const TextureDesc& desc) {
 }
 void GlesRenderDevice::destroyTexture(TextureHandle handle) {
     if (!handle.valid()) return;
-    const GLuint glId = static_cast<GLuint>(handle.id());
-    if (textures_.erase(handle.id()) != 0) glDeleteTextures(1, &glId);
+    const GLuint id = static_cast<GLuint>(handle.id());
+    if (textures_.erase(handle.id()) != 0) glDeleteTextures(1, &id);
 }
 ShaderHandle GlesRenderDevice::createShader(const ShaderDesc& desc, const std::string& source) {
     if (source.empty()) return {};
@@ -132,8 +136,21 @@ bool GlesRenderDevice::submit(const DrawCommand& command) {
     if (vertexIt == shaders_.end() || fragmentIt == shaders_.end()) return false;
 
     const std::uint64_t vertexEnd = static_cast<std::uint64_t>(command.firstVertex) + command.vertexCount;
+    if (vertexEnd < command.firstVertex || vertexEnd > maxGlCount ||
+        command.vertexLayout.stride == 0 ||
+        vertexEnd > std::numeric_limits<std::uint64_t>::max() / command.vertexLayout.stride) return false;
     const std::uint64_t vertexBytes = vertexEnd * command.vertexLayout.stride;
     if (vertexBytes > vertexBufferIt->second) return false;
+
+    for (std::uint32_t i = 0; i < command.vertexLayout.attributeCount; ++i) {
+        const auto& attribute = command.vertexLayout.attributes[i];
+        const GLint components = componentCount(attribute.format);
+        if (components == 0) return false;
+        const std::uint64_t attributeBytes = static_cast<std::uint64_t>(components) * sizeof(float);
+        const std::uint64_t attributeEnd = static_cast<std::uint64_t>(attribute.offset) + attributeBytes;
+        if (attributeEnd < attribute.offset || attributeEnd > command.vertexLayout.stride ||
+            attribute.location > static_cast<std::uint32_t>(std::numeric_limits<GLuint>::max())) return false;
+    }
 
     if (program_ != 0) glDeleteProgram(static_cast<GLuint>(program_));
     program_ = static_cast<std::uint32_t>(glCreateProgram());
@@ -146,17 +163,13 @@ bool GlesRenderDevice::submit(const DrawCommand& command) {
     if (linked != GL_TRUE) { glDeleteProgram(static_cast<GLuint>(program_)); program_ = 0; return false; }
 
     if (vao_ == 0) glGenVertexArrays(1, reinterpret_cast<GLuint*>(&vao_));
-    if (vao_ == 0) return false;
+    if (vao_ == 0) { glDeleteProgram(static_cast<GLuint>(program_)); program_ = 0; return false; }
     glUseProgram(static_cast<GLuint>(program_));
     glBindVertexArray(static_cast<GLuint>(vao_));
     glBindBuffer(GL_ARRAY_BUFFER, static_cast<GLuint>(command.vertexBuffer.id()));
     for (std::uint32_t i = 0; i < command.vertexLayout.attributeCount; ++i) {
         const auto& attribute = command.vertexLayout.attributes[i];
         const GLint components = componentCount(attribute.format);
-        if (components == 0) return false;
-        const std::uint64_t attributeEnd = static_cast<std::uint64_t>(attribute.offset) +
-            static_cast<std::uint64_t>(components) * sizeof(float);
-        if (attributeEnd > command.vertexLayout.stride) return false;
         glEnableVertexAttribArray(attribute.location);
         glVertexAttribPointer(attribute.location, components, GL_FLOAT, GL_FALSE,
                               static_cast<GLsizei>(command.vertexLayout.stride),
@@ -167,15 +180,18 @@ bool GlesRenderDevice::submit(const DrawCommand& command) {
         if (!command.indexBuffer.valid()) return false;
         const auto indexIt = buffers_.find(command.indexBuffer.id());
         if (indexIt == buffers_.end()) return false;
-        const std::size_t indexSize = command.indexType == IndexType::UInt16 ? sizeof(std::uint16_t) : sizeof(std::uint32_t);
-        if (command.firstIndex > std::numeric_limits<std::uint32_t>::max() / indexSize) return false;
+        const std::uint64_t indexSize = command.indexType == IndexType::UInt16 ? 2u : 4u;
+        if (command.firstIndex > std::numeric_limits<std::uint64_t>::max() / indexSize ||
+            command.indexCount > maxGlCount ||
+            static_cast<std::uint64_t>(command.indexCount) > std::numeric_limits<std::uint64_t>::max() / indexSize) return false;
         const std::uint64_t indexOffset = static_cast<std::uint64_t>(command.firstIndex) * indexSize;
         const std::uint64_t indexBytes = static_cast<std::uint64_t>(command.indexCount) * indexSize;
         if (indexOffset > indexIt->second || indexBytes > indexIt->second - indexOffset) return false;
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, static_cast<GLuint>(command.indexBuffer.id()));
-        const void* offset = reinterpret_cast<const void*>(static_cast<std::uintptr_t>(indexOffset));
-        glDrawElements(toTopology(command.topology), static_cast<GLsizei>(command.indexCount), toIndexType(command.indexType), offset);
+        glDrawElements(toTopology(command.topology), static_cast<GLsizei>(command.indexCount), toIndexType(command.indexType),
+                       reinterpret_cast<const void*>(static_cast<std::uintptr_t>(indexOffset)));
     } else {
+        if (command.firstVertex > maxGlInt) return false;
         glDrawArrays(toTopology(command.topology), static_cast<GLint>(command.firstVertex), static_cast<GLsizei>(command.vertexCount));
     }
     if (glGetError() != GL_NO_ERROR) return false;
