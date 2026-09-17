@@ -1,4 +1,5 @@
 #include "storm/render/NullRenderDevice.hpp"
+#include <algorithm>
 #include <limits>
 
 namespace storm::render {
@@ -27,7 +28,10 @@ bool NullRenderDevice::updateTexture(TextureHandle handle, const void* pixels, s
     const auto it = textures_.find(handle.id()); if (it == textures_.end() || mipLevel >= it->second.mipLevels) return false;
     std::uint64_t width = it->second.width, height = it->second.height;
     for (std::uint32_t level = 0; level < mipLevel; ++level) { width = std::max<std::uint64_t>(1, width / 2); height = std::max<std::uint64_t>(1, height / 2); }
-    const std::uint64_t expected = width * height * 4u;
+    if (width > std::numeric_limits<std::uint64_t>::max() / height) return false;
+    const std::uint64_t pixelsCount = width * height;
+    if (pixelsCount > std::numeric_limits<std::uint64_t>::max() / 4u) return false;
+    const std::uint64_t expected = pixelsCount * 4u;
     return static_cast<std::uint64_t>(size) == expected;
 }
 void NullRenderDevice::destroyTexture(TextureHandle handle) { if (handle.valid()) textures_.erase(handle.id()); }
