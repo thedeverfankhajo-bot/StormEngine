@@ -6,7 +6,9 @@
 #include <cassert>
 #include <cstdint>
 #include <functional>
+#include <limits>
 #include <memory>
+#include <stdexcept>
 #include <unordered_map>
 #include <utility>
 #include <vector>
@@ -22,6 +24,8 @@ public:
             alive_[id] = true;
             return Entity{id, generations_[id]};
         }
+        if (alive_.size() >= static_cast<std::size_t>(Entity::kInvalidId))
+            throw std::overflow_error("storm::ecs::Registry entity id space exhausted");
         const Entity::Id id = static_cast<Entity::Id>(alive_.size());
         alive_.push_back(true);
         generations_.push_back(0);
@@ -32,7 +36,7 @@ public:
         if (!valid(entity)) return;
         removeAllComponents(entity.id());
         alive_[entity.id()] = false;
-        if (generations_[entity.id()] != UINT32_MAX) {
+        if (generations_[entity.id()] != Entity::Generation::max()) {
             ++generations_[entity.id()];
             freeIds_.push_back(entity.id());
         }
@@ -45,7 +49,7 @@ public:
 
     template <typename T, typename... Args>
     T& emplace(Entity entity, Args&&... args) {
-        assert(valid(entity));
+        if (!valid(entity)) throw std::invalid_argument("storm::ecs::Registry::emplace: invalid entity");
         return storageFor<T>().emplace(entity.id(), std::forward<Args>(args)...);
     }
 
