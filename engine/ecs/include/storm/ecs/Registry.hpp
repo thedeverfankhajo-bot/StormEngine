@@ -35,7 +35,7 @@ public:
         if (!valid(entity)) return;
         removeAllComponents(entity.id());
         alive_[entity.id()] = false;
-        if (generations_[entity.id()] != Entity::Generation::max()) {
+        if (generations_[entity.id()] != std::numeric_limits<Entity::Generation>::max()) {
             ++generations_[entity.id()];
             freeIds_.push_back(entity.id());
         }
