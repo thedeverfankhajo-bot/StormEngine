@@ -1,4 +1,5 @@
 #include <cassert>
+#include <cstdint>
 
 #include "storm/render/NullRenderDevice.hpp"
 
@@ -29,6 +30,15 @@ int main() {
     assert(device.liveBufferCount() == 2);
     assert(device.liveTextureCount() == 1);
     assert(device.liveShaderCount() == 2);
+
+    std::uint8_t bytes[16]{};
+    assert(device.updateBuffer(vertexBuffer, bytes, sizeof(bytes), 0));
+    assert(device.updateBuffer(vertexBuffer, bytes, sizeof(bytes), 1008));
+    assert(!device.updateBuffer(vertexBuffer, bytes, sizeof(bytes), 1009));
+    assert(!device.updateBuffer(vertexBuffer, bytes, 0, 0));
+    assert(!device.updateBuffer(vertexBuffer, nullptr, sizeof(bytes), 0));
+    assert(!device.updateBuffer(BufferHandle{}, bytes, sizeof(bytes), 0));
+    assert(!device.updateBuffer(vertexBuffer, bytes, sizeof(bytes), 1024));
 
     DrawCommand draw{};
     draw.vertexBuffer = vertexBuffer;
@@ -65,6 +75,7 @@ int main() {
     device.destroyBuffer(vertexBuffer);
     assert(device.liveBufferCount() == 1);
     assert(!device.submit(deadVertex));
+    assert(!device.updateBuffer(vertexBuffer, bytes, sizeof(bytes), 0));
 
     DrawCommand deadShader = indexed;
     device.destroyShader(fragmentShader);
