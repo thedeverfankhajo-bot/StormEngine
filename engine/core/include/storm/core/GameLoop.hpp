@@ -21,10 +21,11 @@ public:
               const UpdateCallback& update) {
         clock_.advance(realDeltaSeconds);
 
-        while (clock_.consumeFixedStep())
-            fixedUpdate(clock_.fixedDeltaSeconds());
+        while (clock_.consumeFixedStep()) {
+            if (fixedUpdate) fixedUpdate(clock_.fixedDeltaSeconds());
+        }
 
-        update(clock_.frameDeltaSeconds(), clock_.interpolationAlpha());
+        if (update) update(clock_.frameDeltaSeconds(), clock_.interpolationAlpha());
     }
 
     const GameClock& clock() const noexcept { return clock_; }
