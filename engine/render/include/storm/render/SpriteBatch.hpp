@@ -1,6 +1,7 @@
 #pragma once
 
 #include "storm/math/Vec2.hpp"
+#include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <limits>
@@ -50,7 +51,8 @@ public:
              math::Vec2 uvMin = {0.0f, 0.0f},
              math::Vec2 uvMax = {1.0f, 1.0f}) {
         if (!finite(position) || !finite(size) || !finite(uvMin) || !finite(uvMax)) return false;
-        if (vertices_.size() > std::numeric_limits<std::uint32_t>::max() - 4u) return false;
+        if (vertices_.size() > std::numeric_limits<std::uint32_t>::max() - 4u ||
+            indices_.size() > std::numeric_limits<std::uint32_t>::max() - 6u) return false;
         const std::uint32_t base = static_cast<std::uint32_t>(vertices_.size());
         const math::Vec2 maxPosition = position + size;
         vertices_.push_back({position, {uvMin.x, uvMin.y}});
