@@ -40,11 +40,18 @@ int main() {
     assert(!device.updateBuffer(BufferHandle{}, bytes, sizeof(bytes), 0));
     assert(!device.updateBuffer(vertexBuffer, bytes, sizeof(bytes), 1024));
 
+    VertexLayout layout{};
+    layout.attributeCount = 1;
+    layout.stride = sizeof(float) * 3;
+    layout.attributes[0] = {0, VertexFormat::Float32x3, 0};
+    assert(layout.valid());
+
     DrawCommand draw{};
     draw.vertexBuffer = vertexBuffer;
     draw.vertexCount = 3;
     draw.shader = vertexShader;
     draw.fragmentShader = fragmentShader;
+    draw.vertexLayout = layout;
 
     assert(!device.submit(draw));
 
