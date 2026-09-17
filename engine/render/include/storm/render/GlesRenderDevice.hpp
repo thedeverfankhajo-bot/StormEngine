@@ -51,7 +51,7 @@ private:
     bool frameActive_{false};
 
 #if defined(__ANDROID__)
-    std::unordered_set<std::uint32_t> buffers_;
+    std::unordered_map<std::uint32_t, std::uint64_t> buffers_;
     std::unordered_set<std::uint32_t> textures_;
     std::unordered_map<std::uint32_t, std::uint32_t> shaders_;
     std::uint32_t program_{0};
