@@ -34,6 +34,7 @@ int main() {
     assert(!collide(Aabb1{0.0f, 1.0f}, Aabb1{1.0f, 2.0f}).hit);
     assert(collide(Aabb2{{0,0}, {2,2}}, Aabb2{{1,1}, {3,3}}).hit);
     assert(collide(Aabb3{{0,0,0}, {2,2,2}}, Aabb3{{1,1,1}, {3,3,3}}).hit);
-    assert(!Aabb3{{NAN,0,0},{1,1,1}}.valid());
+    const Aabb3 invalidAabb{{NAN, 0, 0}, {1, 1, 1}};
+    assert(!invalidAabb.valid());
     return 0;
 }
