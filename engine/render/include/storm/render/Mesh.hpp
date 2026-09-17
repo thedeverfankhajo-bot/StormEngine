@@ -4,6 +4,16 @@
 
 namespace storm::render {
 
+struct MeshDesc final {
+    BufferHandle vertexBuffer{};
+    BufferHandle indexBuffer{};
+    std::uint32_t vertexCount{0};
+    std::uint32_t indexCount{0};
+    IndexType indexType{IndexType::UInt32};
+    PrimitiveTopology topology{PrimitiveTopology::Triangles};
+    VertexLayout vertexLayout{};
+};
+
 class Mesh final {
 public:
     Mesh() = default;
