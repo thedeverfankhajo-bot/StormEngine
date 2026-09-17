@@ -15,11 +15,12 @@ int main() {
     assert(!device.createBuffer(BufferDesc{}).valid());
     assert(!device.createTexture(TextureDesc{0, 64, 1}).valid());
     assert(!device.createTexture(TextureDesc{64, 64, 0}).valid());
+    assert(!device.createTexture(TextureDesc{3, 3, 3}).valid());
     assert(!device.createShader(ShaderDesc{ShaderStage::Vertex}, "").valid());
 
     const auto vertexBuffer = device.createBuffer(BufferDesc{1024, BufferUsage::Static});
     const auto indexBuffer = device.createBuffer(BufferDesc{512, BufferUsage::Static});
-    const auto texture = device.createTexture(TextureDesc{64, 64, 1});
+    const auto texture = device.createTexture(TextureDesc{64, 64, 2});
     const auto vertexShader = device.createShader(ShaderDesc{ShaderStage::Vertex}, "void main() {}");
     const auto fragmentShader = device.createShader(ShaderDesc{ShaderStage::Fragment}, "void main() {}");
     assert(vertexBuffer.valid());
@@ -39,6 +40,15 @@ int main() {
     assert(!device.updateBuffer(vertexBuffer, nullptr, sizeof(bytes), 0));
     assert(!device.updateBuffer(BufferHandle{}, bytes, sizeof(bytes), 0));
     assert(!device.updateBuffer(vertexBuffer, bytes, sizeof(bytes), 1024));
+
+    std::uint8_t rgba64[64 * 64 * 4]{};
+    std::uint8_t rgba32[32 * 32 * 4]{};
+    assert(device.updateTexture(texture, rgba64, sizeof(rgba64), 0));
+    assert(device.updateTexture(texture, rgba32, sizeof(rgba32), 1));
+    assert(!device.updateTexture(texture, rgba32, sizeof(rgba32) - 1, 1));
+    assert(!device.updateTexture(texture, rgba64, sizeof(rgba64), 2));
+    assert(!device.updateTexture(texture, nullptr, sizeof(rgba64), 0));
+    assert(!device.updateTexture(TextureHandle{}, rgba64, sizeof(rgba64), 0));
 
     VertexLayout layout{};
     layout.attributeCount = 1;
