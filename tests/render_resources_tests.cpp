@@ -1,3 +1,4 @@
+#include <array>
 #include <cassert>
 #include <string>
 
@@ -26,6 +27,22 @@ int main() {
     assert(material.shader() == ShaderHandle(3));
     material.setShader(ShaderHandle(4));
     assert(material.shader() == ShaderHandle(4));
+
+    material.setParameter("roughness", 0.5f);
+    material.setParameter("tint", std::array<float, 4>{1.0f, 0.25f, 0.5f, 1.0f});
+    material.setParameter("albedo", TextureHandle(42));
+    assert(material.parameterCount() == 3);
+    assert(material.hasParameter("roughness"));
+    assert(material.parameter("roughness") != nullptr);
+    assert(std::get<float>(*material.parameter("roughness")) == 0.5f);
+    assert(std::get<std::array<float, 4>>(*material.parameter("tint"))[1] == 0.25f);
+    assert(std::get<TextureHandle>(*material.parameter("albedo")) == TextureHandle(42));
+    assert(!material.hasParameter("missing"));
+    assert(material.parameter("missing") == nullptr);
+    assert(material.removeParameter("roughness"));
+    assert(!material.hasParameter("roughness"));
+    material.clearParameters();
+    assert(material.parameterCount() == 0);
 
     RenderPipeline emptyPipeline;
     assert(!emptyPipeline.valid());
