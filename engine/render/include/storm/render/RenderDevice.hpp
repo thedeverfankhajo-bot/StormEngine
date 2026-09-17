@@ -14,7 +14,9 @@ public:
     virtual void destroyBuffer(BufferHandle handle) = 0;
     virtual bool updateBuffer(BufferHandle handle, const void* data, std::size_t size, std::size_t offset = 0) = 0;
     virtual TextureHandle createTexture(const TextureDesc& desc) = 0;
-    virtual bool updateTexture(TextureHandle handle, const void* pixels, std::size_t size, std::uint32_t mipLevel = 0) = 0;
+    // Backends may override this when CPU pixel upload is supported. Keeping a
+    // default failure preserves source compatibility for experimental backends.
+    virtual bool updateTexture(TextureHandle, const void*, std::size_t, std::uint32_t = 0) { return false; }
     virtual void destroyTexture(TextureHandle handle) = 0;
     virtual ShaderHandle createShader(const ShaderDesc& desc, const std::string& source) = 0;
     virtual void destroyShader(ShaderHandle handle) = 0;
