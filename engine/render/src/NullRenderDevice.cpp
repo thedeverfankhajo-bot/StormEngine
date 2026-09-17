@@ -55,11 +55,29 @@ void NullRenderDevice::beginFrame() {
 }
 
 bool NullRenderDevice::submit(const DrawCommand& command) {
-    if (!frameActive_ || !command.vertexBuffer.valid() || command.vertexCount == 0) return false;
-    if (buffers_.find(command.vertexBuffer.id()) == buffers_.end()) return false;
-    if (command.indexCount > 0) {
-        if (!command.indexBuffer.valid() || buffers_.find(command.indexBuffer.id()) == buffers_.end()) return false;
-    } else if (command.indexBuffer.valid()) return false;
+    if (!frameActive_ || !command.vertexBuffer.valid() || command.vertexCount == 0 ||
+        !command.vertexLayout.valid()) return false;
+
+    const auto vertexIt = buffers_.find(command.vertexBuffer.id());
+    if (vertexIt == buffers_.end()) return false;
+
+    const std::uint64_t vertexEnd = static_cast<std::uint64_t>(command.firstVertex) + command.vertexCount;
+    const std::uint64_t vertexBytes = vertexEnd * command.vertexLayout.stride;
+    if (vertexEnd < command.firstVertex || vertexBytes < vertexEnd || vertexBytes > vertexIt->second) return false;
+
+    if (command.indexed()) {
+        if (!command.indexBuffer.valid()) return false;
+        const auto indexIt = buffers_.find(command.indexBuffer.id());
+        if (indexIt == buffers_.end()) return false;
+        const std::uint64_t indexSize = command.indexType == IndexType::UInt16 ? 2u : 4u;
+        const std::uint64_t indexOffset = static_cast<std::uint64_t>(command.firstIndex) * indexSize;
+        const std::uint64_t indexBytes = static_cast<std::uint64_t>(command.indexCount) * indexSize;
+        if (indexOffset / indexSize != command.firstIndex || indexBytes / indexSize != command.indexCount ||
+            indexOffset > indexIt->second || indexBytes > indexIt->second - indexOffset) return false;
+    } else if (command.indexBuffer.valid()) {
+        return false;
+    }
+
     if (!command.shader.valid() || !command.fragmentShader.valid()) return false;
     if (shaders_.find(command.shader.id()) == shaders_.end() ||
         shaders_.find(command.fragmentShader.id()) == shaders_.end()) return false;
