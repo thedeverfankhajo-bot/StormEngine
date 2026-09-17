@@ -67,8 +67,8 @@ cmake --build build-gles --parallel
 engine/   Engine runtime modules
 examples/ Example projects
 android/  Android runtime/smoke-test project
- tests/   Automated tests
- docs/     Architecture and API documentation when present
+tests/    Automated tests
+docs/     Architecture and API documentation when present
 .github/  CI, contribution, and repository policy configuration
 ```
 
