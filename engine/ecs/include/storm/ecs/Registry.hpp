@@ -3,7 +3,6 @@
 #include "ComponentStorage.hpp"
 #include "ComponentType.hpp"
 #include "Entity.hpp"
-#include <cassert>
 #include <cstdint>
 #include <functional>
 #include <limits>
@@ -79,14 +78,14 @@ public:
     template <typename T>
     T& get(Entity entity) {
         T* value = tryGet<T>(entity);
-        assert(value);
+        if (!value) throw std::out_of_range("storm::ecs::Registry::get: component not found");
         return *value;
     }
 
     template <typename T>
     const T& get(Entity entity) const {
         const T* value = tryGet<T>(entity);
-        assert(value);
+        if (!value) throw std::out_of_range("storm::ecs::Registry::get: component not found");
         return *value;
     }
 

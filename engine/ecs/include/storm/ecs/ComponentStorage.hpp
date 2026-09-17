@@ -18,7 +18,10 @@ public:
             return components_[existing];
         }
 
-        components_.emplace_back(std::forward<Args>(args)...);
+        // Construct the component before mutating the sparse set. If construction
+        // or vector growth throws, the storage remains unchanged.
+        T value(std::forward<Args>(args)...);
+        components_.push_back(std::move(value));
         try {
             entities_.insert(entity);
         } catch (...) {
