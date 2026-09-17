@@ -42,6 +42,11 @@ public:
     [[nodiscard]] std::size_t submittedDrawCount() const noexcept override { return submittedDraws_; }
 
 private:
+    struct ShaderRecord {
+        std::uint32_t glId{0};
+        ShaderStage stage{ShaderStage::Vertex};
+    };
+
     static std::uint32_t allocateHandle(std::uint32_t& next);
 
     std::uint32_t nextBufferId_{1};
@@ -53,7 +58,7 @@ private:
 #if defined(__ANDROID__)
     std::unordered_map<std::uint32_t, std::uint64_t> buffers_;
     std::unordered_set<std::uint32_t> textures_;
-    std::unordered_map<std::uint32_t, std::uint32_t> shaders_;
+    std::unordered_map<std::uint32_t, ShaderRecord> shaders_;
     std::uint32_t program_{0};
     std::uint32_t vao_{0};
     bool pipelineReady_{false};
