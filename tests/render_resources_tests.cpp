@@ -35,7 +35,7 @@ int main() {
     assert(material.hasParameter("roughness"));
     assert(material.parameter("roughness") != nullptr);
     assert(std::get<float>(*material.parameter("roughness")) == 0.5f);
-    assert(std::get<std::array<float, 4>>(*material.parameter("tint"))[1] == 0.25f);
+    assert((std::get<std::array<float, 4>>(*material.parameter("tint"))[1] == 0.25f));
     assert(std::get<TextureHandle>(*material.parameter("albedo")) == TextureHandle(42));
     assert(!material.hasParameter("missing"));
     assert(material.parameter("missing") == nullptr);
