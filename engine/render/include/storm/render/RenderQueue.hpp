@@ -1,5 +1,6 @@
 #pragma once
 
+#include "RenderDevice.hpp"
 #include "RenderTypes.hpp"
 #include <cstddef>
 #include <vector>
@@ -10,7 +11,22 @@ class RenderQueue final {
 public:
     void beginFrame() noexcept { commands_.clear(); }
 
-    void submit(const DrawCommand& command) { commands_.push_back(command); }
+    void submit(const DrawCommand& command) {
+        if (!command.vertexBuffer.valid() || command.vertexCount == 0 || !command.vertexLayout.valid()) return;
+        if (command.indexed() && !command.indexBuffer.valid()) return;
+        commands_.push_back(command);
+    }
+
+    [[nodiscard]] bool execute(RenderDevice& device) const {
+        if (commands_.empty()) return true;
+        device.beginFrame();
+        bool success = true;
+        for (const auto& command : commands_) {
+            if (!device.submit(command)) success = false;
+        }
+        device.endFrame();
+        return success;
+    }
 
     [[nodiscard]] bool empty() const noexcept { return commands_.empty(); }
     [[nodiscard]] std::size_t size() const noexcept { return commands_.size(); }
