@@ -2,6 +2,7 @@
 
 #if defined(__ANDROID__)
 #include <GLES3/gl3.h>
+#include <limits>
 
 namespace storm::render {
 namespace {
@@ -46,7 +47,7 @@ GlesRenderDevice::~GlesRenderDevice() {
     if (vao_ != 0) glDeleteVertexArrays(1, reinterpret_cast<const GLuint*>(&vao_));
     if (program_ != 0) glDeleteProgram(static_cast<GLuint>(program_));
     for (const auto& [handle, shader] : shaders_) { (void)handle; glDeleteShader(static_cast<GLuint>(shader)); }
-    for (const auto id : buffers_) { const GLuint glId = static_cast<GLuint>(id); glDeleteBuffers(1, &glId); }
+    for (const auto& [handle, size] : buffers_) { (void)size; const GLuint glId = static_cast<GLuint>(handle); glDeleteBuffers(1, &glId); }
     for (const auto id : textures_) { const GLuint glId = static_cast<GLuint>(id); glDeleteTextures(1, &glId); }
 }
 
@@ -56,14 +57,15 @@ std::uint32_t GlesRenderDevice::allocateHandle(std::uint32_t& next) {
 }
 
 BufferHandle GlesRenderDevice::createBuffer(const BufferDesc& desc) {
-    if (desc.size == 0 || desc.size > static_cast<std::uint64_t>(static_cast<std::size_t>(-1))) return {};
+    if (desc.size == 0 || desc.size > static_cast<std::uint64_t>(std::numeric_limits<std::size_t>::max()) ||
+        desc.size > static_cast<std::uint64_t>(std::numeric_limits<GLsizeiptr>::max())) return {};
     GLuint glId = 0;
     glGenBuffers(1, &glId);
     if (glId == 0) return {};
     glBindBuffer(GL_ARRAY_BUFFER, glId);
     glBufferData(GL_ARRAY_BUFFER, static_cast<GLsizeiptr>(desc.size), nullptr, toUsage(desc.usage));
     if (glGetError() != GL_NO_ERROR) { glDeleteBuffers(1, &glId); return {}; }
-    buffers_.insert(glId);
+    buffers_.emplace(glId, desc.size);
     return BufferHandle(glId);
 }
 void GlesRenderDevice::destroyBuffer(BufferHandle handle) {
@@ -72,7 +74,10 @@ void GlesRenderDevice::destroyBuffer(BufferHandle handle) {
     if (buffers_.erase(handle.id()) != 0) glDeleteBuffers(1, &glId);
 }
 bool GlesRenderDevice::updateBuffer(BufferHandle handle, const void* data, std::size_t size, std::size_t offset) {
-    if (!handle.valid() || data == nullptr || size == 0 || buffers_.find(handle.id()) == buffers_.end()) return false;
+    if (!handle.valid() || data == nullptr || size == 0) return false;
+    const auto it = buffers_.find(handle.id());
+    if (it == buffers_.end() || offset > static_cast<std::size_t>(it->second) ||
+        size > static_cast<std::size_t>(it->second) - offset) return false;
     glBindBuffer(GL_ARRAY_BUFFER, static_cast<GLuint>(handle.id()));
     glBufferSubData(GL_ARRAY_BUFFER, static_cast<GLintptr>(offset), static_cast<GLsizeiptr>(size), data);
     return glGetError() == GL_NO_ERROR;
@@ -119,11 +124,16 @@ void GlesRenderDevice::beginFrame() { frameActive_ = true; submittedDraws_ = 0; 
 
 bool GlesRenderDevice::submit(const DrawCommand& command) {
     if (!frameActive_ || !command.vertexBuffer.valid() || command.vertexCount == 0 || !command.vertexLayout.valid()) return false;
-    if (buffers_.find(command.vertexBuffer.id()) == buffers_.end() || command.baseVertex != 0) return false;
+    const auto vertexBufferIt = buffers_.find(command.vertexBuffer.id());
+    if (vertexBufferIt == buffers_.end() || command.baseVertex != 0) return false;
     if (!command.shader.valid() || !command.fragmentShader.valid()) return false;
     const auto vertexIt = shaders_.find(command.shader.id());
     const auto fragmentIt = shaders_.find(command.fragmentShader.id());
     if (vertexIt == shaders_.end() || fragmentIt == shaders_.end()) return false;
+
+    const std::uint64_t vertexEnd = static_cast<std::uint64_t>(command.firstVertex) + command.vertexCount;
+    const std::uint64_t vertexBytes = vertexEnd * command.vertexLayout.stride;
+    if (vertexBytes > vertexBufferIt->second) return false;
 
     if (program_ != 0) glDeleteProgram(static_cast<GLuint>(program_));
     program_ = static_cast<std::uint32_t>(glCreateProgram());
@@ -144,6 +154,9 @@ bool GlesRenderDevice::submit(const DrawCommand& command) {
         const auto& attribute = command.vertexLayout.attributes[i];
         const GLint components = componentCount(attribute.format);
         if (components == 0) return false;
+        const std::uint64_t attributeEnd = static_cast<std::uint64_t>(attribute.offset) +
+            static_cast<std::uint64_t>(components) * sizeof(float);
+        if (attributeEnd > command.vertexLayout.stride) return false;
         glEnableVertexAttribArray(attribute.location);
         glVertexAttribPointer(attribute.location, components, GL_FLOAT, GL_FALSE,
                               static_cast<GLsizei>(command.vertexLayout.stride),
@@ -151,10 +164,16 @@ bool GlesRenderDevice::submit(const DrawCommand& command) {
     }
 
     if (command.indexed()) {
-        if (!command.indexBuffer.valid() || buffers_.find(command.indexBuffer.id()) == buffers_.end()) return false;
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, static_cast<GLuint>(command.indexBuffer.id()));
+        if (!command.indexBuffer.valid()) return false;
+        const auto indexIt = buffers_.find(command.indexBuffer.id());
+        if (indexIt == buffers_.end()) return false;
         const std::size_t indexSize = command.indexType == IndexType::UInt16 ? sizeof(std::uint16_t) : sizeof(std::uint32_t);
-        const void* offset = reinterpret_cast<const void*>(static_cast<std::uintptr_t>(command.firstIndex) * indexSize);
+        if (command.firstIndex > std::numeric_limits<std::uint32_t>::max() / indexSize) return false;
+        const std::uint64_t indexOffset = static_cast<std::uint64_t>(command.firstIndex) * indexSize;
+        const std::uint64_t indexBytes = static_cast<std::uint64_t>(command.indexCount) * indexSize;
+        if (indexOffset > indexIt->second || indexBytes > indexIt->second - indexOffset) return false;
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, static_cast<GLuint>(command.indexBuffer.id()));
+        const void* offset = reinterpret_cast<const void*>(static_cast<std::uintptr_t>(indexOffset));
         glDrawElements(toTopology(command.topology), static_cast<GLsizei>(command.indexCount), toIndexType(command.indexType), offset);
     } else {
         glDrawArrays(toTopology(command.topology), static_cast<GLint>(command.firstVertex), static_cast<GLsizei>(command.vertexCount));
