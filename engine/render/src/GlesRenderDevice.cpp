@@ -1,6 +1,7 @@
 #include "storm/render/GlesRenderDevice.hpp"
 
 #if defined(__ANDROID__)
+#include "storm/render/Material.hpp"
 #include <GLES3/gl3.h>
 #include <limits>
 
@@ -44,10 +45,46 @@ GLuint compileShader(GLenum type, const char* source) noexcept {
 constexpr std::uint64_t maxGlSize = static_cast<std::uint64_t>(std::numeric_limits<GLsizeiptr>::max());
 constexpr std::uint64_t maxGlCount = static_cast<std::uint64_t>(std::numeric_limits<GLsizei>::max());
 constexpr std::uint64_t maxGlInt = static_cast<std::uint64_t>(std::numeric_limits<GLint>::max());
+
+bool applyMaterial(const Material& material,
+                   GLuint program,
+                   const std::unordered_set<std::uint32_t>& textures) noexcept {
+    std::uint32_t textureUnit = 0;
+    for (const auto& [name, value] : material.parameters()) {
+        const GLint location = glGetUniformLocation(program, name.c_str());
+        if (location < 0) continue;
+
+        bool supported = true;
+        if (const auto* scalar = std::get_if<MaterialScalar>(&value)) {
+            glUniform1f(location, *scalar);
+        } else if (const auto* vec2 = std::get_if<MaterialVec2>(&value)) {
+            glUniform2fv(location, 1, vec2->data());
+        } else if (const auto* vec3 = std::get_if<MaterialVec3>(&value)) {
+            glUniform3fv(location, 1, vec3->data());
+        } else if (const auto* vec4 = std::get_if<MaterialVec4>(&value)) {
+            glUniform4fv(location, 1, vec4->data());
+        } else if (const auto* texture = std::get_if<TextureHandle>(&value)) {
+            if (!texture->valid() || textures.find(texture->id()) == textures.end() || textureUnit > 31u) {
+                return false;
+            }
+            glActiveTexture(GL_TEXTURE0 + textureUnit);
+            glBindTexture(GL_TEXTURE_2D, static_cast<GLuint>(texture->id()));
+            glUniform1i(location, static_cast<GLint>(textureUnit));
+            ++textureUnit;
+        } else {
+            supported = false;
+        }
+        if (!supported || glGetError() != GL_NO_ERROR) return false;
+    }
+    return true;
+}
 } // namespace
 
 GlesRenderDevice::~GlesRenderDevice() {
-    if (vao_ != 0) { const GLuint id = static_cast<GLuint>(vao_); glDeleteVertexArrays(1, &id); }
+    if (vao_ != 0) {
+        const GLuint id = static_cast<GLuint>(vao_);
+        glDeleteVertexArrays(1, &id);
+    }
     if (program_ != 0) glDeleteProgram(static_cast<GLuint>(program_));
     for (const auto& [handle, shader] : shaders_) { (void)handle; glDeleteShader(static_cast<GLuint>(shader.glId)); }
     for (const auto& [handle, size] : buffers_) { (void)size; const GLuint id = static_cast<GLuint>(handle); glDeleteBuffers(1, &id); }
@@ -161,7 +198,11 @@ bool GlesRenderDevice::submit(const DrawCommand& command) {
     glGetProgramiv(static_cast<GLuint>(program_), GL_LINK_STATUS, &linked);
     if (linked != GL_TRUE) { glDeleteProgram(static_cast<GLuint>(program_)); program_ = 0; return false; }
 
-    if (vao_ == 0) glGenVertexArrays(1, reinterpret_cast<GLuint*>(&vao_));
+    if (vao_ == 0) {
+        GLuint vao = 0;
+        glGenVertexArrays(1, &vao);
+        vao_ = static_cast<std::uint32_t>(vao);
+    }
     if (vao_ == 0) { glDeleteProgram(static_cast<GLuint>(program_)); program_ = 0; return false; }
     glUseProgram(static_cast<GLuint>(program_));
     glBindVertexArray(static_cast<GLuint>(vao_));
@@ -174,6 +215,9 @@ bool GlesRenderDevice::submit(const DrawCommand& command) {
                               static_cast<GLsizei>(command.vertexLayout.stride),
                               reinterpret_cast<const void*>(static_cast<std::uintptr_t>(attribute.offset)));
     }
+
+    if (command.materialData != nullptr && !applyMaterial(*command.materialData,
+                                                            static_cast<GLuint>(program_), textures_)) return false;
 
     if (command.indexed()) {
         if (!command.indexBuffer.valid()) return false;
