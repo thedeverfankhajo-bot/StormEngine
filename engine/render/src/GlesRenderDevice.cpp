@@ -49,7 +49,7 @@ constexpr std::uint64_t maxGlInt = static_cast<std::uint64_t>(std::numeric_limit
 GlesRenderDevice::~GlesRenderDevice() {
     if (vao_ != 0) { const GLuint id = static_cast<GLuint>(vao_); glDeleteVertexArrays(1, &id); }
     if (program_ != 0) glDeleteProgram(static_cast<GLuint>(program_));
-    for (const auto& [handle, shader] : shaders_) { (void)handle; glDeleteShader(static_cast<GLuint>(shader)); }
+    for (const auto& [handle, shader] : shaders_) { (void)handle; glDeleteShader(static_cast<GLuint>(shader.glId)); }
     for (const auto& [handle, size] : buffers_) { (void)size; const GLuint id = static_cast<GLuint>(handle); glDeleteBuffers(1, &id); }
     for (const auto id : textures_) { const GLuint glId = static_cast<GLuint>(id); glDeleteTextures(1, &glId); }
 }
@@ -114,14 +114,14 @@ ShaderHandle GlesRenderDevice::createShader(const ShaderDesc& desc, const std::s
     if (shader == 0) return {};
     const auto handle = allocateHandle(nextShaderId_);
     if (handle == 0) { glDeleteShader(shader); return {}; }
-    shaders_.emplace(handle, shader);
+    shaders_.emplace(handle, ShaderRecord{shader, desc.stage});
     return ShaderHandle(handle);
 }
 void GlesRenderDevice::destroyShader(ShaderHandle handle) {
     if (!handle.valid()) return;
     const auto it = shaders_.find(handle.id());
     if (it == shaders_.end()) return;
-    glDeleteShader(static_cast<GLuint>(it->second));
+    glDeleteShader(static_cast<GLuint>(it->second.glId));
     shaders_.erase(it);
 }
 void GlesRenderDevice::beginFrame() { frameActive_ = true; submittedDraws_ = 0; }
@@ -133,11 +133,11 @@ bool GlesRenderDevice::submit(const DrawCommand& command) {
     if (!command.shader.valid() || !command.fragmentShader.valid()) return false;
     const auto vertexIt = shaders_.find(command.shader.id());
     const auto fragmentIt = shaders_.find(command.fragmentShader.id());
-    if (vertexIt == shaders_.end() || fragmentIt == shaders_.end()) return false;
+    if (vertexIt == shaders_.end() || fragmentIt == shaders_.end() ||
+        vertexIt->second.stage != ShaderStage::Vertex || fragmentIt->second.stage != ShaderStage::Fragment) return false;
 
     const std::uint64_t vertexEnd = static_cast<std::uint64_t>(command.firstVertex) + command.vertexCount;
     if (vertexEnd < command.firstVertex || vertexEnd > maxGlCount ||
-        command.vertexLayout.stride == 0 ||
         vertexEnd > std::numeric_limits<std::uint64_t>::max() / command.vertexLayout.stride) return false;
     const std::uint64_t vertexBytes = vertexEnd * command.vertexLayout.stride;
     if (vertexBytes > vertexBufferIt->second) return false;
@@ -148,15 +148,14 @@ bool GlesRenderDevice::submit(const DrawCommand& command) {
         if (components == 0) return false;
         const std::uint64_t attributeBytes = static_cast<std::uint64_t>(components) * sizeof(float);
         const std::uint64_t attributeEnd = static_cast<std::uint64_t>(attribute.offset) + attributeBytes;
-        if (attributeEnd < attribute.offset || attributeEnd > command.vertexLayout.stride ||
-            attribute.location > static_cast<std::uint32_t>(std::numeric_limits<GLuint>::max())) return false;
+        if (attributeEnd < attribute.offset || attributeEnd > command.vertexLayout.stride) return false;
     }
 
     if (program_ != 0) glDeleteProgram(static_cast<GLuint>(program_));
     program_ = static_cast<std::uint32_t>(glCreateProgram());
     if (program_ == 0) return false;
-    glAttachShader(static_cast<GLuint>(program_), static_cast<GLuint>(vertexIt->second));
-    glAttachShader(static_cast<GLuint>(program_), static_cast<GLuint>(fragmentIt->second));
+    glAttachShader(static_cast<GLuint>(program_), static_cast<GLuint>(vertexIt->second.glId));
+    glAttachShader(static_cast<GLuint>(program_), static_cast<GLuint>(fragmentIt->second.glId));
     glLinkProgram(static_cast<GLuint>(program_));
     GLint linked = GL_FALSE;
     glGetProgramiv(static_cast<GLuint>(program_), GL_LINK_STATUS, &linked);
