@@ -1,4 +1,6 @@
 #include <cassert>
+#include <cmath>
+#include <limits>
 #include <vector>
 
 #include "storm/core/GameClock.hpp"
@@ -29,6 +31,23 @@ void testFrameDeltaClamp() {
     assert(clock.pendingFixedSteps() == 2);
 }
 
+void testInvalidClockInputsAreSafe() {
+    storm::GameClock invalidStep{std::numeric_limits<float>::quiet_NaN(),
+                                 std::numeric_limits<float>::infinity()};
+    invalidStep.advance(std::numeric_limits<float>::quiet_NaN());
+    assert(std::isfinite(invalidStep.frameDeltaSeconds()));
+    assert(std::isfinite(invalidStep.accumulatorSeconds()));
+    assert(invalidStep.fixedDeltaSeconds() > 0.0f);
+
+    storm::GameClock clock{0.1f, 0.2f};
+    clock.advance(std::numeric_limits<float>::infinity());
+    assert(clock.frameDeltaSeconds() == 0.0f);
+    assert(clock.pendingFixedSteps() == 0);
+    clock.advance(-1.0f);
+    assert(clock.frameDeltaSeconds() == 0.0f);
+    assert(clock.pendingFixedSteps() == 0);
+}
+
 void testGameLoopOrder() {
     storm::GameLoop loop{0.1f, 1.0f};
     std::vector<int> events;
@@ -56,6 +75,7 @@ void testGameLoopOrder() {
 int main() {
     testFixedStepAccumulation();
     testFrameDeltaClamp();
+    testInvalidClockInputsAreSafe();
     testGameLoopOrder();
     return 0;
 }
