@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <limits>
 
 namespace storm {
 
@@ -9,8 +10,8 @@ class GameClock final {
 public:
     explicit GameClock(float fixedDeltaSeconds = 1.0f / 60.0f,
                        float maxFrameDeltaSeconds = 0.25f) noexcept
-        : fixedDeltaSeconds_(fixedDeltaSeconds),
-          maxFrameDeltaSeconds_(maxFrameDeltaSeconds) {}
+        : fixedDeltaSeconds_(sanitizeFixedDelta(fixedDeltaSeconds)),
+          maxFrameDeltaSeconds_(sanitizeMaxFrameDelta(maxFrameDeltaSeconds)) {}
 
     void reset() noexcept {
         frameDeltaSeconds_ = 0.0f;
@@ -19,6 +20,9 @@ public:
     }
 
     void advance(float realDeltaSeconds) noexcept {
+        if (!std::isfinite(realDeltaSeconds)) {
+            realDeltaSeconds = 0.0f;
+        }
         frameDeltaSeconds_ = std::clamp(realDeltaSeconds, 0.0f, maxFrameDeltaSeconds_);
         accumulatorSeconds_ += frameDeltaSeconds_;
 
@@ -28,10 +32,22 @@ public:
             return;
         }
 
-        const auto steps = static_cast<unsigned int>(
-            std::floor(accumulatorSeconds_ / fixedDeltaSeconds_));
-        fixedSteps_ += steps;
-        accumulatorSeconds_ -= static_cast<float>(steps) * fixedDeltaSeconds_;
+        const float stepCount = std::floor(accumulatorSeconds_ / fixedDeltaSeconds_);
+        if (!std::isfinite(stepCount) || stepCount <= 0.0f) return;
+
+        const auto maxSteps = static_cast<float>(std::numeric_limits<unsigned int>::max());
+        if (stepCount >= maxSteps) {
+            fixedSteps_ = std::numeric_limits<unsigned int>::max();
+            accumulatorSeconds_ = 0.0f;
+            return;
+        }
+
+        const auto steps = static_cast<unsigned int>(stepCount);
+        const auto remaining = accumulatorSeconds_ - static_cast<float>(steps) * fixedDeltaSeconds_;
+        fixedSteps_ = fixedSteps_ > std::numeric_limits<unsigned int>::max() - steps
+            ? std::numeric_limits<unsigned int>::max()
+            : fixedSteps_ + steps;
+        accumulatorSeconds_ = std::max(0.0f, remaining);
     }
 
     bool consumeFixedStep() noexcept {
@@ -52,6 +68,16 @@ public:
     }
 
 private:
+    static float sanitizeFixedDelta(float value) noexcept {
+        if (!std::isfinite(value) || value <= 0.0f) return 1.0f / 60.0f;
+        return value;
+    }
+
+    static float sanitizeMaxFrameDelta(float value) noexcept {
+        if (!std::isfinite(value) || value <= 0.0f) return 0.25f;
+        return value;
+    }
+
     float fixedDeltaSeconds_;
     float maxFrameDeltaSeconds_;
     float frameDeltaSeconds_{0.0f};
