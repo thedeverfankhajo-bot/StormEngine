@@ -34,6 +34,30 @@ int main() {
     assert(shader.valid() && shader.id() == 4);
     assert(material.valid() && material.id() == 5);
 
+    VertexLayout validLayout{};
+    validLayout.attributeCount = 2;
+    validLayout.stride = 28;
+    validLayout.attributes[0] = VertexAttribute{0, VertexFormat::Float32x3, 0};
+    validLayout.attributes[1] = VertexAttribute{1, VertexFormat::Float32x4, 12};
+    assert(validLayout.valid());
+
+    VertexLayout duplicateLocation = validLayout;
+    duplicateLocation.attributes[1].location = 0;
+    assert(!duplicateLocation.valid());
+
+    VertexLayout attributeOutsideStride = validLayout;
+    attributeOutsideStride.attributes[1].offset = 16;
+    assert(!attributeOutsideStride.valid());
+
+    VertexLayout zeroStride = validLayout;
+    zeroStride.stride = 0;
+    assert(!zeroStride.valid());
+
+    VertexLayout tooMany{};
+    tooMany.attributeCount = VertexLayout::maxAttributes + 1;
+    tooMany.stride = 4;
+    assert(!tooMany.valid());
+
     BufferDesc buffer{};
     assert(buffer.size == 0);
     assert(buffer.usage == BufferUsage::Static);
@@ -59,6 +83,7 @@ int main() {
     nonIndexed.firstVertex = 2;
     nonIndexed.shader = ShaderHandle(20);
     nonIndexed.fragmentShader = ShaderHandle(21);
+    nonIndexed.vertexLayout = validLayout;
     assert(!nonIndexed.indexed());
     assert(nonIndexed.shader.valid());
     assert(nonIndexed.fragmentShader.valid());
@@ -73,6 +98,7 @@ int main() {
     indexed.indexType = IndexType::UInt16;
     indexed.shader = ShaderHandle(22);
     indexed.fragmentShader = ShaderHandle(23);
+    indexed.vertexLayout = validLayout;
     assert(indexed.indexed());
     assert(indexed.fragmentShader.id() == 23);
 
