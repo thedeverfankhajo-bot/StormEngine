@@ -39,8 +39,8 @@ enum class TextureFormat : std::uint8_t { RGBA8 };
 
 struct BufferDesc final { std::size_t size{0}; BufferUsage usage{BufferUsage::Static}; };
 struct TextureDesc final {
-    std::uint32_t width{0};
-    std::uint32_t height{0};
+    std::uint32_t width{1};
+    std::uint32_t height{1};
     std::uint32_t mipLevels{1};
     TextureFormat format{TextureFormat::RGBA8};
 };
