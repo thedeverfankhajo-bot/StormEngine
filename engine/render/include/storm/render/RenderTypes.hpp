@@ -47,7 +47,26 @@ struct VertexLayout {
     std::array<VertexAttribute, maxAttributes> attributes{};
     std::uint32_t attributeCount{0};
     std::uint32_t stride{0};
-    constexpr bool valid() const noexcept { return attributeCount > 0 && attributeCount <= maxAttributes && stride > 0; }
+
+    constexpr bool valid() const noexcept {
+        if (attributeCount == 0 || attributeCount > maxAttributes || stride == 0) return false;
+        for (std::uint32_t i = 0; i < attributeCount; ++i) {
+            const auto& attribute = attributes[i];
+            const std::uint32_t components =
+                attribute.format == VertexFormat::Float32 ? 1u :
+                attribute.format == VertexFormat::Float32x2 ? 2u :
+                attribute.format == VertexFormat::Float32x3 ? 3u :
+                attribute.format == VertexFormat::Float32x4 ? 4u : 0u;
+            if (components == 0) return false;
+            const std::uint64_t end = static_cast<std::uint64_t>(attribute.offset) +
+                                      static_cast<std::uint64_t>(components) * sizeof(float);
+            if (end > stride) return false;
+            for (std::uint32_t j = 0; j < i; ++j) {
+                if (attributes[j].location == attribute.location) return false;
+            }
+        }
+        return true;
+    }
 };
 
 struct MeshDesc {
