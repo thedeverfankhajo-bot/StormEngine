@@ -26,6 +26,7 @@ target_include_directories(storm_core PUBLIC
     engine/math/include
     engine/ecs/include
     engine/render/include
+    engine/physics/include
 )
 
 if(ANDROID)
@@ -60,4 +61,5 @@ if(STORM_BUILD_TESTS AND NOT ANDROID)
     storm_add_test(storm_mesh_tests tests/mesh_tests.cpp)
     storm_add_test(storm_render_resources_tests tests/render_resources_tests.cpp)
     storm_add_test(storm_gles_context_tests tests/gles_context_tests.cpp)
+    storm_add_test(storm_physics2d_tests tests/physics2d_tests.cpp)
 endif()
