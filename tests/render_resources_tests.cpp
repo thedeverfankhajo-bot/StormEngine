@@ -13,8 +13,11 @@ int main() {
     assert(empty.description().stage == ShaderStage::Vertex);
 
     Shader vertex(ShaderDesc{ShaderStage::Vertex}, "void main() {}");
+    Shader fragment(ShaderDesc{ShaderStage::Fragment}, "void main() {}");
     assert(vertex.valid());
+    assert(fragment.valid());
     assert(vertex.description().stage == ShaderStage::Vertex);
+    assert(fragment.description().stage == ShaderStage::Fragment);
     assert(vertex.source() == "void main() {}");
 
     Material material(MaterialHandle(7), ShaderHandle(3));
@@ -27,10 +30,13 @@ int main() {
     RenderPipeline emptyPipeline;
     assert(!emptyPipeline.valid());
 
-    RenderPipeline pipeline(ShaderHandle(11), MaterialHandle(12), PrimitiveTopology::TriangleStrip);
+    RenderPipeline pipeline(ShaderHandle(11), ShaderHandle(12),
+                            MaterialHandle(13), PrimitiveTopology::TriangleStrip);
     assert(pipeline.valid());
     assert(pipeline.shader() == ShaderHandle(11));
-    assert(pipeline.material() == MaterialHandle(12));
+    assert(pipeline.vertexShader() == ShaderHandle(11));
+    assert(pipeline.fragmentShader() == ShaderHandle(12));
+    assert(pipeline.material() == MaterialHandle(13));
     assert(pipeline.topology() == PrimitiveTopology::TriangleStrip);
 
     DrawCommand source{};
@@ -42,16 +48,25 @@ int main() {
     assert(applied.vertexBuffer == source.vertexBuffer);
     assert(applied.vertexCount == source.vertexCount);
     assert(applied.shader == ShaderHandle(11));
-    assert(applied.material == MaterialHandle(12));
+    assert(applied.fragmentShader == ShaderHandle(12));
+    assert(applied.material == MaterialHandle(13));
     assert(applied.topology == PrimitiveTopology::TriangleStrip);
 
-    pipeline.setShader(ShaderHandle(21));
-    pipeline.setMaterial(MaterialHandle(22));
+    pipeline.setVertexShader(ShaderHandle(21));
+    pipeline.setFragmentShader(ShaderHandle(22));
+    pipeline.setMaterial(MaterialHandle(23));
     pipeline.setTopology(PrimitiveTopology::Triangles);
     const DrawCommand updated = pipeline.apply(source);
     assert(updated.shader == ShaderHandle(21));
-    assert(updated.material == MaterialHandle(22));
+    assert(updated.fragmentShader == ShaderHandle(22));
+    assert(updated.material == MaterialHandle(23));
     assert(updated.topology == PrimitiveTopology::Triangles);
+
+    pipeline.setShader(ShaderHandle(31));
+    assert(pipeline.vertexShader() == ShaderHandle(31));
+
+    pipeline.setFragmentShader(ShaderHandle{});
+    assert(!pipeline.valid());
 
     return 0;
 }
