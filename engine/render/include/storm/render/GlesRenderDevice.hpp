@@ -6,7 +6,6 @@
 
 #if defined(__ANDROID__)
 #include <unordered_map>
-#include <unordered_set>
 #endif
 
 namespace storm::render {
@@ -48,7 +47,6 @@ private:
     std::unordered_map<std::uint64_t, std::uint32_t> programs_;
     std::uint32_t program_{0};
     std::uint32_t vao_{0};
-    bool pipelineReady_{false};
 #endif
 };
 
