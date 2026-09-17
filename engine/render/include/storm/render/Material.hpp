@@ -1,10 +1,12 @@
 #pragma once
 
 #include <array>
+#include <cstddef>
 #include <cstdint>
 #include <string>
 #include <unordered_map>
 #include <variant>
+#include <utility>
 
 #include "RenderTypes.hpp"
 
@@ -19,6 +21,8 @@ using MaterialValue = std::variant<MaterialScalar, MaterialVec2, MaterialVec3, M
 
 class Material final {
 public:
+    using ParameterMap = std::unordered_map<std::string, MaterialValue>;
+
     Material() = default;
     explicit Material(MaterialHandle handle, ShaderHandle shader = {}) noexcept
         : handle_(handle), shader_(shader) {}
@@ -49,6 +53,7 @@ public:
     }
 
     [[nodiscard]] std::size_t parameterCount() const noexcept { return parameters_.size(); }
+    [[nodiscard]] const ParameterMap& parameters() const noexcept { return parameters_; }
 
     bool removeParameter(const std::string& name) noexcept {
         return parameters_.erase(name) != 0;
@@ -59,7 +64,7 @@ public:
 private:
     MaterialHandle handle_{};
     ShaderHandle shader_{};
-    std::unordered_map<std::string, MaterialValue> parameters_;
+    ParameterMap parameters_;
 };
 
 } // namespace storm::render
