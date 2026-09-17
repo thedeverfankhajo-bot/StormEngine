@@ -10,13 +10,16 @@ BufferHandle NullRenderDevice::createBuffer(const BufferDesc& desc) {
     return BufferHandle(id);
 }
 
-void NullRenderDevice::destroyBuffer(BufferHandle handle) { if (handle.valid()) buffers_.erase(handle.id()); }
+void NullRenderDevice::destroyBuffer(BufferHandle handle) {
+    if (handle.valid()) buffers_.erase(handle.id());
+}
 
-bool NullRenderDevice::updateBuffer(BufferHandle handle, const void* data, std::size_t size, std::size_t offset) {
+bool NullRenderDevice::updateBuffer(BufferHandle handle, const void* data, std::size_t size,
+                                    std::size_t offset) {
     if (!handle.valid() || data == nullptr || size == 0) return false;
     const auto it = buffers_.find(handle.id());
     if (it == buffers_.end()) return false;
-    const auto bufferSize = static_cast<std::uint64_t>(it->second);
+    const auto bufferSize = it->second;
     const auto updateSize = static_cast<std::uint64_t>(size);
     const auto updateOffset = static_cast<std::uint64_t>(offset);
     return updateOffset <= bufferSize && updateSize <= bufferSize - updateOffset;
@@ -30,7 +33,9 @@ TextureHandle NullRenderDevice::createTexture(const TextureDesc& desc) {
     return TextureHandle(id);
 }
 
-void NullRenderDevice::destroyTexture(TextureHandle handle) { if (handle.valid()) textures_.erase(handle.id()); }
+void NullRenderDevice::destroyTexture(TextureHandle handle) {
+    if (handle.valid()) textures_.erase(handle.id());
+}
 
 ShaderHandle NullRenderDevice::createShader(const ShaderDesc&, const std::string& source) {
     if (source.empty()) return {};
@@ -40,9 +45,14 @@ ShaderHandle NullRenderDevice::createShader(const ShaderDesc&, const std::string
     return ShaderHandle(id);
 }
 
-void NullRenderDevice::destroyShader(ShaderHandle handle) { if (handle.valid()) shaders_.erase(handle.id()); }
+void NullRenderDevice::destroyShader(ShaderHandle handle) {
+    if (handle.valid()) shaders_.erase(handle.id());
+}
 
-void NullRenderDevice::beginFrame() { frameActive_ = true; submittedDraws_ = 0; }
+void NullRenderDevice::beginFrame() {
+    frameActive_ = true;
+    submittedDraws_ = 0;
+}
 
 bool NullRenderDevice::submit(const DrawCommand& command) {
     if (!frameActive_ || !command.vertexBuffer.valid() || command.vertexCount == 0) return false;
