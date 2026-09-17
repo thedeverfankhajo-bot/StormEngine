@@ -20,7 +20,6 @@ public:
     void destroyBuffer(BufferHandle handle) override;
     bool updateBuffer(BufferHandle handle, const void* data, std::size_t size, std::size_t offset = 0) override;
     TextureHandle createTexture(const TextureDesc& desc) override;
-    bool updateTexture(TextureHandle handle, const void* pixels, std::size_t size, std::uint32_t mipLevel = 0) override;
     void destroyTexture(TextureHandle handle) override;
     ShaderHandle createShader(const ShaderDesc& desc, const std::string& source) override;
     void destroyShader(ShaderHandle handle) override;
