@@ -12,6 +12,7 @@ namespace storm::render {
 
 class GlesRenderDevice final : public RenderDevice {
 public:
+    struct TextureRecord { TextureDesc desc{}; };
     GlesRenderDevice() = default;
     ~GlesRenderDevice() override;
     GlesRenderDevice(const GlesRenderDevice&) = delete;
@@ -33,7 +34,6 @@ public:
     [[nodiscard]] std::size_t submittedDrawCount() const noexcept override { return submittedDraws_; }
 private:
     struct ShaderRecord { std::uint32_t glId{0}; ShaderStage stage{ShaderStage::Vertex}; };
-    struct TextureRecord { TextureDesc desc{}; };
     static std::uint32_t allocateHandle(std::uint32_t& next);
     std::uint32_t nextBufferId_{1};
     std::uint32_t nextTextureId_{1};
