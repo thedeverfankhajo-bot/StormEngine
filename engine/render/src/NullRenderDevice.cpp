@@ -6,14 +6,20 @@ BufferHandle NullRenderDevice::createBuffer(const BufferDesc& desc) {
     if (desc.size == 0) return {};
     const auto id = nextBufferId_++;
     if (id == BufferHandle::invalidId) return {};
-    buffers_.insert(id);
+    buffers_.emplace(id, desc.size);
     return BufferHandle(id);
 }
 
 void NullRenderDevice::destroyBuffer(BufferHandle handle) { if (handle.valid()) buffers_.erase(handle.id()); }
 
-bool NullRenderDevice::updateBuffer(BufferHandle handle, const void* data, std::size_t size, std::size_t) {
-    return handle.valid() && data != nullptr && size != 0 && buffers_.find(handle.id()) != buffers_.end();
+bool NullRenderDevice::updateBuffer(BufferHandle handle, const void* data, std::size_t size, std::size_t offset) {
+    if (!handle.valid() || data == nullptr || size == 0) return false;
+    const auto it = buffers_.find(handle.id());
+    if (it == buffers_.end()) return false;
+    const auto bufferSize = static_cast<std::uint64_t>(it->second);
+    const auto updateSize = static_cast<std::uint64_t>(size);
+    const auto updateOffset = static_cast<std::uint64_t>(offset);
+    return updateOffset <= bufferSize && updateSize <= bufferSize - updateOffset;
 }
 
 TextureHandle NullRenderDevice::createTexture(const TextureDesc& desc) {
