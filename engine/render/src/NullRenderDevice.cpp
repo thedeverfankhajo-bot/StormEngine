@@ -3,6 +3,17 @@
 #include <limits>
 
 namespace storm::render {
+namespace {
+std::uint32_t maxMipLevels(std::uint32_t width, std::uint32_t height) noexcept {
+    std::uint32_t levels = 1;
+    while (width > 1 || height > 1) {
+        width = std::max(1u, width / 2u);
+        height = std::max(1u, height / 2u);
+        ++levels;
+    }
+    return levels;
+}
+}
 
 BufferHandle NullRenderDevice::createBuffer(const BufferDesc& desc) {
     if (desc.size == 0) return {};
@@ -19,13 +30,14 @@ bool NullRenderDevice::updateBuffer(BufferHandle handle, const void* data, std::
     return updateOffset <= it->second && updateSize <= it->second - updateOffset;
 }
 TextureHandle NullRenderDevice::createTexture(const TextureDesc& desc) {
-    if (desc.width == 0 || desc.height == 0 || desc.mipLevels == 0) return {};
+    if (desc.width == 0 || desc.height == 0 || desc.mipLevels == 0 || desc.format != TextureFormat::RGBA8 ||
+        desc.mipLevels > maxMipLevels(desc.width, desc.height)) return {};
     const auto id = ++nextTextureId_; if (id == TextureHandle::invalidId) return {};
     textures_.emplace(id, desc); return TextureHandle(id);
 }
 bool NullRenderDevice::updateTexture(TextureHandle handle, const void* pixels, std::size_t size, std::uint32_t mipLevel) {
     if (!handle.valid() || pixels == nullptr || size == 0) return false;
-    const auto it = textures_.find(handle.id()); if (it == textures_.end() || mipLevel >= it->second.mipLevels) return false;
+    const auto it = textures_.find(handle.id()); if (it == textures_.end() || it->second.format != TextureFormat::RGBA8 || mipLevel >= it->second.mipLevels) return false;
     std::uint64_t width = it->second.width, height = it->second.height;
     for (std::uint32_t level = 0; level < mipLevel; ++level) { width = std::max<std::uint64_t>(1, width / 2); height = std::max<std::uint64_t>(1, height / 2); }
     if (width > std::numeric_limits<std::uint64_t>::max() / height) return false;

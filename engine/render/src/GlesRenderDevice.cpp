@@ -3,6 +3,7 @@
 #if defined(__ANDROID__)
 #include "storm/render/Material.hpp"
 #include <GLES3/gl3.h>
+#include <algorithm>
 #include <limits>
 
 namespace storm::render {
@@ -48,7 +49,7 @@ constexpr std::uint64_t maxGlInt = static_cast<std::uint64_t>(std::numeric_limit
 
 bool applyMaterial(const Material& material,
                    GLuint program,
-                   const std::unordered_set<std::uint32_t>& textures) noexcept {
+                   const std::unordered_map<std::uint32_t, GlesRenderDevice::TextureRecord>& textures) noexcept {
     std::uint32_t textureUnit = 0;
     for (const auto& [name, value] : material.parameters()) {
         const GLint location = glGetUniformLocation(program, name.c_str());
@@ -81,14 +82,14 @@ bool applyMaterial(const Material& material,
 } // namespace
 
 GlesRenderDevice::~GlesRenderDevice() {
+    for (const auto& [key, program] : programs_) { (void)key; glDeleteProgram(static_cast<GLuint>(program)); }
     if (vao_ != 0) {
         const GLuint id = static_cast<GLuint>(vao_);
         glDeleteVertexArrays(1, &id);
     }
-    if (program_ != 0) glDeleteProgram(static_cast<GLuint>(program_));
     for (const auto& [handle, shader] : shaders_) { (void)handle; glDeleteShader(static_cast<GLuint>(shader.glId)); }
     for (const auto& [handle, size] : buffers_) { (void)size; const GLuint id = static_cast<GLuint>(handle); glDeleteBuffers(1, &id); }
-    for (const auto id : textures_) { const GLuint glId = static_cast<GLuint>(id); glDeleteTextures(1, &glId); }
+    for (const auto& [handle, record] : textures_) { (void)record; const GLuint id = static_cast<GLuint>(handle); glDeleteTextures(1, &id); }
 }
 
 std::uint32_t GlesRenderDevice::allocateHandle(std::uint32_t& next) {
@@ -122,7 +123,7 @@ bool GlesRenderDevice::updateBuffer(BufferHandle handle, const void* data, std::
     return glGetError() == GL_NO_ERROR;
 }
 TextureHandle GlesRenderDevice::createTexture(const TextureDesc& desc) {
-    if (desc.width == 0 || desc.height == 0 || desc.mipLevels == 0 ||
+    if (desc.width == 0 || desc.height == 0 || desc.mipLevels == 0 || desc.format != TextureFormat::RGBA8 ||
         desc.width > static_cast<std::uint32_t>(std::numeric_limits<GLsizei>::max()) ||
         desc.height > static_cast<std::uint32_t>(std::numeric_limits<GLsizei>::max())) return {};
     GLuint glId = 0;
@@ -136,8 +137,22 @@ TextureHandle GlesRenderDevice::createTexture(const TextureDesc& desc) {
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, static_cast<GLsizei>(desc.width), static_cast<GLsizei>(desc.height), 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
     if (desc.mipLevels > 1) glGenerateMipmap(GL_TEXTURE_2D);
     if (glGetError() != GL_NO_ERROR) { glDeleteTextures(1, &glId); return {}; }
-    textures_.insert(glId);
+    textures_.emplace(glId, TextureRecord{desc});
     return TextureHandle(glId);
+}
+bool GlesRenderDevice::updateTexture(TextureHandle handle, const void* data, std::size_t size, std::uint32_t mipLevel) {
+    if (!handle.valid() || data == nullptr) return false;
+    const auto it = textures_.find(handle.id());
+    if (it == textures_.end() || it->second.desc.format != TextureFormat::RGBA8 || mipLevel >= it->second.desc.mipLevels) return false;
+    const std::uint32_t width = std::max(1u, it->second.desc.width >> std::min(mipLevel, 31u));
+    const std::uint32_t height = std::max(1u, it->second.desc.height >> std::min(mipLevel, 31u));
+    const std::uint64_t expected = static_cast<std::uint64_t>(width) * height * 4u;
+    if (expected > std::numeric_limits<std::size_t>::max() || size != static_cast<std::size_t>(expected)) return false;
+    glBindTexture(GL_TEXTURE_2D, static_cast<GLuint>(handle.id()));
+    glTexSubImage2D(GL_TEXTURE_2D, static_cast<GLint>(mipLevel), 0, 0,
+                    static_cast<GLsizei>(width), static_cast<GLsizei>(height), GL_RGBA, GL_UNSIGNED_BYTE, data);
+    if (glGetError() != GL_NO_ERROR) return false;
+    return true;
 }
 void GlesRenderDevice::destroyTexture(TextureHandle handle) {
     if (!handle.valid()) return;
@@ -158,9 +173,19 @@ void GlesRenderDevice::destroyShader(ShaderHandle handle) {
     if (!handle.valid()) return;
     const auto it = shaders_.find(handle.id());
     if (it == shaders_.end()) return;
+    for (auto programIt = programs_.begin(); programIt != programs_.end();) {
+        const std::uint32_t vertex = static_cast<std::uint32_t>(programIt->first >> 32u);
+        const std::uint32_t fragment = static_cast<std::uint32_t>(programIt->first & 0xffffffffu);
+        if (vertex == handle.id() || fragment == handle.id()) {
+            glDeleteProgram(static_cast<GLuint>(programIt->second));
+            if (program_ == programIt->second) program_ = 0;
+            programIt = programs_.erase(programIt);
+        } else ++programIt;
+    }
     glDeleteShader(static_cast<GLuint>(it->second.glId));
     shaders_.erase(it);
 }
+
 void GlesRenderDevice::beginFrame() { frameActive_ = true; submittedDraws_ = 0; }
 
 bool GlesRenderDevice::submit(const DrawCommand& command) {
@@ -188,22 +213,30 @@ bool GlesRenderDevice::submit(const DrawCommand& command) {
         if (attributeEnd < attribute.offset || attributeEnd > command.vertexLayout.stride) return false;
     }
 
-    if (program_ != 0) glDeleteProgram(static_cast<GLuint>(program_));
-    program_ = static_cast<std::uint32_t>(glCreateProgram());
-    if (program_ == 0) return false;
-    glAttachShader(static_cast<GLuint>(program_), static_cast<GLuint>(vertexIt->second.glId));
-    glAttachShader(static_cast<GLuint>(program_), static_cast<GLuint>(fragmentIt->second.glId));
-    glLinkProgram(static_cast<GLuint>(program_));
-    GLint linked = GL_FALSE;
-    glGetProgramiv(static_cast<GLuint>(program_), GL_LINK_STATUS, &linked);
-    if (linked != GL_TRUE) { glDeleteProgram(static_cast<GLuint>(program_)); program_ = 0; return false; }
+    const std::uint64_t programKey = (static_cast<std::uint64_t>(command.shader.id()) << 32u) | command.fragmentShader.id();
+    auto programIt = programs_.find(programKey);
+    if (programIt == programs_.end()) {
+        const GLuint program = glCreateProgram();
+        if (program == 0) return false;
+        glAttachShader(program, static_cast<GLuint>(vertexIt->second.glId));
+        glAttachShader(program, static_cast<GLuint>(fragmentIt->second.glId));
+        glLinkProgram(program);
+        GLint linked = GL_FALSE;
+        glGetProgramiv(program, GL_LINK_STATUS, &linked);
+        if (linked != GL_TRUE || glGetError() != GL_NO_ERROR) {
+            glDeleteProgram(program);
+            return false;
+        }
+        programIt = programs_.emplace(programKey, program).first;
+    }
+    program_ = programIt->second;
 
     if (vao_ == 0) {
         GLuint vao = 0;
         glGenVertexArrays(1, &vao);
         vao_ = static_cast<std::uint32_t>(vao);
     }
-    if (vao_ == 0) { glDeleteProgram(static_cast<GLuint>(program_)); program_ = 0; return false; }
+    if (vao_ == 0) return false;
     glUseProgram(static_cast<GLuint>(program_));
     glBindVertexArray(static_cast<GLuint>(vao_));
     glBindBuffer(GL_ARRAY_BUFFER, static_cast<GLuint>(command.vertexBuffer.id()));
@@ -254,6 +287,7 @@ BufferHandle GlesRenderDevice::createBuffer(const BufferDesc&) { return {}; }
 void GlesRenderDevice::destroyBuffer(BufferHandle) {}
 bool GlesRenderDevice::updateBuffer(BufferHandle, const void*, std::size_t, std::size_t) { return false; }
 TextureHandle GlesRenderDevice::createTexture(const TextureDesc&) { return {}; }
+bool GlesRenderDevice::updateTexture(TextureHandle, const void*, std::size_t, std::uint32_t) { return false; }
 void GlesRenderDevice::destroyTexture(TextureHandle) {}
 ShaderHandle GlesRenderDevice::createShader(const ShaderDesc&, const std::string&) { return {}; }
 void GlesRenderDevice::destroyShader(ShaderHandle) {}
