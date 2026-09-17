@@ -31,8 +31,12 @@ public:
     void insert(Entity::Id entity) {
         if (contains(entity)) return;
         ensureSparse(entity);
-        sparse_[entity] = dense_.size();
+
+        // Append first. If vector growth throws, sparse_[entity] remains invalid
+        // and the set is unchanged. Only the noexcept index assignment follows.
+        const std::size_t position = dense_.size();
         dense_.push_back(entity);
+        sparse_[entity] = position;
     }
 
     void erase(Entity::Id entity) {
