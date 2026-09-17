@@ -75,8 +75,9 @@ struct VertexLayout final {
             case VertexFormat::Float32x2: components = 2; break;
             case VertexFormat::Float32x3: components = 3; break;
             case VertexFormat::Float32x4: components = 4; break;
+            default: return false;
             }
-            if (components == 0 || attributes[i].offset > stride) return false;
+            if (attributes[i].offset > stride) return false;
             const std::uint64_t end = static_cast<std::uint64_t>(attributes[i].offset) + components * sizeof(float);
             if (end > stride) return false;
             for (std::uint32_t j = 0; j < i; ++j) {
