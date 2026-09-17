@@ -1,6 +1,42 @@
 #include <cassert>
+#include <string>
 
 #include "storm/render/RenderQueue.hpp"
+
+namespace {
+class RecordingDevice final : public storm::render::RenderDevice {
+public:
+    storm::render::BufferHandle createBuffer(const storm::render::BufferDesc&) override { return {}; }
+    void destroyBuffer(storm::render::BufferHandle) override {}
+    bool updateBuffer(storm::render::BufferHandle, const void*, std::size_t, std::size_t) override { return false; }
+    storm::render::TextureHandle createTexture(const storm::render::TextureDesc&) override { return {}; }
+    void destroyTexture(storm::render::TextureHandle) override {}
+    storm::render::ShaderHandle createShader(const storm::render::ShaderDesc&, const std::string&) override { return {}; }
+    void destroyShader(storm::render::ShaderHandle) override {}
+    void beginFrame() override { began = true; ended = false; }
+    bool submit(const storm::render::DrawCommand& command) override {
+        ++submits;
+        return command.vertexBuffer.valid() && command.vertexCount > 0 && command.vertexLayout.valid();
+    }
+    void endFrame() override { ended = true; }
+    std::size_t liveBufferCount() const noexcept override { return 0; }
+    std::size_t liveTextureCount() const noexcept override { return 0; }
+    std::size_t liveShaderCount() const noexcept override { return 0; }
+    std::size_t submittedDrawCount() const noexcept override { return submits; }
+
+    bool began{false};
+    bool ended{false};
+    std::size_t submits{0};
+};
+
+storm::render::VertexLayout layout() {
+    storm::render::VertexLayout result{};
+    result.attributes[0] = {0, storm::render::VertexFormat::Float32x3, 0};
+    result.stride = 12;
+    result.attributeCount = 1;
+    return result;
+}
+}
 
 int main() {
     using namespace storm::render;
@@ -12,12 +48,14 @@ int main() {
     DrawCommand first{};
     first.vertexBuffer = BufferHandle(1);
     first.vertexCount = 3;
+    first.vertexLayout = layout();
     queue.submit(first);
 
     DrawCommand second{};
     second.topology = PrimitiveTopology::Lines;
     second.vertexBuffer = BufferHandle(2);
     second.vertexCount = 6;
+    second.vertexLayout = layout();
     queue.submit(second);
 
     assert(!queue.empty());
@@ -28,6 +66,12 @@ int main() {
     assert(queue.at(1).vertexCount == 6);
     assert(queue.commands().size() == 2);
 
+    DrawCommand invalid{};
+    invalid.vertexBuffer = BufferHandle(99);
+    invalid.vertexCount = 3;
+    queue.submit(invalid);
+    assert(queue.size() == 2);
+
     queue.beginFrame();
     assert(queue.empty());
     assert(queue.size() == 0);
@@ -36,9 +80,17 @@ int main() {
     indexed.vertexBuffer = BufferHandle(4);
     indexed.indexBuffer = BufferHandle(5);
     indexed.indexCount = 12;
+    indexed.vertexCount = 3;
+    indexed.vertexLayout = layout();
     queue.submit(indexed);
     assert(queue.size() == 1);
     assert(queue.at(0).indexed());
+
+    RecordingDevice device;
+    assert(queue.execute(device));
+    assert(device.began);
+    assert(device.ended);
+    assert(device.submits == 1);
 
     return 0;
 }
