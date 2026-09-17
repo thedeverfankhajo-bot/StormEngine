@@ -16,8 +16,14 @@ struct Vec4 {
 
     constexpr Vec4 operator+(const Vec4& rhs) const { return {x + rhs.x, y + rhs.y, z + rhs.z, w + rhs.w}; }
     constexpr Vec4 operator-(const Vec4& rhs) const { return {x - rhs.x, y - rhs.y, z - rhs.z, w - rhs.w}; }
+    constexpr Vec4 operator-() const { return {-x, -y, -z, -w}; }
     constexpr Vec4 operator*(float scalar) const { return {x * scalar, y * scalar, z * scalar, w * scalar}; }
     constexpr Vec4 operator/(float scalar) const { return {x / scalar, y / scalar, z / scalar, w / scalar}; }
+
+    constexpr Vec4& operator+=(const Vec4& rhs) { x += rhs.x; y += rhs.y; z += rhs.z; w += rhs.w; return *this; }
+    constexpr Vec4& operator-=(const Vec4& rhs) { x -= rhs.x; y -= rhs.y; z -= rhs.z; w -= rhs.w; return *this; }
+    constexpr Vec4& operator*=(float scalar) { x *= scalar; y *= scalar; z *= scalar; w *= scalar; return *this; }
+    constexpr Vec4& operator/=(float scalar) { x /= scalar; y /= scalar; z /= scalar; w /= scalar; return *this; }
 
     constexpr float lengthSquared() const { return x*x + y*y + z*z + w*w; }
     float length() const { return std::sqrt(lengthSquared()); }
@@ -25,7 +31,7 @@ struct Vec4 {
 
     Vec4 normalized() const {
         const float len = length();
-        return len > 0.0f ? *this / len : Vec4{};
+        return std::isfinite(len) && len > 0.0f ? *this / len : Vec4{};
     }
 };
 
