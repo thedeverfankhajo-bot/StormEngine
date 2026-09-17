@@ -27,7 +27,7 @@ struct Vec2 {
 
     Vec2 normalized() const {
         const float len = length();
-        return len > 0.0f ? *this / len : Vec2{};
+        return std::isfinite(len) && len > 0.0f ? *this / len : Vec2{};
     }
 
     constexpr float dot(const Vec2& rhs) const { return x * rhs.x + y * rhs.y; }
