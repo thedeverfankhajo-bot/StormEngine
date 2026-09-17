@@ -21,6 +21,7 @@ public:
     void destroyBuffer(BufferHandle handle) override;
     bool updateBuffer(BufferHandle handle, const void* data, std::size_t size, std::size_t offset = 0) override;
     TextureHandle createTexture(const TextureDesc& desc) override;
+    bool updateTexture(TextureHandle handle, const void* data, std::size_t size, std::uint32_t mipLevel = 0) override;
     void destroyTexture(TextureHandle handle) override;
     ShaderHandle createShader(const ShaderDesc& desc, const std::string& source) override;
     void destroyShader(ShaderHandle handle) override;
@@ -33,6 +34,7 @@ public:
     [[nodiscard]] std::size_t submittedDrawCount() const noexcept override { return submittedDraws_; }
 private:
     struct ShaderRecord { std::uint32_t glId{0}; ShaderStage stage{ShaderStage::Vertex}; };
+    struct TextureRecord { TextureDesc desc{}; };
     static std::uint32_t allocateHandle(std::uint32_t& next);
     std::uint32_t nextBufferId_{1};
     std::uint32_t nextTextureId_{1};
@@ -41,8 +43,9 @@ private:
     bool frameActive_{false};
 #if defined(__ANDROID__)
     std::unordered_map<std::uint32_t, std::uint64_t> buffers_;
-    std::unordered_set<std::uint32_t> textures_;
+    std::unordered_map<std::uint32_t, TextureRecord> textures_;
     std::unordered_map<std::uint32_t, ShaderRecord> shaders_;
+    std::unordered_map<std::uint64_t, std::uint32_t> programs_;
     std::uint32_t program_{0};
     std::uint32_t vao_{0};
     bool pipelineReady_{false};
