@@ -2,6 +2,7 @@
 
 #include "Vec3.hpp"
 #include "Mat4.hpp"
+#include <algorithm>
 #include <cmath>
 
 namespace storm::math {
@@ -19,13 +20,17 @@ struct Quaternion {
     static Quaternion identity() { return {}; }
 
     static Quaternion fromAxisAngle(const Vec3& axis, float radians) {
-        const Vec3 n = axis.normalized();
+        if (!std::isfinite(radians)) return {};
+        const float axisLength = axis.length();
+        if (!(axisLength > 0.0f) || !std::isfinite(axisLength)) return {};
+        const Vec3 n = axis / axisLength;
         const float half = radians * 0.5f;
         const float s = std::sin(half);
         return {n.x * s, n.y * s, n.z * s, std::cos(half)};
     }
 
     static Quaternion fromEuler(float pitch, float yaw, float roll) {
+        if (!std::isfinite(pitch) || !std::isfinite(yaw) || !std::isfinite(roll)) return {};
         const float hp = pitch * 0.5f;
         const float hy = yaw * 0.5f;
         const float hr = roll * 0.5f;
@@ -53,13 +58,16 @@ struct Quaternion {
     constexpr float lengthSquared() const { return x*x + y*y + z*z + w*w; }
 
     Quaternion normalized() const {
-        const float len = std::sqrt(lengthSquared());
-        return len > 0.0f ? Quaternion{x/len, y/len, z/len, w/len} : Quaternion{};
+        const float lenSq = lengthSquared();
+        if (!(lenSq > 0.0f) || !std::isfinite(lenSq)) return {};
+        const float invLen = 1.0f / std::sqrt(lenSq);
+        return {x*invLen, y*invLen, z*invLen, w*invLen};
     }
 
     Quaternion inverse() const {
         const float lenSq = lengthSquared();
-        return lenSq > 0.0f ? Quaternion{-x/lenSq, -y/lenSq, -z/lenSq, w/lenSq} : Quaternion{};
+        if (!(lenSq > 0.0f) || !std::isfinite(lenSq)) return {};
+        return {-x/lenSq, -y/lenSq, -z/lenSq, w/lenSq};
     }
 
     Vec3 rotate(const Vec3& v) const {
@@ -88,10 +96,13 @@ struct Quaternion {
     }
 
     static Quaternion slerp(const Quaternion& a, const Quaternion& b, float t) {
+        if (!std::isfinite(t)) return a.normalized();
         Quaternion q1 = a.normalized();
         Quaternion q2 = b.normalized();
         float dot = q1.x*q2.x + q1.y*q2.y + q1.z*q2.z + q1.w*q2.w;
+        if (!std::isfinite(dot)) return {};
         if (dot < 0.0f) { q2 = {-q2.x, -q2.y, -q2.z, -q2.w}; dot = -dot; }
+        dot = std::clamp(dot, -1.0f, 1.0f);
         if (dot > 0.9995f) {
             return Quaternion{
                 q1.x + t*(q2.x-q1.x), q1.y + t*(q2.y-q1.y),
@@ -100,12 +111,13 @@ struct Quaternion {
         }
         const float theta = std::acos(dot);
         const float sinTheta = std::sin(theta);
+        if (!(sinTheta > 1e-6f)) return q1;
         const float aWeight = std::sin((1.0f-t)*theta) / sinTheta;
         const float bWeight = std::sin(t*theta) / sinTheta;
-        return {
+        return Quaternion{
             q1.x*aWeight + q2.x*bWeight, q1.y*aWeight + q2.y*bWeight,
             q1.z*aWeight + q2.z*bWeight, q1.w*aWeight + q2.w*bWeight
-        };
+        }.normalized();
     }
 };
 
