@@ -6,6 +6,7 @@
 
 #if defined(__ANDROID__)
 #include <unordered_map>
+#include <unordered_set>
 #endif
 
 namespace storm::render {
@@ -40,7 +41,7 @@ private:
     bool frameActive_{false};
 #if defined(__ANDROID__)
     std::unordered_map<std::uint32_t, std::uint64_t> buffers_;
-    std::unordered_map<std::uint32_t, TextureDesc> textures_;
+    std::unordered_set<std::uint32_t> textures_;
     std::unordered_map<std::uint32_t, ShaderRecord> shaders_;
     std::uint32_t program_{0};
     std::uint32_t vao_{0};
