@@ -64,8 +64,15 @@ tools/    Asset/build utilities
 examples/ Example projects
 tests/    Automated tests
 docs/     Architecture and API documentation
-.github/  CI workflows
+.github/  CI, contribution, and repository policy configuration
 ```
+
+## Contributing and project policies
+
+- [Contributing guide](CONTRIBUTING.md) — development workflow, coding expectations, testing, and pull requests.
+- [Security policy](SECURITY.md) — vulnerability reporting and security practices.
+- [Code of Conduct](CODE_OF_CONDUCT.md) — collaboration and project-space expectations.
+- [Support guide](SUPPORT.md) — bug reports, build problems, and feature requests.
 
 ## Goals
 
