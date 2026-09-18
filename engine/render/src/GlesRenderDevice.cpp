@@ -6,6 +6,7 @@
 #include <android/log.h>
 #include <vector>
 #include <algorithm>
+#include <cstring>
 #include <limits>
 
 namespace storm::render {
@@ -106,6 +107,7 @@ bool applyMaterial(const Material& material,
 } // namespace
 
 GlesRenderDevice::~GlesRenderDevice() {
+    if (!gpuContextValid_) return;
     for (const auto& [key, program] : programs_) { (void)key; glDeleteProgram(static_cast<GLuint>(program)); }
     if (vao_ != 0) {
         const GLuint id = static_cast<GLuint>(vao_);
@@ -136,7 +138,7 @@ BufferHandle GlesRenderDevice::createBuffer(const BufferDesc& desc) {
     if (glGetError() != GL_NO_ERROR) { glDeleteBuffers(1, &glId); return {}; }
     const auto handle = bufferHandles_.allocate();
     if (!handle.valid()) { glDeleteBuffers(1, &glId); return {}; }
-    buffers_.emplace(handle.id(), BufferRecord{desc.size, glId});
+    buffers_.emplace(handle.id(), BufferRecord{desc.size, glId, std::vector<std::uint8_t>(desc.size)});
     return handle;
 }
 void GlesRenderDevice::destroyBuffer(BufferHandle handle) {
@@ -155,7 +157,9 @@ bool GlesRenderDevice::updateBuffer(BufferHandle handle, const void* data, std::
         size > maxGlSize || offset > maxGlSize) return false;
     glBindBuffer(GL_ARRAY_BUFFER, static_cast<GLuint>(it->second.glId));
     glBufferSubData(GL_ARRAY_BUFFER, static_cast<GLintptr>(offset), static_cast<GLsizeiptr>(size), data);
-    return glGetError() == GL_NO_ERROR;
+    if (glGetError() != GL_NO_ERROR) return false;
+    std::memcpy(it->second.data.data() + offset, data, size);
+    return true;
 }
 TextureHandle GlesRenderDevice::createTexture(const TextureDesc& desc) {
     if (desc.width == 0 || desc.height == 0 || desc.mipLevels == 0 ||
@@ -175,7 +179,13 @@ TextureHandle GlesRenderDevice::createTexture(const TextureDesc& desc) {
     if (glGetError() != GL_NO_ERROR) { glDeleteTextures(1, &glId); return {}; }
     const auto handle = textureHandles_.allocate();
     if (!handle.valid()) { glDeleteTextures(1, &glId); return {}; }
-    textures_.emplace(handle.id(), TextureRecord{desc, glId});
+    std::vector<std::vector<std::uint8_t>> mipData(desc.mipLevels);
+    for (std::uint32_t level = 0; level < desc.mipLevels; ++level) {
+        const std::uint32_t w = std::max(1u, desc.width >> std::min(level, 31u));
+        const std::uint32_t h = std::max(1u, desc.height >> std::min(level, 31u));
+        mipData[level].resize(static_cast<std::size_t>(static_cast<std::uint64_t>(w) * h * 4u));
+    }
+    textures_.emplace(handle.id(), TextureRecord{desc, glId, std::move(mipData)});
     return handle;
 }
 bool GlesRenderDevice::updateTexture(TextureHandle handle, const void* data, std::size_t size, std::uint32_t mipLevel) {
@@ -189,7 +199,9 @@ bool GlesRenderDevice::updateTexture(TextureHandle handle, const void* data, std
     glBindTexture(GL_TEXTURE_2D, static_cast<GLuint>(it->second.glId));
     glTexSubImage2D(GL_TEXTURE_2D, static_cast<GLint>(mipLevel), 0, 0,
                     static_cast<GLsizei>(width), static_cast<GLsizei>(height), GL_RGBA, GL_UNSIGNED_BYTE, data);
-    return glGetError() == GL_NO_ERROR;
+    if (glGetError() != GL_NO_ERROR) return false;
+    std::memcpy(it->second.mipData[mipLevel].data(), data, size);
+    return true;
 }
 void GlesRenderDevice::destroyTexture(TextureHandle handle) {
     if (!textureHandles_.valid(handle)) return;
@@ -207,7 +219,7 @@ ShaderHandle GlesRenderDevice::createShader(const ShaderDesc& desc, const std::s
     if (shader == 0) return {};
     const auto handle = shaderHandles_.allocate();
     if (!handle.valid()) { glDeleteShader(shader); return {}; }
-    shaders_.emplace(handle.id(), ShaderRecord{shader, desc.stage});
+    shaders_.emplace(handle.id(), ShaderRecord{shader, desc.stage, source});
     return handle;
 }
 void GlesRenderDevice::destroyShader(ShaderHandle handle) {
@@ -377,4 +389,71 @@ std::size_t GlesRenderDevice::liveTextureCount() const noexcept { return 0; }
 std::size_t GlesRenderDevice::liveShaderCount() const noexcept { return 0; }
 std::uint32_t GlesRenderDevice::allocateHandle(std::uint32_t& next) { return next++; }
 } // namespace storm::render
+#endif
+
+
+#if defined(__ANDROID__)
+void GlesRenderDevice::invalidateGpuResources() noexcept {
+    frameActive_ = false;
+    submittedDraws_ = 0;
+    for (auto& [id, record] : buffers_) { (void)id; record.glId = 0; }
+    for (auto& [id, record] : textures_) { (void)id; record.glId = 0; }
+    for (auto& [id, record] : shaders_) { (void)id; record.glId = 0; }
+    programs_.clear();
+    uniformLocations_.clear();
+    program_ = 0;
+    vao_ = 0;
+    maxTextureUnits_ = 0;
+    stateCache_.invalidate();
+    gpuContextValid_ = false;
+}
+
+bool GlesRenderDevice::restoreGpuResources() noexcept {
+    if (gpuContextValid_) return true;
+
+    for (auto& [id, record] : buffers_) {
+        GLuint glId = 0;
+        glGenBuffers(1, &glId);
+        if (glId == 0) { invalidateGpuResources(); return false; }
+        glBindBuffer(GL_ARRAY_BUFFER, glId);
+        glBufferData(GL_ARRAY_BUFFER, static_cast<GLsizeiptr>(record.size),
+                     record.data.empty() ? nullptr : record.data.data(), GL_STATIC_DRAW);
+        if (glGetError() != GL_NO_ERROR) { glDeleteBuffers(1, &glId); invalidateGpuResources(); return false; }
+        record.glId = glId;
+    }
+
+    for (auto& [id, record] : textures_) {
+        GLuint glId = 0;
+        glGenTextures(1, &glId);
+        if (glId == 0) { invalidateGpuResources(); return false; }
+        glBindTexture(GL_TEXTURE_2D, glId);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER,
+                        record.desc.mipLevels > 1 ? GL_LINEAR_MIPMAP_LINEAR : GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8,
+                     static_cast<GLsizei>(record.desc.width), static_cast<GLsizei>(record.desc.height),
+                     0, GL_RGBA, GL_UNSIGNED_BYTE, record.mipData[0].empty() ? nullptr : record.mipData[0].data());
+        if (record.desc.mipLevels > 1) glGenerateMipmap(GL_TEXTURE_2D);
+        if (glGetError() != GL_NO_ERROR) { glDeleteTextures(1, &glId); invalidateGpuResources(); return false; }
+        record.glId = glId;
+    }
+
+    for (auto& [id, record] : shaders_) {
+        const GLenum type = record.stage == ShaderStage::Vertex ? GL_VERTEX_SHADER : GL_FRAGMENT_SHADER;
+        const GLuint glId = compileShader(type, record.source.c_str());
+        if (glId == 0) { invalidateGpuResources(); return false; }
+        record.glId = glId;
+    }
+
+    programs_.clear();
+    uniformLocations_.clear();
+    program_ = 0;
+    vao_ = 0;
+    maxTextureUnits_ = 0;
+    stateCache_.invalidate();
+    gpuContextValid_ = true;
+    return true;
+}
 #endif
