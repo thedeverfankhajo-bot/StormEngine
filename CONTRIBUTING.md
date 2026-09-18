@@ -7,7 +7,7 @@ StormEngine is an active C++20 engine project. Contributions should be focused, 
 ## Requirements
 
 - C++20 compiler.
-- CMake 3.20+ for direct builds; CMake 3.23+ for shared presets.
+- CMake 3.20+ for direct builds and shared presets.
 - Git.
 - Ninja recommended; Make is supported.
 - Android SDK/NDK and Gradle for Android work.
