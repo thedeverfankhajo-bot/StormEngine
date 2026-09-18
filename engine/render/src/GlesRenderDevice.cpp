@@ -294,7 +294,7 @@ void GlesRenderDevice::destroyBuffer(BufferHandle handle) {
     const GLuint id = static_cast<GLuint>(it->second.glId);
     buffers_.erase(it);
     bufferHandles_.release(handle);
-    if (id != 0) glDeleteBuffers(1, &id);
+    if (gpuResourcesValid_ && id != 0) glDeleteBuffers(1, &id);
 }
 bool GlesRenderDevice::updateBuffer(BufferHandle handle, const void* data, std::size_t size, std::size_t offset) {
     if (!gpuResourcesValid_ || !bufferHandles_.valid(handle) || data == nullptr || size == 0) return false;
@@ -357,7 +357,7 @@ void GlesRenderDevice::destroyTexture(TextureHandle handle) {
     const GLuint id = static_cast<GLuint>(it->second.glId);
     textures_.erase(it);
     textureHandles_.release(handle);
-    if (id != 0) glDeleteTextures(1, &id);
+    if (gpuResourcesValid_ && id != 0) glDeleteTextures(1, &id);
 }
 ShaderHandle GlesRenderDevice::createShader(const ShaderDesc& desc, const std::string& source) {
     if (!gpuResourcesValid_ || source.empty()) return {};
@@ -377,13 +377,13 @@ void GlesRenderDevice::destroyShader(ShaderHandle handle) {
         const std::uint32_t vertex = static_cast<std::uint32_t>(programIt->first >> 32u);
         const std::uint32_t fragment = static_cast<std::uint32_t>(programIt->first & 0xffffffffu);
         if (vertex == handle.id() || fragment == handle.id()) {
-            glDeleteProgram(static_cast<GLuint>(programIt->second));
+            if (gpuResourcesValid_) glDeleteProgram(static_cast<GLuint>(programIt->second));
             if (program_ == programIt->second) program_ = 0;
             uniformLocations_.erase(static_cast<std::uint64_t>(programIt->second));
             programIt = programs_.erase(programIt);
         } else ++programIt;
     }
-    glDeleteShader(static_cast<GLuint>(it->second.glId));
+    if (gpuResourcesValid_ && it->second.glId != 0) glDeleteShader(static_cast<GLuint>(it->second.glId));
     shaders_.erase(it);
     shaderHandles_.release(handle);
 }
