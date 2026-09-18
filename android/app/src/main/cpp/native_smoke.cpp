@@ -110,7 +110,10 @@ void main() { outColor = vColor; })glsl";
 
         const int width = ANativeWindow_getWidth(window);
         const int height = ANativeWindow_getHeight(window);
-        if (width <= 0 || height <= 0) continue;
+        if (width <= 0 || height <= 0) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(16));
+            continue;
+        }
 
         camera.setViewport(static_cast<float>(width), static_cast<float>(height));
         glViewport(0, 0, width, height);
