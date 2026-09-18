@@ -13,7 +13,7 @@ The current foundation includes:
 - Parent/child world transforms with cached revisions.
 - Backend-neutral render resources, draw commands, render-state caching, explicit viewport/scissor state, Null renderer, and OpenGL ES renderer.
 - CPU SpriteBatch geometry.
-- Generation-safe resource lifetime and renderer validation.
+- Generation-safe resource lifetime, pool-clear invalidation, and renderer validation.
 - Android SurfaceView/EGL lifecycle hardening and context-loss recovery foundations.
 - Linux CTest, sanitizer, Android APK, and CodeQL CI coverage.
 
