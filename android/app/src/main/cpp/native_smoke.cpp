@@ -87,6 +87,9 @@ void main(){outColor=vColor;})glsl";
         if(w<=0||h<=0) break;
         glViewport(0,0,w,h);
         camera.setViewport((float)w,(float)h);
+        glEnable(GL_DEPTH_TEST);
+        glDepthFunc(GL_LESS);
+        glDepthMask(GL_TRUE);
         glClearColor(.015f,.01f,.03f,1);
         glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
 
