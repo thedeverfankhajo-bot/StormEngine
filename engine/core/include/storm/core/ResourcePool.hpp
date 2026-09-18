@@ -53,6 +53,7 @@ public:
             free_.pop_back();
             Slot& slot = slots_[index];
             slot.value.emplace(std::forward<Args>(args)...);
+            ++liveCount_;
             return Handle(index, slot.generation);
         }
 
@@ -63,6 +64,7 @@ public:
         slot.generation = 1;
         slot.value.emplace(std::forward<Args>(args)...);
         slots_.push_back(std::move(slot));
+        ++liveCount_;
         return Handle(static_cast<Index>(slots_.size() - 1), 1);
     }
 
@@ -71,6 +73,7 @@ public:
         if (!slot) return false;
 
         slot->value.reset();
+        --liveCount_;
         if (slot->generation != std::numeric_limits<Generation>::max()) {
             ++slot->generation;
             free_.push_back(handle.index());
