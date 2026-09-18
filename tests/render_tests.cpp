@@ -104,9 +104,6 @@ int main() {
 
     indexed.indexCount = 0;
     assert(!indexed.indexed());
-    indexed.indexCount = 1;
-    indexed.indexBuffer = BufferHandle{};
-    assert(indexed.indexed());
 
     RenderQueue queue;
     assert(queue.empty());
@@ -117,13 +114,25 @@ int main() {
     assert(!queue.empty());
     assert(queue.size() == 2);
     assert(queue.at(0).vertexCount == 36);
-    assert(queue.at(1).indexCount == 1);
+    assert(queue.at(1).indexCount == 0);
+
+    indexed.indexCount = 1;
+    indexed.indexBuffer = BufferHandle{};
+    assert(indexed.indexed());
+
+    // RenderQueue rejects malformed indexed commands rather than queueing them.
+    queue.beginFrame();
+    queue.submit(indexed);
+    assert(queue.empty());
+
+    indexed.indexBuffer = BufferHandle(13);
+    queue.submit(indexed);
+    assert(queue.size() == 1);
+    assert(queue.at(0).indexCount == 1);
 
     const auto& commands = queue.commands();
-    assert(commands.size() == 2);
-    assert(commands[0].vertexBuffer == BufferHandle(11));
-    assert(commands[0].fragmentShader == ShaderHandle(21));
-    assert(commands[1].vertexBuffer == BufferHandle(12));
+    assert(commands.size() == 1);
+    assert(commands[0].vertexBuffer == BufferHandle(12));
 
     queue.beginFrame();
     assert(queue.empty());
