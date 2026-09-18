@@ -23,6 +23,12 @@ public:
     virtual void beginFrame() = 0;
     virtual bool submit(const DrawCommand& command) = 0;
     virtual void endFrame() = 0;
+
+    // GPU object names are context-owned on GLES. Backends that support
+    // context recreation must invalidate their GPU state before the old
+    // context disappears and rebuild it after a new context is current.
+    virtual void onContextLost() noexcept {}
+    virtual bool onContextRestored() noexcept { return true; }
     [[nodiscard]] virtual std::size_t liveBufferCount() const noexcept = 0;
     [[nodiscard]] virtual std::size_t liveTextureCount() const noexcept = 0;
     [[nodiscard]] virtual std::size_t liveShaderCount() const noexcept = 0;
