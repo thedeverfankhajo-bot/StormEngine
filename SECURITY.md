@@ -60,5 +60,6 @@ Android native code must validate JNI/native handles, surface lifetime, buffer s
 - Preserve explicit ownership and destruction order.
 - Keep backend-neutral code independent of OpenGL ES types.
 - Add deterministic regression tests for security-sensitive fixes.
+- Keep CodeQL analysis results published to code scanning when advanced CodeQL setup is enabled.
 - Prefer reproducible builds and pinned/maintained CI actions.
 - Keep dependency and toolchain versions documented and reviewable.
