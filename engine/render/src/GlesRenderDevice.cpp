@@ -329,14 +329,6 @@ bool GlesRenderDevice::submit(const DrawCommand& command) {
     if (command.materialData != nullptr && !applyMaterial(*command.materialData,
                                                             static_cast<GLuint>(program_), uniformLocations_, textures_, textureHandles_, maxTextureUnits_)) return false;
 
-    // Keep the device state cache authoritative: the viewport is part of the
-    // render state, and callers must not silently mutate it behind the cache.
-    if (stateCache_.state().viewportWidth != 0 || stateCache_.state().viewportHeight != 0) {
-        glViewport(0, 0,
-                   static_cast<GLsizei>(stateCache_.state().viewportWidth),
-                   static_cast<GLsizei>(stateCache_.state().viewportHeight));
-    }
-
     if (command.indexed()) {
         if (!bufferHandles_.valid(command.indexBuffer)) return false;
         const auto indexIt = buffers_.find(command.indexBuffer.id());
