@@ -14,7 +14,7 @@ The current foundation includes:
 - Backend-neutral render resources, draw commands, render-state caching, explicit viewport/scissor state, Null renderer, and OpenGL ES renderer.
 - CPU SpriteBatch geometry.
 - Generation-safe resource lifetime, pool-clear invalidation, and renderer validation.
-- Android SurfaceView/EGL lifecycle hardening and context-loss recovery foundations.
+- Android SurfaceView/EGL lifecycle hardening, rotation/surface recreation coverage, and context-loss resource recovery foundations.
 - Linux CTest, sanitizer, Android APK, and CodeQL CI coverage.
 
 ## Build on Linux or Termux
