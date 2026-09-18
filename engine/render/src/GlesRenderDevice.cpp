@@ -267,10 +267,6 @@ bool GlesRenderDevice::submit(const DrawCommand& command) {
         glLinkProgram(program);
         GLint linked = GL_FALSE;
         glGetProgramiv(program, GL_LINK_STATUS, &linked);
-        if (linked != GL_TRUE || glGetError() != GL_NO_ERROR) {
-            glDeleteProgram(program);
-            return false;
-        }
         if (linked != GL_TRUE) {
             GLint logLength = 0;
             glGetProgramiv(program, GL_INFO_LOG_LENGTH, &logLength);
@@ -281,6 +277,10 @@ bool GlesRenderDevice::submit(const DrawCommand& command) {
                 __android_log_print(ANDROID_LOG_ERROR, "StormEngine", "GLSL link failed: %.*s",
                                      static_cast<int>(written), log.data());
             }
+            glDeleteProgram(program);
+            return false;
+        }
+        if (glGetError() != GL_NO_ERROR) {
             glDeleteProgram(program);
             return false;
         }
