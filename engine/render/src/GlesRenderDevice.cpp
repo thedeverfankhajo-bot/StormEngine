@@ -388,7 +388,10 @@ void GlesRenderDevice::destroyShader(ShaderHandle handle) {
     shaderHandles_.release(handle);
 }
 
-void GlesRenderDevice::beginFrame() { frameActive_ = true; submittedDraws_ = 0; }
+void GlesRenderDevice::beginFrame() {
+    frameActive_ = gpuResourcesValid_;
+    submittedDraws_ = 0;
+}
 
 bool GlesRenderDevice::submit(const DrawCommand& command) {
     if (!gpuResourcesValid_ || !frameActive_ || !bufferHandles_.valid(command.vertexBuffer) ||
@@ -559,7 +562,10 @@ bool GlesRenderDevice::updateTexture(TextureHandle, const void*, std::size_t, st
 void GlesRenderDevice::destroyTexture(TextureHandle) {}
 ShaderHandle GlesRenderDevice::createShader(const ShaderDesc&, const std::string&) { return {}; }
 void GlesRenderDevice::destroyShader(ShaderHandle) {}
-void GlesRenderDevice::beginFrame() { frameActive_ = true; submittedDraws_ = 0; }
+void GlesRenderDevice::beginFrame() {
+    frameActive_ = false;
+    submittedDraws_ = 0;
+}
 bool GlesRenderDevice::submit(const DrawCommand&) { return false; }
 void GlesRenderDevice::endFrame() { frameActive_ = false; }
 std::size_t GlesRenderDevice::liveBufferCount() const noexcept { return 0; }
