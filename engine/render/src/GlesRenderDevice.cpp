@@ -157,23 +157,70 @@ void GlesRenderDevice::onContextLost() noexcept {
 bool GlesRenderDevice::onContextRestored() noexcept {
     if (gpuResourcesValid_) return true;
 
+    // Restoration is transactional. If a later resource fails to rebuild,
+    // clean up every GPU object created by this attempt while the new EGL
+    // context is still current. onContextLost() intentionally performs no GL
+    // deletion because it is also used after EGL_CONTEXT_LOST.
+    const auto rollbackRestoration = [this]() noexcept {
+        for (auto& [handle, record] : buffers_) {
+            (void)handle;
+            if (record.glId != 0) {
+                const GLuint id = static_cast<GLuint>(record.glId);
+                glDeleteBuffers(1, &id);
+                record.glId = 0;
+            }
+        }
+        for (auto& [handle, record] : textures_) {
+            (void)handle;
+            if (record.glId != 0) {
+                const GLuint id = static_cast<GLuint>(record.glId);
+                glDeleteTextures(1, &id);
+                record.glId = 0;
+            }
+        }
+        for (auto& [handle, record] : shaders_) {
+            (void)handle;
+            if (record.glId != 0) {
+                glDeleteShader(static_cast<GLuint>(record.glId));
+                record.glId = 0;
+            }
+        }
+        programs_.clear();
+        uniformLocations_.clear();
+        program_ = 0;
+        vao_ = 0;
+        maxTextureUnits_ = 0;
+        stateCache_.invalidate();
+        frameActive_ = false;
+        gpuResourcesValid_ = false;
+    };
+
     for (auto& [handle, record] : buffers_) {
+        (void)handle;
+        if (record.cpuData.size() != record.size) {
+            rollbackRestoration();
+            return false;
+        }
         (void)handle;
         GLuint id = 0;
         glGenBuffers(1, &id);
-        if (id == 0) { onContextLost(); return false; }
+        if (id == 0) { rollbackRestoration(); return false; }
         glBindBuffer(GL_ARRAY_BUFFER, id);
         glBufferData(GL_ARRAY_BUFFER, static_cast<GLsizeiptr>(record.size),
                      record.cpuData.empty() ? nullptr : record.cpuData.data(), toUsage(record.usage));
-        if (glGetError() != GL_NO_ERROR) { glDeleteBuffers(1, &id); onContextLost(); return false; }
+        if (glGetError() != GL_NO_ERROR) { glDeleteBuffers(1, &id); rollbackRestoration(); return false; }
         record.glId = id;
     }
 
     for (auto& [handle, record] : textures_) {
         (void)handle;
+        if (record.cpuData.size() != textureByteSize(record.desc)) {
+            rollbackRestoration();
+            return false;
+        }
         GLuint id = 0;
         glGenTextures(1, &id);
-        if (id == 0) { onContextLost(); return false; }
+        if (id == 0) { rollbackRestoration(); return false; }
         glBindTexture(GL_TEXTURE_2D, id);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, record.desc.mipLevels > 1 ? GL_LINEAR_MIPMAP_LINEAR : GL_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
@@ -191,7 +238,7 @@ bool GlesRenderDevice::onContextRestored() noexcept {
         // CPU-side mip data is authoritative after context loss. Do not
         // regenerate the chain here, because glGenerateMipmap would overwrite
         // explicitly stored higher-resolution mip levels.
-        if (glGetError() != GL_NO_ERROR) { glDeleteTextures(1, &id); onContextLost(); return false; }
+        if (glGetError() != GL_NO_ERROR) { glDeleteTextures(1, &id); rollbackRestoration(); return false; }
         record.glId = id;
     }
 
@@ -199,7 +246,7 @@ bool GlesRenderDevice::onContextRestored() noexcept {
         (void)handle;
         const GLenum type = record.stage == ShaderStage::Vertex ? GL_VERTEX_SHADER : GL_FRAGMENT_SHADER;
         const GLuint id = compileShader(type, record.source.c_str());
-        if (id == 0) { onContextLost(); return false; }
+        if (id == 0) { rollbackRestoration(); return false; }
         record.glId = id;
     }
 
