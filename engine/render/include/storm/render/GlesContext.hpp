@@ -15,11 +15,13 @@ public:
     void shutdown() noexcept;
     bool makeCurrent() noexcept;
     bool swap() noexcept;
+    [[nodiscard]] bool contextLost() const noexcept { return contextLost_; }
 
     [[nodiscard]] bool valid() const noexcept { return valid_; }
 
 private:
     bool valid_{false};
+    bool contextLost_{false};
     void* display_{nullptr};
     void* surface_{nullptr};
     void* context_{nullptr};
