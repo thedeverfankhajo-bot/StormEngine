@@ -29,7 +29,7 @@ ctest --test-dir build --output-on-failure
 ./build/storm_sandbox
 ```
 
-For GLES/Android changes, validate the Android workflow or an equivalent Android build. Do not claim device-level behavior unless it was tested on a device/emulator.
+For GLES/Android changes, validate the Android workflow or an equivalent Android build. Do not claim device-level behavior unless it was tested on a device/emulator. Record the device family, Android API level, ABI, GPU/renderer, and commit when reporting mobile validation.\n\nFor Termux, run both Debug and Release native builds before claiming the portable development workflow is healthy.
 
 ## Code
 
