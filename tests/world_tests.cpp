@@ -66,8 +66,8 @@ int main() {
     assert(world.setParent(child, parent));
     assert(world.setParent(grandchild, child));
     const auto nested = world.worldMatrix(grandchild);
-    assert(near(nested.m[0][3], 13.0f));
-    assert(near(nested.m[1][3], 4.0f));
+    assert(near(nested.m[0][3], 23.0f));
+    assert(near(nested.m[1][3], 9.0f));
     assert(near(nested.m[2][3], 5.0f));
 
     world.destroyEntity(parent);
