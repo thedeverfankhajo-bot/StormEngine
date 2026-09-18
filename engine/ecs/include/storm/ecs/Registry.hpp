@@ -112,6 +112,8 @@ private:
     struct IStorage {
         virtual ~IStorage() = default;
         virtual void remove(Entity::Id id) = 0;
+        virtual std::size_t size() const noexcept = 0;
+        virtual Entity::Id entityAt(std::size_t index) const noexcept = 0;
     };
 
     template <typename T>
@@ -123,8 +125,8 @@ private:
         T* tryGet(Entity::Id id) noexcept { return data.tryGet(id); }
         const T* tryGet(Entity::Id id) const noexcept { return data.tryGet(id); }
         void remove(Entity::Id id) override { data.remove(id); }
-        std::size_t size() const noexcept { return data.size(); }
-        Entity::Id entityAt(std::size_t index) const noexcept { return data.entityAt(index); }
+        std::size_t size() const noexcept override { return data.size(); }
+        Entity::Id entityAt(std::size_t index) const noexcept override { return data.entityAt(index); }
     };
 
     template <typename T>
@@ -142,7 +144,7 @@ private:
 
     template <typename First, typename... Rest, typename Func>
     void eachImpl(Func&& func) {
-        const Storage<First>* storage = findStorage<First>();
+        const IStorage* storage = smallestStorage<First, Rest...>();
         if (!storage) return;
         for (std::size_t i = 0; i < storage->size(); ++i) {
             const Entity::Id id = storage->entityAt(i);
@@ -151,6 +153,24 @@ private:
             if ((has<Rest>(entity) && ...))
                 std::invoke(std::forward<Func>(func), entity, get<First>(entity), get<Rest>(entity)...);
         }
+    }
+
+    template <typename T>
+    const IStorage* findStorageBase() const noexcept {
+        const auto it = storages_.find(componentType<T>());
+        return it == storages_.end() ? nullptr : it->second.get();
+    }
+
+    static void updateSmallest(const IStorage*& current, const IStorage* candidate) noexcept {
+        if (candidate != nullptr && candidate->size() < current->size()) current = candidate;
+    }
+
+    template <typename First, typename... Rest>
+    const IStorage* smallestStorage() const noexcept {
+        const IStorage* current = findStorageBase<First>();
+        if (!current) return nullptr;
+        (updateSmallest(current, findStorageBase<Rest>()), ...);
+        return current;
     }
 
     template <typename T>

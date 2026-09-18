@@ -13,7 +13,11 @@ public:
 
     void submit(const DrawCommand& command) {
         if (!command.vertexBuffer.valid() || command.vertexCount == 0 || !command.vertexLayout.valid()) return;
-        if (command.indexed() && !command.indexBuffer.valid()) return;
+        if (command.indexed()) {
+            if (!command.indexBuffer.valid()) return;
+        } else if (command.indexBuffer.valid()) {
+            return;
+        }
         commands_.push_back(command);
     }
 

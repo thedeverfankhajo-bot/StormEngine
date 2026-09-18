@@ -57,7 +57,7 @@ void testQueryUsesMatchingEntities() {
     registry.each<Position, Velocity>([&](auto entity, Position& position, Velocity& velocity) { visited.push_back(entity.id()); position.x += velocity.x; });
     assert(visited.size() == 2 && registry.get<Position>(a).x == 11 && registry.get<Position>(c).x == 33 && registry.get<Position>(b).x == 2);
 }
-void testQueryWhenFirstComponentIsNotSmallest() {
+void testQueryUsesSmallestStorage() {
     storm::ecs::Registry registry;
     const auto a = registry.create(), b = registry.create(), c = registry.create();
     registry.emplace<Position>(a, 1, 0); registry.emplace<Velocity>(a, 10, 0);
@@ -66,9 +66,17 @@ void testQueryWhenFirstComponentIsNotSmallest() {
     std::vector<storm::ecs::Entity::Id> visited;
     registry.each<Position, Velocity>([&](auto entity, Position&, Velocity&) { visited.push_back(entity.id()); });
     assert(visited.size() == 2 && visited[0] != visited[1]);
+
+    storm::ecs::Registry smallFirst;
+    const auto e1 = smallFirst.create(), e2 = smallFirst.create(), e3 = smallFirst.create();
+    smallFirst.emplace<Position>(e1, 1, 0); smallFirst.emplace<Position>(e2, 2, 0); smallFirst.emplace<Position>(e3, 3, 0);
+    smallFirst.emplace<Velocity>(e1, 10, 0);
+    std::size_t calls = 0;
+    smallFirst.each<Position, Velocity>([&](auto, Position&, Velocity&) { ++calls; });
+    assert(calls == 1);
 }
 }
 int main() {
     testSparseSet(); testComponentStorageSwapBack(); testRegistryGeneration(); testRegistryComponents();
-    testRegistryGetThrowsInsteadOfUsingReleaseAssert(); testQueryUsesMatchingEntities(); testQueryWhenFirstComponentIsNotSmallest(); return 0;
+    testRegistryGetThrowsInsteadOfUsingReleaseAssert(); testQueryUsesMatchingEntities(); testQueryUsesSmallestStorage(); return 0;
 }

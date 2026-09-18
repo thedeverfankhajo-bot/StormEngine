@@ -8,6 +8,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 option(STORM_BUILD_TESTS "Build StormEngine tests" ON)
 option(STORM_BUILD_GLES "Build OpenGL ES 3.x backend" OFF)
 option(STORM_ENABLE_WARNINGS "Enable strict compiler warnings" ON)
+option(STORM_ENABLE_SANITIZERS "Enable AddressSanitizer and UndefinedBehaviorSanitizer" OFF)
 
 add_library(storm_core
     engine/core/src/Engine.cpp
@@ -35,6 +36,17 @@ if(STORM_ENABLE_WARNINGS)
         target_compile_options(storm_core PRIVATE /W4)
     else()
         target_compile_options(storm_core PRIVATE -Wall -Wextra -Wpedantic)
+    endif()
+endif()
+
+if(STORM_ENABLE_SANITIZERS)
+    if(MSVC)
+        message(FATAL_ERROR "STORM_ENABLE_SANITIZERS is not supported with MSVC")
+    elseif(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+        target_compile_options(storm_core PUBLIC -fsanitize=address,undefined -fno-omit-frame-pointer)
+        target_link_options(storm_core PUBLIC -fsanitize=address,undefined)
+    else()
+        message(FATAL_ERROR "STORM_ENABLE_SANITIZERS requires GCC or Clang")
     endif()
 endif()
 
