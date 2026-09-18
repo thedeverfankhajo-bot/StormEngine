@@ -7,7 +7,7 @@ StormEngine supports Termux as a native C++ development environment for the port
     pkg update
     pkg install clang cmake ninja make git
 
-Ninja is preferred. The helper falls back to Make when Ninja is unavailable.
+CMake 3.23+ is required because the repository's shared CMake preset schema is version 4. Ninja is preferred; the helper can use Make.
 
 ## Build and test
 
@@ -15,23 +15,21 @@ From the repository root:
 
     ./scripts/termux-build.sh
 
-Useful low-resource configuration:
+Low-memory configuration:
 
     STORM_BUILD_JOBS=1 ./scripts/termux-build.sh
 
-Release validation:
+Release:
 
     STORM_BUILD_TYPE=Release ./scripts/termux-build.sh
 
-Skip the example executable when desired:
+Skip the sandbox:
 
     STORM_RUN_SANDBOX=OFF ./scripts/termux-build.sh
 
-The script configures with strict warnings, builds the portable core, runs the complete CTest suite when enabled, and optionally runs the sandbox.
+The helper validates the compiler, CMake version, generator, boolean options, and parallelism before configuring. It enables strict warnings, builds the portable core, runs CTest when requested, and runs the sandbox unless disabled.
 
 ## CMake presets
-
-With CMake 3.20+:
 
     cmake --list-presets
     cmake --preset termux-debug
@@ -40,19 +38,19 @@ With CMake 3.20+:
 
 ## OpenGL ES boundary
 
-The native Termux build deliberately sets STORM_BUILD_GLES=OFF.
+The generic Termux native build deliberately defaults to STORM_BUILD_GLES=OFF.
 
-The GLES backend depends on the Android NDK/EGL/OpenGL ES toolchain and Android platform libraries. A Termux installation is not an Android cross-compilation toolchain, so enabling GLES in a generic Termux host build is rejected by CMake instead of failing later with confusing missing-header or linker errors.
+The GLES backend depends on the Android NDK/EGL/OpenGL ES platform libraries. Termux is a native Android user-space environment, but a Termux clang build is not automatically an Android NDK cross-compilation environment. APK/GLES validation therefore remains a separate Android toolchain step.
 
 ## Android APKs
 
-Android APK construction is a separate SDK/NDK/Gradle workflow. Use the Android project and CI for this validation.
+Android APK construction uses the Android SDK/NDK/Gradle project under android/. CI builds the configured four ABIs and runs Android lint.
 
 ## Device testing
 
-Physical Android hardware is required for meaningful validation of EGL lifecycle, GPU driver behavior, shader compilation, texture formats, buffer lifetime, pause/resume, rotation, surface recreation, and context-loss recovery.
+Physical Android hardware is required for meaningful validation of EGL lifecycle, GPU driver behavior, shader compilation, texture/buffer lifetime, pause/resume, rotation, surface recreation, and context-loss recovery.
 
-Record the exact device, Android API level, ABI, SoC/GPU, OpenGL ES version, renderer string, commit, and observed results.
+The representative matrix covers Samsung Galaxy, Xiaomi/Redmi/POCO, Google Pixel, OnePlus, and Motorola. Record the exact model, API, ABI, SoC/GPU, GLES version, vendor/renderer, commit, and result.
 
 ## Resource-conscious workflow
 
@@ -60,8 +58,8 @@ On phones with limited RAM/storage:
 
 - use STORM_BUILD_JOBS=1 or 2;
 - prefer Debug for rapid regression testing;
-- use Release for final performance-oriented validation;
-- avoid parallel Git operations and unnecessary rebuild directories;
+- use Release for final validation;
+- keep one active build directory per configuration;
 - remove obsolete build directories when storage becomes constrained.
 
-Termux is a development environment, not an APK packaging replacement.
+Do not add remote install/download steps to the helper. Termux is a development environment, not an APK-signing or packaging replacement.
