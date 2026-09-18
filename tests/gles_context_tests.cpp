@@ -10,11 +10,14 @@ int main() {
     assert(context.valid());
     assert(context.makeCurrent());
     assert(context.swap());
+    assert(!context.contextLost());
     context.shutdown();
     assert(!context.valid());
+    assert(!context.contextLost());
 #else
     assert(!context.initializePbuffer(1, 1));
     assert(!context.valid());
+    assert(!context.contextLost());
     assert(!context.makeCurrent());
     assert(!context.swap());
 #endif
