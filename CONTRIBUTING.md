@@ -154,3 +154,12 @@ Do not disclose vulnerabilities in public issues. Follow SECURITY.md.
 ## License
 
 By contributing, you agree that your contribution is provided under the repository's MIT License, subject to applicable law.
+
+
+## Checkpointed changes
+
+Keep repository mutations independently recoverable. Re-read the branch head before every write, update one logical file/change at a time, verify the returned commit SHA, and re-read the changed file before starting the next mutation. Do not assume an interrupted GitHub operation completed.
+
+## Platform changes
+
+Changes touching Android, EGL, GLES, lifecycle, or Termux must preserve the explicit build boundary: Termux validates the portable native core with `STORM_BUILD_GLES=OFF`; Android NDK validation enables GLES and exercises the runtime lifecycle. Add regression tests for resource lifetime, stale handles, context recreation, invalid inputs, and lifecycle transitions whenever those paths change.
