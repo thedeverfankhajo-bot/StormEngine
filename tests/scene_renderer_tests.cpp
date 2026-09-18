@@ -36,6 +36,8 @@ int main() {
     assert(renderer.rejectedCount() == 0);
     assert(queue.size() == 1);
     assert(queue.at(0).materialData != nullptr);
+    assert(queue.at(0).viewportWidth == 1280);
+    assert(queue.at(0).viewportHeight == 720);
     assert(queue.at(0).materialData->hasParameter("uMVP"));
 
     const auto* mvp = std::get_if<render::MaterialMat4>(
@@ -48,6 +50,9 @@ int main() {
     renderer.build(world, camera, queue);
     assert(renderer.submittedCount() == 1);
     assert(queue.size() == 1);
+    const auto* movedMvp = std::get_if<render::MaterialMat4>(queue.at(0).materialData->parameter("uMVP"));
+    assert(movedMvp != nullptr);
+    assert((*movedMvp)[3] != 0.0f);
 
     render::Renderable invalid = renderable;
     invalid.visible = false;
