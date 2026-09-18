@@ -6,16 +6,16 @@ StormEngine is a C++20 game-engine project building toward a unified 1D, 2D, and
 
 The engine is under active development and is **not yet a complete 1D/2D/3D engine**. The remaining runtime roadmap is tracked in Issue #9.
 
-The current foundation includes:
+Current foundations include:
 
-- C++20 core runtime and fixed-step game clock.
+- C++20 core runtime and bounded fixed-step game clock.
 - ECS, scheduler, dimensional math, transforms, cameras, and AABB foundations.
-- Parent/child world transforms with cached revisions.
+- Parent/child world transforms with lazy cache invalidation.
 - Backend-neutral render resources, draw commands, render-state caching, Null renderer, and OpenGL ES renderer.
 - CPU SpriteBatch geometry.
 - Generation-safe resource lifetime and renderer validation.
 - Android SurfaceView/EGL lifecycle hardening and context-loss recovery foundations.
-- Linux CTest, sanitizer, Android APK, and CodeQL CI coverage.
+- Linux CTest, Release, sanitizer, Android APK/lint, and CodeQL CI coverage.
 
 ## Build on Linux or Termux
 
@@ -33,64 +33,100 @@ Termux:
     pkg install clang cmake ninja make git
     ./scripts/termux-build.sh
 
-The helper intentionally builds the portable native core with OpenGL ES disabled. Termux is a native development/test environment; it is not a replacement for the Android NDK toolchain.
-
 Useful options:
 
     STORM_BUILD_TYPE=Release ./scripts/termux-build.sh
     STORM_BUILD_JOBS=1 ./scripts/termux-build.sh
     STORM_RUN_SANDBOX=OFF ./scripts/termux-build.sh
+    STORM_ENABLE_SANITIZERS=ON ./scripts/termux-build.sh
 
-CMake presets are also available:
+CMake presets:
 
     cmake --list-presets
-    cmake --preset termux-debug
-    cmake --build --preset termux-debug
-    ctest --preset termux-debug
+    cmake --preset host-debug
+    cmake --build --preset host-debug
+    ctest --preset host-debug
+
+CMakePresets.json uses schema version 2, whose build/test preset support was introduced in CMake 3.20.
 
 ## Android
 
 The Android smoke application uses CMake, the Android NDK, EGL, and OpenGL ES 3.x.
 
-Supported build ABIs:
+The Android build currently targets API 36 and four ABIs:
 
 - arm64-v8a
 - armeabi-v7a
 - x86_64
 - x86
 
-These are build targets, not blanket hardware certification. A successful APK build does not prove GPU-driver compatibility.
+Starting August 31, 2026, Google Play requires new apps and app updates to target Android 16 (API 36) or higher.
 
-The representative validation matrix covers Samsung Galaxy, Xiaomi/Redmi/POCO, Google Pixel, OnePlus, and Motorola families. Exact model, Android API, ABI, SoC/GPU, renderer string, commit, and lifecycle results must be recorded for physical-device validation.
+The project uses Android Gradle Plugin 9.4, Gradle 9.6, and JDK 17. AGP 9.4 supports API 37 and requires Gradle 9.6.0.
 
-See:
+These ABI entries are build targets, not blanket hardware certification. Runtime compatibility must be validated on physical devices.
 
-- docs/MOBILE_COMPATIBILITY.md
-- .github/TERMUX.md
-- CONTRIBUTING.md
-- SECURITY.md
+The representative validation matrix covers five Android device families:
+
+1. Samsung Galaxy
+2. Xiaomi / Redmi / POCO
+3. Google Pixel
+4. OnePlus
+5. Motorola
+
+An entry for a family does not certify every model.
+
+## Android validation
+
+Record for every physical-device run:
+
+- exact model;
+- Android/API level;
+- ABI;
+- SoC/GPU;
+- OpenGL ES version;
+- GL vendor/renderer;
+- StormEngine commit;
+- surface creation/destruction;
+- pause/resume;
+- rotation/configuration changes;
+- context-loss/recreation;
+- shader compilation;
+- texture upload;
+- buffer lifetime;
+- basic 3D rendering;
+- sustained stability and visible driver errors.
+
+The manifest declares the minimum required GLES feature while native startup probes the actual runtime version. Android documentation defines android:glEsVersion as the manifest requirement and recommends runtime capability checks when higher GL levels may be available.
 
 ## Build and test
 
-Host:
+Host debug:
 
-    cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug -DSTORM_BUILD_TESTS=ON
-    cmake --build build --parallel
-    ctest --test-dir build --output-on-failure
-    ./build/storm_sandbox
+    cmake --preset host-debug
+    cmake --build --preset host-debug
+    ctest --preset host-debug
+    ./build/host-debug/storm_sandbox
+
+Host release:
+
+    cmake --preset host-release
+    cmake --build --preset host-release
+    ctest --preset host-release
+    ./build/host-release/storm_sandbox
 
 Sanitizers:
 
     cmake -S . -B build-sanitized -DCMAKE_BUILD_TYPE=Debug -DSTORM_BUILD_TESTS=ON -DSTORM_ENABLE_SANITIZERS=ON
     cmake --build build-sanitized --parallel
     ctest --test-dir build-sanitized --output-on-failure
+    ./build-sanitized/storm_sandbox
 
 Android:
 
     cd android
-    gradle assembleDebug
-
-The Android CI verifies that generated debug APKs contain the configured native ABIs.
+    gradle assembleDebug --no-daemon
+    gradle lintDebug --no-daemon
 
 ## Repository layout
 
@@ -102,11 +138,25 @@ The Android CI verifies that generated debug APKs contain the configured native 
     docs/      platform documentation
     .github/   CI and repository policy
 
-## CI
+## CI and checkpointed maintenance
 
-Pull requests and pushes to main run native CMake/CTest, sanitizer, Android debug APK, and CodeQL validation.
+Pull requests and pushes to main run native debug/release CTest, sanitizer validation, Android debug APK/lint, and CodeQL.
 
-CI uses workflow-level concurrency cancellation so obsolete runs on the same ref do not consume resources while newer commits are being validated.
+Workflow concurrency intentionally cancels obsolete runs on the same workflow/ref. GitHub documents cancel-in-progress as the mechanism for canceling an older run in the same concurrency group.
+
+Repository mutations are kept sequential during maintenance:
+
+1. read the current main SHA;
+2. create a checkpoint branch from that exact SHA;
+3. make one logical mutation;
+4. record its commit SHA;
+5. re-read the branch before the next mutation;
+6. create/update the PR only after the branch diff is coherent;
+7. wait for the final checks for the final commit;
+8. merge only after required checks are successful;
+9. re-read main and the merge SHA.
+
+If an API call is interrupted, do **not** repeat the write blindly. First inspect the branch and file SHA to determine whether the mutation already landed.
 
 Do not merge with unexplained failing checks.
 
