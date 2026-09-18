@@ -30,7 +30,7 @@ private:
     std::uint32_t nextShaderId_{0};
     std::unordered_map<std::uint32_t, std::uint64_t> buffers_;
     std::unordered_map<std::uint32_t, TextureDesc> textures_;
-    std::unordered_set<std::uint32_t> shaders_;
+    std::unordered_map<std::uint32_t, ShaderStage> shaders_;
     std::size_t submittedDraws_{0};
     bool frameActive_{false};
 };
