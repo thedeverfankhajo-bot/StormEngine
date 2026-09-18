@@ -45,7 +45,7 @@ Please allow reasonable time for investigation and remediation before publicly d
 
 Android and Termux builds must not embed signing keys, keystores, API tokens, device identifiers, or local absolute paths. Native asset and shader inputs should be treated as untrusted data at load boundaries. Do not enable executable-memory or shell-command behavior for assets.
 
-## Security development practices
+## Mobile and build security\n\n- Treat Android/Termux asset, shader, and configuration inputs as untrusted.\n- Do not execute shell commands or native code from assets.\n- Do not commit APK signing material, keystores, SDK credentials, or device identifiers.\n- Keep CI permissions least-privilege and avoid workflow tokens with write access unless a job explicitly requires it.\n\n## Security development practices
 
 Contributors should:
 
