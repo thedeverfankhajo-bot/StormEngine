@@ -307,8 +307,6 @@ bool GlesRenderDevice::submit(const DrawCommand& command) {
         stateCache_.markApplied(desiredState);
     }
 
-    if (maxTextureUnits_ == 0) glGetIntegerv(GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS, &maxTextureUnits_);
-
     if (vao_ == 0) {
         GLuint vao = 0;
         glGenVertexArrays(1, &vao);
@@ -325,6 +323,9 @@ bool GlesRenderDevice::submit(const DrawCommand& command) {
                               static_cast<GLsizei>(command.vertexLayout.stride),
                               reinterpret_cast<const void*>(static_cast<std::uintptr_t>(attribute.offset)));
     }
+
+    if (maxTextureUnits_ == 0) glGetIntegerv(GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS, &maxTextureUnits_);
+    if (maxTextureUnits_ <= 0) return false;
 
     if (command.materialData != nullptr && !applyMaterial(*command.materialData,
                                                             static_cast<GLuint>(program_), uniformLocations_, textures_, textureHandles_, maxTextureUnits_)) return false;
