@@ -63,6 +63,17 @@ int main() {
     assert(pool.capacity() == 0);
     assert(!pool.valid(third));
 
+    const auto beforeClear = pool.emplace(123);
+    assert(beforeClear.valid());
+    pool.clear();
+    const auto afterClear = pool.emplace(456);
+    assert(afterClear.valid());
+    assert(afterClear.index() == beforeClear.index());
+    assert(afterClear.generation() != beforeClear.generation());
+    assert(!pool.valid(beforeClear));
+    assert(pool.get(beforeClear) == nullptr);
+    assert(pool.get(afterClear)->value == 456);
+
     using ThrowingPool = storm::core::ResourcePool<ThrowingResource, struct ThrowingTag>;
     ThrowingPool throwingPool;
     const auto live = throwingPool.emplace(11);
