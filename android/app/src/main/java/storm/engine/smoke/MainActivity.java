@@ -12,7 +12,7 @@ public final class MainActivity extends Activity implements SurfaceHolder.Callba
 
     private SurfaceView surfaceView;
 
-    private static native void nativeStart(SurfaceHolder holder);
+    private static native void nativeStart(android.view.Surface surface);
     private static native void nativeStop();
 
     @Override
@@ -25,7 +25,7 @@ public final class MainActivity extends Activity implements SurfaceHolder.Callba
 
     @Override
     public void surfaceCreated(SurfaceHolder holder) {
-        nativeStart(holder);
+        nativeStart(holder.getSurface());
     }
 
     @Override
