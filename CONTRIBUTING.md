@@ -139,6 +139,10 @@ Repository maintenance should be performed as a checkpointed sequence:
 
 This prevents an interrupted API call from being mistaken for a failed commit and avoids unnecessary GitHub API pressure.
 
+## CI and platform validation
+
+Before merge, the applicable host Debug/Release, sanitizer, Termux-compatible, Android build/lint, and CodeQL checks must pass. Android CI validates all four packaged ABIs; physical Samsung, Xiaomi, Pixel, OnePlus, and Motorola coverage remains device-lab validation rather than a claim made by an APK build.
+
 ## Architecture direction
 
 The long-term target is a modular, UE5-class engine architecture: explicit subsystem ownership, render-graph scheduling, scalable resource managers, 1D/2D/3D rendering and physics, asset pipelines, profiling, tooling, and robust platform abstraction. This does not mean copying Unreal Engine source, APIs, or proprietary implementation details. Contributions should add one well-defined capability with tests and documentation, and preserve backend-neutral interfaces where practical.
