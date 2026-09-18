@@ -150,6 +150,20 @@ Workflow concurrency cancels obsolete runs on the same ref. Repository mutations
 
 Do not merge with unexplained failing checks.
 
+## Engine architecture roadmap
+
+StormEngine is moving toward an Unreal Engine 5-class architecture in **capability and subsystem depth**, not by copying Unreal's implementation or APIs. The target is a modular runtime with explicit ownership and platform boundaries:
+
+- **Core:** frame clock, task/scheduler primitives, logging, assertions, memory/resource lifetime.
+- **World/ECS:** entities, components, transforms, scene/world queries, deterministic lifecycle.
+- **Rendering:** backend-neutral render resources, generation-safe handles, render queue, render graph/render passes, GPU resource lifetime, 2D and 3D paths.
+- **Platform:** Android/Termux/desktop abstraction, input/events, surface lifecycle, threading.
+- **Content:** asset loading, shader/material/mesh pipelines, dependency tracking and validation.
+- **Simulation:** 1D/2D/3D physics, collision, animation and audio integration.
+- **Tooling:** profiling, diagnostics, editor-facing data APIs, reproducible packaging.
+
+The current repository has the first layers and a GLES renderer, but it is not yet comparable to UE5 feature-for-feature. Issue #9 remains the authoritative completion roadmap. New subsystems must arrive with backend-neutral interfaces, deterministic tests, sanitizer coverage where applicable, and platform-specific integration tests before being marked complete.
+
 ## Development
 
 See CONTRIBUTING.md for portability, testing, rendering, Termux, Android, and pull-request requirements.

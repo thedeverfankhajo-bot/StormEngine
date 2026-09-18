@@ -127,6 +127,44 @@ int main() {
     assert(device.liveBufferCount() == 0);
     assert(device.liveTextureCount() == 0);
 
+    // Stale renderer handles must never destroy or mutate a replacement resource.
+    const auto staleBuffer = replacementIndexBuffer;
+    device.destroyBuffer(staleBuffer);
+    const auto replacementBuffer = device.createBuffer(BufferDesc{512, BufferUsage::Static});
+    assert(replacementBuffer.valid());
+    assert(replacementBuffer.id() == staleBuffer.id());
+    assert(replacementBuffer.generation() != staleBuffer.generation());
+    std::uint8_t replacementBytes[8]{};
+    assert(!device.updateBuffer(staleBuffer, replacementBytes, sizeof(replacementBytes), 0));
+    device.destroyBuffer(staleBuffer);
+    assert(device.updateBuffer(replacementBuffer, replacementBytes, sizeof(replacementBytes), 0));
+    device.destroyBuffer(replacementBuffer);
+
+    const auto staleTexture = device.createTexture(TextureDesc{2, 2, 1});
+    assert(staleTexture.valid());
+    device.destroyTexture(staleTexture);
+    const auto replacementTexture = device.createTexture(TextureDesc{2, 2, 1});
+    assert(replacementTexture.valid());
+    assert(replacementTexture.id() == staleTexture.id());
+    assert(replacementTexture.generation() != staleTexture.generation());
+    std::uint8_t replacementPixels[16]{};
+    assert(!device.updateTexture(staleTexture, replacementPixels, sizeof(replacementPixels), 0));
+    device.destroyTexture(staleTexture);
+    assert(device.updateTexture(replacementTexture, replacementPixels, sizeof(replacementPixels), 0));
+    device.destroyTexture(replacementTexture);
+
+    const auto staleShader = device.createShader(ShaderDesc{ShaderStage::Vertex}, "void main() {}");
+    assert(staleShader.valid());
+    device.destroyShader(staleShader);
+    const auto replacementShader = device.createShader(ShaderDesc{ShaderStage::Vertex}, "void main() {}");
+    assert(replacementShader.valid());
+    assert(replacementShader.id() == staleShader.id());
+    assert(replacementShader.generation() != staleShader.generation());
+    device.destroyShader(staleShader);
+    assert(device.liveShaderCount() == 1);
+    device.destroyShader(replacementShader);
+    assert(device.liveShaderCount() == 0);
+
     device.destroyBuffer(indexBuffer);
     device.destroyTexture(texture);
 

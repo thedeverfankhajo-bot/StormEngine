@@ -22,9 +22,15 @@ BufferHandle NullRenderDevice::createBuffer(const BufferDesc& desc) {
     buffers_.emplace(handle.id(), desc.size);
     return handle;
 }
-void NullRenderDevice::destroyBuffer(BufferHandle handle) { if (handle.valid()) { if (buffers_.erase(handle.id()) != 0) bufferHandles_.release(handle); } }
+void NullRenderDevice::destroyBuffer(BufferHandle handle) {
+    if (!bufferHandles_.valid(handle)) return;
+    const auto it = buffers_.find(handle.id());
+    if (it == buffers_.end()) return;
+    buffers_.erase(it);
+    bufferHandles_.release(handle);
+}
 bool NullRenderDevice::updateBuffer(BufferHandle handle, const void* data, std::size_t size, std::size_t offset) {
-    if (!handle.valid() || data == nullptr || size == 0) return false;
+    if (!bufferHandles_.valid(handle) || data == nullptr || size == 0) return false;
     const auto it = buffers_.find(handle.id()); if (it == buffers_.end()) return false;
     const auto updateSize = static_cast<std::uint64_t>(size), updateOffset = static_cast<std::uint64_t>(offset);
     return updateOffset <= it->second && updateSize <= it->second - updateOffset;
@@ -36,7 +42,7 @@ TextureHandle NullRenderDevice::createTexture(const TextureDesc& desc) {
     textures_.emplace(handle.id(), desc); return handle;
 }
 bool NullRenderDevice::updateTexture(TextureHandle handle, const void* pixels, std::size_t size, std::uint32_t mipLevel) {
-    if (!handle.valid() || pixels == nullptr || size == 0) return false;
+    if (!textureHandles_.valid(handle) || pixels == nullptr || size == 0) return false;
     const auto it = textures_.find(handle.id()); if (it == textures_.end() || it->second.format != TextureFormat::RGBA8 || mipLevel >= it->second.mipLevels) return false;
     std::uint64_t width = it->second.width, height = it->second.height;
     for (std::uint32_t level = 0; level < mipLevel; ++level) { width = std::max<std::uint64_t>(1, width / 2); height = std::max<std::uint64_t>(1, height / 2); }
@@ -46,13 +52,25 @@ bool NullRenderDevice::updateTexture(TextureHandle handle, const void* pixels, s
     const std::uint64_t expected = pixelsCount * 4u;
     return static_cast<std::uint64_t>(size) == expected;
 }
-void NullRenderDevice::destroyTexture(TextureHandle handle) { if (handle.valid()) { if (textures_.erase(handle.id()) != 0) textureHandles_.release(handle); } }
+void NullRenderDevice::destroyTexture(TextureHandle handle) {
+    if (!textureHandles_.valid(handle)) return;
+    const auto it = textures_.find(handle.id());
+    if (it == textures_.end()) return;
+    textures_.erase(it);
+    textureHandles_.release(handle);
+}
 ShaderHandle NullRenderDevice::createShader(const ShaderDesc& desc, const std::string& source) {
     if (source.empty()) return {};
     const auto handle = shaderHandles_.allocate(); if (!handle.valid()) return {};
     shaders_.emplace(handle.id(), desc.stage); return handle;
 }
-void NullRenderDevice::destroyShader(ShaderHandle handle) { if (handle.valid()) { if (shaders_.erase(handle.id()) != 0) shaderHandles_.release(handle); } }
+void NullRenderDevice::destroyShader(ShaderHandle handle) {
+    if (!shaderHandles_.valid(handle)) return;
+    const auto it = shaders_.find(handle.id());
+    if (it == shaders_.end()) return;
+    shaders_.erase(it);
+    shaderHandles_.release(handle);
+}
 void NullRenderDevice::beginFrame() { frameActive_ = true; submittedDraws_ = 0; }
 bool NullRenderDevice::submit(const DrawCommand& command) {
     if (!frameActive_ || !command.vertexBuffer.valid() || command.vertexCount == 0 || !command.vertexLayout.valid()) return false;

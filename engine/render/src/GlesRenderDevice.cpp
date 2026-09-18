@@ -201,7 +201,6 @@ bool GlesRenderDevice::onContextRestored() noexcept {
             rollbackRestoration();
             return false;
         }
-        (void)handle;
         GLuint id = 0;
         glGenBuffers(1, &id);
         if (id == 0) { rollbackRestoration(); return false; }
