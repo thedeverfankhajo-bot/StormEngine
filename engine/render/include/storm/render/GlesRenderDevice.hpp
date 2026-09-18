@@ -35,6 +35,7 @@ public:
     [[nodiscard]] std::size_t liveShaderCount() const noexcept override;
     [[nodiscard]] std::size_t submittedDrawCount() const noexcept override { return submittedDraws_; }
 private:
+    struct BufferRecord { std::uint64_t size{0}; std::uint32_t glId{0}; };
     struct ShaderRecord { std::uint32_t glId{0}; ShaderStage stage{ShaderStage::Vertex}; };
     static std::uint32_t allocateHandle(std::uint32_t& next);
     std::uint32_t nextBufferId_{1};
@@ -43,7 +44,7 @@ private:
     std::size_t submittedDraws_{0};
     bool frameActive_{false};
 #if defined(__ANDROID__)
-    std::unordered_map<std::uint32_t, std::uint64_t> buffers_;
+    std::unordered_map<std::uint32_t, BufferRecord> buffers_;
     std::unordered_map<std::uint32_t, TextureRecord> textures_;
     std::unordered_map<std::uint32_t, ShaderRecord> shaders_;
     std::unordered_map<std::uint64_t, std::uint32_t> programs_;
