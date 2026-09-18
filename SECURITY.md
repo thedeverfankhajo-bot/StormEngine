@@ -53,6 +53,8 @@ Termux scripts must fail closed when required tools are missing and must not dow
 
 Android native code must validate JNI/native handles, surface lifetime, buffer sizes, integer conversions, and GPU resource lifetime.
 
+Rotation, pause/resume, surface recreation, and EGL context loss are explicit lifecycle boundaries and must be tested as part of Android changes.
+
 ## Development practices
 
 - Validate untrusted input at subsystem boundaries.
