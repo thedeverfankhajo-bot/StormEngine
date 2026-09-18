@@ -6,6 +6,7 @@
 #include "storm/core/World.hpp"
 #include "storm/math/Mat4.hpp"
 #include <array>
+#include <deque>
 #include <cstddef>
 #include <utility>
 #include <vector>
@@ -15,11 +16,11 @@ namespace storm::render {
 class SceneRenderer final {
 public:
     explicit SceneRenderer(std::size_t materialReserve = 64) {
-        materialCopies_.reserve(materialReserve);
+        (void)materialReserve;
     }
 
     void reserve(std::size_t renderables) {
-        materialCopies_.reserve(renderables);
+        (void)renderables;
     }
 
     void beginFrame() noexcept {
@@ -78,7 +79,7 @@ private:
         return result;
     }
 
-    std::vector<Material> materialCopies_;
+    std::deque<Material> materialCopies_;
     std::size_t submittedCount_{0};
     std::size_t rejectedCount_{0};
 };
