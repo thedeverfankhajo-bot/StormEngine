@@ -138,7 +138,7 @@ BufferHandle GlesRenderDevice::createBuffer(const BufferDesc& desc) {
     if (glGetError() != GL_NO_ERROR) { glDeleteBuffers(1, &glId); return {}; }
     const auto handle = bufferHandles_.allocate();
     if (!handle.valid()) { glDeleteBuffers(1, &glId); return {}; }
-    buffers_.emplace(handle.id(), BufferRecord{desc.size, glId, std::vector<std::uint8_t>(desc.size)});
+    buffers_.emplace(handle.id(), BufferRecord{desc.size, desc.usage, glId, std::vector<std::uint8_t>(desc.size)});
     return handle;
 }
 void GlesRenderDevice::destroyBuffer(BufferHandle handle) {
@@ -417,7 +417,7 @@ bool GlesRenderDevice::restoreGpuResources() noexcept {
         if (glId == 0) { invalidateGpuResources(); return false; }
         glBindBuffer(GL_ARRAY_BUFFER, glId);
         glBufferData(GL_ARRAY_BUFFER, static_cast<GLsizeiptr>(record.size),
-                     record.data.empty() ? nullptr : record.data.data(), GL_STATIC_DRAW);
+                     record.data.empty() ? nullptr : record.data.data(), toUsage(record.usage));
         if (glGetError() != GL_NO_ERROR) { glDeleteBuffers(1, &glId); invalidateGpuResources(); return false; }
         record.glId = glId;
     }
@@ -436,6 +436,14 @@ bool GlesRenderDevice::restoreGpuResources() noexcept {
                      static_cast<GLsizei>(record.desc.width), static_cast<GLsizei>(record.desc.height),
                      0, GL_RGBA, GL_UNSIGNED_BYTE, record.mipData[0].empty() ? nullptr : record.mipData[0].data());
         if (record.desc.mipLevels > 1) glGenerateMipmap(GL_TEXTURE_2D);
+        for (std::uint32_t level = 1; level < record.desc.mipLevels; ++level) {
+            const std::uint32_t w = std::max(1u, record.desc.width >> std::min(level, 31u));
+            const std::uint32_t h = std::max(1u, record.desc.height >> std::min(level, 31u));
+            glTexSubImage2D(GL_TEXTURE_2D, static_cast<GLint>(level), 0, 0,
+                            static_cast<GLsizei>(w), static_cast<GLsizei>(h),
+                            GL_RGBA, GL_UNSIGNED_BYTE,
+                            record.mipData[level].empty() ? nullptr : record.mipData[level].data());
+        }
         if (glGetError() != GL_NO_ERROR) { glDeleteTextures(1, &glId); invalidateGpuResources(); return false; }
         record.glId = glId;
     }
