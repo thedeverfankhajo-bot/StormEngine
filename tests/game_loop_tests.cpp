@@ -56,6 +56,11 @@ void testPathologicalFixedStepCatchupIsBounded() {
     assert(clock.pendingFixedSteps() == storm::GameClock::maxFixedStepsPerAdvance);
     assert(clock.interpolationAlpha() >= 0.0f);
     assert(clock.interpolationAlpha() <= 1.0f);
+    clock.advance(0.0f);
+    assert(clock.pendingFixedSteps() == storm::GameClock::maxFixedStepsPerAdvance);
+    while (clock.consumeFixedStep()) {}
+    assert(clock.pendingFixedSteps() == 0);
+    assert(clock.accumulatorSeconds() < clock.fixedDeltaSeconds());
 }
 
 void testGameLoopOrder() {

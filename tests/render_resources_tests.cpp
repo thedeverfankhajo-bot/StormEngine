@@ -50,6 +50,12 @@ int main() {
     RenderPipeline pipeline(ShaderHandle(11), ShaderHandle(12),
                             MaterialHandle(13), PrimitiveTopology::TriangleStrip);
     assert(pipeline.valid());
+
+    VertexLayout invalidLocation{};
+    invalidLocation.attributeCount = 1;
+    invalidLocation.stride = sizeof(float) * 3;
+    invalidLocation.attributes[0] = {VertexLayout::maxAttributes, VertexFormat::Float32x3, 0};
+    assert(!invalidLocation.valid());
     assert(pipeline.shader() == ShaderHandle(11));
     assert(pipeline.vertexShader() == ShaderHandle(11));
     assert(pipeline.fragmentShader() == ShaderHandle(12));

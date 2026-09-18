@@ -13,6 +13,15 @@ public:
 
     bool submit(const DrawCommand& command) {
         if (!command.vertexBuffer.valid() || command.vertexCount == 0 || !command.vertexLayout.valid()) return false;
+        switch (command.topology) {
+        case PrimitiveTopology::Points:
+        case PrimitiveTopology::Lines:
+        case PrimitiveTopology::Triangles:
+        case PrimitiveTopology::TriangleStrip:
+            break;
+        default:
+            return false;
+        }
         if (command.viewportWidth > 0 && command.viewportHeight == 0) return false;
         if (command.viewportHeight > 0 && command.viewportWidth == 0) return false;
         if (command.indexed()) {

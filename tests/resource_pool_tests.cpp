@@ -10,6 +10,16 @@ struct Resource final {
     int value{};
 };
 
+struct ThrowingResource final {
+    static bool shouldThrow;
+    explicit ThrowingResource(int value) {
+        if (shouldThrow) throw value;
+        this->value = value;
+    }
+    int value{};
+};
+bool ThrowingResource::shouldThrow = false;
+
 int main() {
     using Pool = storm::core::ResourcePool<Resource, TestResourceTag>;
 
@@ -52,6 +62,23 @@ int main() {
     assert(pool.liveCount() == 0);
     assert(pool.capacity() == 0);
     assert(!pool.valid(third));
+
+    using ThrowingPool = storm::core::ResourcePool<ThrowingResource, struct ThrowingTag>;
+    ThrowingPool throwingPool;
+    const auto live = throwingPool.emplace(11);
+    assert(throwingPool.destroy(live));
+    ThrowingResource::shouldThrow = true;
+    bool threw = false;
+    try {
+        (void)throwingPool.emplace(22);
+    } catch (int value) {
+        threw = (value == 22);
+    }
+    ThrowingResource::shouldThrow = false;
+    assert(threw);
+    const auto recovered = throwingPool.emplace(33);
+    assert(recovered.valid());
+    assert(throwingPool.get(recovered)->value == 33);
 
     return 0;
 }

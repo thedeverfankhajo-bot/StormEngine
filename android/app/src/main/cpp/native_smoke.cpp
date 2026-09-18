@@ -1,5 +1,6 @@
 #include <android/native_window.h>
 #include <android/native_window_jni.h>
+#include <android/log.h>
 #include <chrono>
 #include <cmath>
 #include <cstdint>
@@ -33,6 +34,26 @@ void renderLoop(ANativeWindow* window) {
     }
 
     storm::render::GlesRenderDevice device;
+
+    GLint majorVersion = 0;
+    glGetIntegerv(GL_MAJOR_VERSION, &majorVersion);
+    const auto* version = reinterpret_cast<const char*>(glGetString(GL_VERSION));
+    const auto* vendor = reinterpret_cast<const char*>(glGetString(GL_VENDOR));
+    const auto* renderer = reinterpret_cast<const char*>(glGetString(GL_RENDERER));
+    __android_log_print(ANDROID_LOG_INFO, "StormEngine",
+                        "GLES version=%s major=%d vendor=%s renderer=%s",
+                        version ? version : "unknown",
+                        majorVersion,
+                        vendor ? vendor : "unknown",
+                        renderer ? renderer : "unknown");
+    if (majorVersion < 3 || version == nullptr) {
+        __android_log_print(ANDROID_LOG_ERROR, "StormEngine",
+                            "OpenGL ES 3.x runtime is required");
+        context.shutdown();
+        ANativeWindow_release(window);
+        gRunning.store(false);
+        return;
+    }
 
     // 36 vertices: six independent faces, which keeps the demo simple and
     // leaves room for future normal/UV seams without changing the API.

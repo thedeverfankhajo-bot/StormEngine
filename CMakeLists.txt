@@ -10,10 +10,6 @@ option(STORM_BUILD_GLES "Build OpenGL ES 3.x backend" OFF)
 option(STORM_ENABLE_WARNINGS "Enable strict compiler warnings" ON)
 option(STORM_ENABLE_SANITIZERS "Enable AddressSanitizer and UndefinedBehaviorSanitizer" OFF)
 
-if(STORM_BUILD_GLES AND NOT ANDROID)
-    message(FATAL_ERROR "STORM_BUILD_GLES requires an Android/NDK toolchain; use the native Termux presets with STORM_BUILD_GLES=OFF")
-endif()
-
 add_library(storm_core
     engine/core/src/Engine.cpp
     engine/render/src/NullRenderDevice.cpp
@@ -22,7 +18,9 @@ add_library(storm_core
 
 if(STORM_BUILD_GLES)
     target_sources(storm_core PRIVATE engine/render/src/GlesRenderDevice.cpp)
-    target_link_libraries(storm_core PRIVATE GLESv3 EGL)
+    if(ANDROID)
+        target_link_libraries(storm_core PRIVATE GLESv3 EGL)
+    endif()
 endif()
 
 target_include_directories(storm_core PUBLIC
@@ -33,13 +31,17 @@ target_include_directories(storm_core PUBLIC
     engine/physics/include
 )
 
-if(STORM_ENABLE_WARNINGS)
-    if(MSVC)
-        target_compile_options(storm_core PRIVATE /W4)
-    else()
-        target_compile_options(storm_core PRIVATE -Wall -Wextra -Wpedantic)
+function(storm_enable_warnings target)
+    if(STORM_ENABLE_WARNINGS)
+        if(MSVC)
+            target_compile_options(${target} PRIVATE /W4)
+        else()
+            target_compile_options(${target} PRIVATE -Wall -Wextra -Wpedantic)
+        endif()
     endif()
-endif()
+endfunction()
+
+storm_enable_warnings(storm_core)
 
 if(STORM_ENABLE_SANITIZERS)
     if(MSVC)
@@ -54,12 +56,14 @@ endif()
 
 if(ANDROID)
     add_library(storm_android_smoke SHARED android/app/src/main/cpp/native_smoke.cpp)
-    target_link_libraries(storm_android_smoke PRIVATE storm_core android log)
+    target_link_libraries(storm_android_smoke PRIVATE storm_core GLESv3 EGL android log)
+    storm_enable_warnings(storm_android_smoke)
 endif()
 
 if(NOT ANDROID)
     add_executable(storm_sandbox examples/sandbox/main.cpp)
     target_link_libraries(storm_sandbox PRIVATE storm_core)
+    storm_enable_warnings(storm_sandbox)
 endif()
 
 if(STORM_BUILD_TESTS AND NOT ANDROID)
@@ -68,6 +72,7 @@ if(STORM_BUILD_TESTS AND NOT ANDROID)
     function(storm_add_test target source)
         add_executable(${target} ${source})
         target_link_libraries(${target} PRIVATE storm_core)
+        storm_enable_warnings(${target})
         add_test(NAME ${target} COMMAND ${target})
     endfunction()
 

@@ -105,7 +105,7 @@ struct VertexLayout final {
             case VertexFormat::Float32x4: components = 4; break;
             default: return false;
             }
-            if (attributes[i].offset > stride) return false;
+            if (attributes[i].location >= maxAttributes || attributes[i].offset > stride) return false;
             const std::uint64_t end = static_cast<std::uint64_t>(attributes[i].offset) + components * sizeof(float);
             if (end > stride) return false;
             for (std::uint32_t j = 0; j < i; ++j)
