@@ -31,6 +31,9 @@ case "$BUILD_TYPE" in
     Debug|Release|RelWithDebInfo|MinSizeRel) ;;
     *) printf 'Unsupported STORM_BUILD_TYPE: %s\n' "$BUILD_TYPE" >&2; exit 2 ;;
 esac
+case "$BUILD_TESTS" in ON|OFF) ;; *) printf 'STORM_BUILD_TESTS must be ON or OFF\n' >&2; exit 2 ;; esac
+case "$BUILD_GLES" in ON|OFF) ;; *) printf 'STORM_BUILD_GLES must be ON or OFF\n' >&2; exit 2 ;; esac
+case "$JOBS" in ''|*[!0-9]*|0) printf 'STORM_BUILD_JOBS must be a positive integer\n' >&2; exit 2 ;; esac
 
 printf 'StormEngine Termux build\n'
 printf '  root=%s\n  build=%s\n  type=%s\n  tests=%s\n  GLES=%s\n  jobs=%s\n'     "$ROOT_DIR" "$BUILD_DIR" "$BUILD_TYPE" "$BUILD_TESTS" "$BUILD_GLES" "$JOBS"
