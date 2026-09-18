@@ -25,9 +25,9 @@ public:
     [[nodiscard]] std::size_t submittedDrawCount() const noexcept override { return submittedDraws_; }
 
 private:
-    std::uint32_t nextBufferId_{0};
-    std::uint32_t nextTextureId_{0};
-    std::uint32_t nextShaderId_{0};
+    ResourceHandleAllocator<BufferHandle> bufferHandles_;
+    ResourceHandleAllocator<TextureHandle> textureHandles_;
+    ResourceHandleAllocator<ShaderHandle> shaderHandles_;
     std::unordered_map<std::uint32_t, std::uint64_t> buffers_;
     std::unordered_map<std::uint32_t, TextureDesc> textures_;
     std::unordered_map<std::uint32_t, ShaderStage> shaders_;
