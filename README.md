@@ -1,49 +1,58 @@
 # StormEngine
 
-A cross-platform C++20 game engine being built from scratch, with a unified 1D/2D/3D runtime target and Android support.
+StormEngine is a C++20 game-engine project targeting a unified 1D, 2D, and 3D runtime with Android support.
 
-## Current status
+## Status
 
-StormEngine is in active foundation development. The repository currently contains the core runtime loop, fixed-step clock, ECS, scheduler, dimensional math/physics primitives, world hierarchy, backend-neutral rendering abstractions, Null rendering validation, and an OpenGL ES foundation. The complete 1D/2D/3D engine is **not yet finished**.
+The engine is under active development. The current tree contains the core runtime loop, fixed-step timing, ECS, scheduler, 1D/2D/3D math primitives, transforms, cameras, AABB foundations, scene/world transforms, backend-neutral rendering types, a Null renderer, an OpenGL ES backend, SpriteBatch CPU geometry, generation-safe resource lifetime, and a render-state cache.
 
-GitHub Actions builds and tests Linux and Android targets and runs CodeQL analysis.
+The project is **not yet a complete 1D/2D/3D engine**. The remaining work is tracked in [Issue #9](https://github.com/thedeverfankhajo-bot/StormEngine/issues/9).
 
-### Implemented foundation
+## Implemented
 
-- Core engine identity and runtime loop
-- Fixed-step game clock with frame-delta clamping
-- Generation-safe ECS entities and sparse-set component storage
-- ECS queries, swap-back storage, phases, dependencies, and deterministic scheduling
-- 1D/2D/3D vector and matrix math foundation
-- Quaternion and 3D transform foundation
-- Perspective and orthographic projection
-- 1D/2D camera foundation
-- 1D/2D/3D AABB collision primitives
-- World/scene hierarchy with parent relationships and world transforms
-- Backend-neutral render handles and draw commands
-- Null render-device validation
-- OpenGL ES texture/shader/VAO foundation
-- Mesh/material/shader resource foundations
-- Automated C++ regression tests
-- CMake build and GitHub Actions CI
+- C++20 core runtime and fixed-step game clock.
+- ECS with sparse-set storage, queries, phases, dependencies, and deterministic scheduling.
+- 1D, 2D, and 3D vector/matrix math.
+- Quaternion and 3D transform support.
+- Perspective and orthographic projection.
+- 1D, 2D, and 3D AABB primitives.
+- 1D, 2D, and 3D camera foundations.
+- Parent/child world transforms with cached revisions.
+- Backend-neutral render resources and draw commands.
+- Null render-device validation.
+- OpenGL ES texture, shader, VAO, and draw foundations.
+- CPU-side SpriteBatch geometry generation.
+- Generation-safe resource lifetime primitives.
+- Backend-independent render-state caching.
+- Linux, Android, and CodeQL GitHub Actions checks.
+- Automated CTest regression coverage.
 
-### In development
+## In development
 
-- Generation-safe GPU resource lifetime management
-- Render state cache and render graph
-- Sprite batching and GPU sprite submission
-- Complete 2D renderer
-- 3D mesh/material/camera/light rendering
-- 1D/2D/3D physics bodies, broad phase, narrow phase, and solver
-- Dirty transform propagation and cached world matrices
-- Input and platform events
-- Asset/resource pipeline
-- Animation and audio
-- Android lifecycle/surface-aware runtime
-- Integration, sanitizer, and performance tests
-- Editor and development tooling
+- Generation-safe renderer resource managers for buffers, textures, shaders, materials, and meshes.
+- GLES uniform and texture-binding caches.
+- Render graph and render passes.
+- GPU SpriteBatch upload and draw.
+- Complete 2D renderer.
+- Complete 3D mesh/material/camera/light renderer.
+- 1D/2D/3D physics bodies, broad phase, narrow phase, and solvers.
+- Input and platform events.
+- Asset/resource pipeline.
+- Animation and audio.
+- Android lifecycle and EGL surface recreation.
+- Integration, sanitizer, and performance tests.
+- Editor and development tooling.
 
-## Build locally
+## Build
+
+Requirements:
+
+- C++20 compiler.
+- CMake 3.20 or newer.
+- Git.
+- Android SDK/NDK and the repository's Gradle tooling for Android builds.
+
+Host build and tests:
 
 ```bash
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug -DSTORM_BUILD_TESTS=ON
@@ -52,7 +61,7 @@ ctest --test-dir build --output-on-failure
 ./build/storm_sandbox
 ```
 
-For the GLES backend:
+GLES configuration:
 
 ```bash
 cmake -S . -B build-gles -DCMAKE_BUILD_TYPE=Debug -DSTORM_BUILD_TESTS=ON -DSTORM_BUILD_GLES=ON
@@ -62,36 +71,29 @@ cmake --build build-gles --parallel
 ## Repository layout
 
 ```text
-engine/   Engine runtime modules
-android/  Android runtime/smoke-test project
-examples/ Example projects
-tests/    Automated tests
-.github/  CI, security, contribution, and repository policy configuration
+engine/    engine source
+android/   Android build and native smoke test
+examples/  example applications
+tests/     automated tests
+.github/   CI and repository policy
 ```
 
-## GitHub Actions
+## CI
 
-Use the **Actions** tab to inspect the latest Linux, Android, and CodeQL runs. Successful Linux runs publish a `stormengine-linux-debug` artifact containing the sandbox and test executables.
+Pull requests and pushes to `main` run:
 
-The repository is being kept honest about implementation status: a foundation is not described as a complete engine until its runtime path and tests actually exist.
+- Linux CMake build and CTest suite.
+- Android debug APK build.
+- C++ CodeQL analysis.
 
-## Contributing and project policies
+The Linux workflow publishes debug build artifacts.
 
-- [Contributing guide](CONTRIBUTING.md) — development workflow, coding expectations, testing, and pull requests.
-- [Security policy](SECURITY.md) — vulnerability reporting and security practices.
-- [Code of Conduct](CODE_OF_CONDUCT.md) — collaboration expectations.
-- [Support guide](SUPPORT.md) — bug reports, build problems, and feature requests.
+## Development
 
-## Goals
+See [CONTRIBUTING.md](CONTRIBUTING.md) for build, testing, coding, rendering, security, and pull-request requirements.
 
-- Unified 1D/2D/3D engine runtime
-- 2D and 3D rendering
-- Physics and audio
-- Asset/resource pipeline
-- Android support
-- Editor and tooling
-- Reproducible automated tests, builds, and releases
+Security reports must follow [SECURITY.md](SECURITY.md), not public issues.
 
 ## License
 
-TBD
+StormEngine is licensed under the [MIT License](LICENSE).
