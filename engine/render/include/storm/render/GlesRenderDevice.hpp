@@ -44,6 +44,7 @@ public:
 private:
     struct BufferRecord {
         std::uint64_t size{0};
+        BufferUsage usage{BufferUsage::Static};
         std::uint32_t glId{0};
         std::vector<std::uint8_t> data;
     };
