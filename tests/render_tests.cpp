@@ -142,9 +142,6 @@ int main() {
     assert(queue.size() == 1);
     assert(queue.at(0).indexType == IndexType::UInt16);
 
-    return 0;
-}
-
 
     ResourceHandleAllocator<BufferHandle> allocator;
     const auto first = allocator.allocate();
@@ -158,3 +155,6 @@ int main() {
     assert(second.generation() != first.generation());
     assert(!allocator.valid(first));
     assert(allocator.valid(second));
+
+    return 0;
+}
