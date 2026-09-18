@@ -57,7 +57,9 @@ pkg install clang cmake ninja make git
 ./scripts/termux-build.sh
 ```
 
-Android APK builds remain a separate SDK/NDK/Gradle workflow.\n\nSee [`docs/MOBILE_COMPATIBILITY.md`](docs/MOBILE_COMPATIBILITY.md) for the Android ABI matrix and representative Samsung, Xiaomi/Redmi/POCO, Pixel, OnePlus, and Motorola validation families.
+Android APK builds remain a separate SDK/NDK/Gradle workflow.
+
+Build presets are also available through `CMakePresets.json` (`termux-debug` and `termux-release`).\n\nSee [`docs/MOBILE_COMPATIBILITY.md`](docs/MOBILE_COMPATIBILITY.md) for the Android ABI matrix and representative Samsung, Xiaomi/Redmi/POCO, Pixel, OnePlus, and Motorola validation families.
 
 ## Build
 
