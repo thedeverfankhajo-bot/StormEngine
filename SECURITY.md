@@ -13,7 +13,7 @@ Security fixes are applied to the default development branch first.
 
 Do **not** report security vulnerabilities in public issues, pull requests, or discussions.
 
-Use GitHub private vulnerability reporting when it is enabled for the repository. If private reporting is unavailable, contact the repository maintainers through a private GitHub channel and do not disclose the vulnerability publicly before a fix is available.
+Use GitHub private vulnerability reporting when it is enabled for the repository. If private reporting is unavailable, contact the maintainers through a private GitHub channel and do not disclose the vulnerability publicly before a fix is available.
 
 Include, when safe:
 
@@ -24,17 +24,17 @@ Include, when safe:
 - security impact;
 - relevant platform, ABI, or build configuration.
 
-Do not include real credentials, API tokens, private keys, personal data, device identifiers, or destructive proof-of-concept material.
+Never include real credentials, API tokens, private keys, personal data, device identifiers, or destructive proof-of-concept material.
 
 ## Scope
 
 Security-sensitive areas include:
 
 - runtime and resource lifetime handling;
-- ECS and bounds/overflow validation;
+- ECS bounds, stale handles, and overflow validation;
 - asset, shader, and serialization input;
-- rendering backends;
-- Android/EGL/platform integration;
+- rendering backends and GPU state;
+- Android/JNI/EGL/platform integration;
 - build and CI configuration;
 - filesystem and future network-facing code.
 
@@ -49,9 +49,24 @@ Never commit:
 
 Treat assets and shader source as untrusted input at load boundaries. Asset processing must not execute shell commands or turn untrusted data into executable code.
 
-Termux scripts must fail closed when required tools are missing and must not download or execute arbitrary remote scripts.
+Termux scripts fail closed when required tools are missing, validate their toolchain versions/options, and do not download or execute arbitrary remote scripts.
 
-Android native code must validate JNI/native handles, surface lifetime, buffer sizes, integer conversions, and GPU resource lifetime.
+Android native code must validate JNI/native handles, surface lifetime, buffer sizes, integer conversions, GPU resource lifetime, and context-loss recovery.
+
+## Rendering security
+
+Rendering entry points validate:
+
+- resource handle generations;
+- vertex/index bounds;
+- vertex layout locations and offsets;
+- texture dimensions and mip levels;
+- integer-size conversions into GLES types;
+- shader stage compatibility;
+- frame lifecycle;
+- context-loss state.
+
+CPU-side resource data is retained where required for context recreation. GPU object names are never treated as durable identifiers across context loss.
 
 ## Development practices
 
@@ -60,5 +75,6 @@ Android native code must validate JNI/native handles, surface lifetime, buffer s
 - Preserve explicit ownership and destruction order.
 - Keep backend-neutral code independent of OpenGL ES types.
 - Add deterministic regression tests for security-sensitive fixes.
-- Prefer reproducible builds and pinned/maintained CI actions.
+- Prefer reproducible builds and maintained/pinned CI actions.
 - Keep dependency and toolchain versions documented and reviewable.
+- Use sanitizer and static-analysis coverage before merging substantial runtime changes.
