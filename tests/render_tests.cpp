@@ -105,6 +105,7 @@ int main() {
     indexed.indexCount = 0;
     assert(!indexed.indexed());
     indexed.indexCount = 96;
+    indexed.vertexCount = 36;
     assert(indexed.indexBuffer.valid());
     assert(indexed.vertexBuffer.valid());
     assert(indexed.vertexLayout.valid());
