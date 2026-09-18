@@ -130,6 +130,10 @@ struct DrawCommand final {
     bool depthWriteEnabled{true};
     bool cullEnabled{true};
     bool scissorEnabled{false};
+    std::int32_t scissorX{0};
+    std::int32_t scissorY{0};
+    std::uint32_t scissorWidth{0};
+    std::uint32_t scissorHeight{0};
     [[nodiscard]] constexpr bool indexed() const noexcept { return indexCount > 0; }
 };
 
