@@ -129,6 +129,7 @@ BufferHandle GlesRenderDevice::createBuffer(const BufferDesc& desc) {
 }
 void GlesRenderDevice::destroyBuffer(BufferHandle handle) {
     if (!handle.valid()) return;
+    if (!bufferHandles_.valid(handle)) return false;
     const auto it = buffers_.find(handle.id());
     if (it == buffers_.end()) return;
     const GLuint id = static_cast<GLuint>(it->second.glId);
@@ -166,6 +167,7 @@ TextureHandle GlesRenderDevice::createTexture(const TextureDesc& desc) {
 }
 bool GlesRenderDevice::updateTexture(TextureHandle handle, const void* data, std::size_t size, std::uint32_t mipLevel) {
     if (!handle.valid() || data == nullptr) return false;
+    if (!textureHandles_.valid(handle)) return false;
     const auto it = textures_.find(handle.id());
     if (it == textures_.end() || it->second.desc.format != TextureFormat::RGBA8 || mipLevel >= it->second.desc.mipLevels) return false;
     const std::uint32_t width = std::max(1u, it->second.desc.width >> std::min(mipLevel, 31u));
@@ -198,6 +200,7 @@ ShaderHandle GlesRenderDevice::createShader(const ShaderDesc& desc, const std::s
 }
 void GlesRenderDevice::destroyShader(ShaderHandle handle) {
     if (!handle.valid()) return;
+    if (!shaderHandles_.valid(handle)) return;
     const auto it = shaders_.find(handle.id());
     if (it == shaders_.end()) return;
     for (auto programIt = programs_.begin(); programIt != programs_.end();) {
@@ -212,6 +215,7 @@ void GlesRenderDevice::destroyShader(ShaderHandle handle) {
     }
     glDeleteShader(static_cast<GLuint>(it->second.glId));
     shaders_.erase(it);
+    shaderHandles_.release(handle);
 }
 
 void GlesRenderDevice::beginFrame() { frameActive_ = true; submittedDraws_ = 0; }
