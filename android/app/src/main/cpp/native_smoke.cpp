@@ -1,4 +1,5 @@
 #include <android/native_window.h>
+#include <android/native_window_jni.h>
 #include <chrono>
 #include <cmath>
 #include <cstdint>
@@ -9,6 +10,9 @@
 #include <algorithm>
 
 #include "storm/math/Mat4.hpp"
+#include <GLES3/gl3.h>
+
+#include "storm/render/Camera3D.hpp"
 #include "storm/render/GlesContext.hpp"
 #include "storm/render/GlesRenderDevice.hpp"
 #include "storm/render/Material.hpp"
@@ -110,7 +114,10 @@ void main() { outColor = vColor; })glsl";
 
         const int width = ANativeWindow_getWidth(window);
         const int height = ANativeWindow_getHeight(window);
-        if (width <= 0 || height <= 0) continue;
+        if (width <= 0 || height <= 0) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(16));
+            continue;
+        }
 
         camera.setViewport(static_cast<float>(width), static_cast<float>(height));
         glViewport(0, 0, width, height);
