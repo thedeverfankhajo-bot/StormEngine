@@ -19,6 +19,20 @@ The engine is under active development and is not yet a complete 1D/2D/3D engine
 
 ## Platform and Termux
 
+The portable C++ core is designed to build directly in Termux. Android APK packaging still requires the Android SDK/NDK and Gradle.
+
+### Android targets
+
+The Android smoke app targets `arm64-v8a`, `armeabi-v7a`, `x86_64`, and `x86`. These are build ABIs, not blanket device certification. Physical validation is organized around Samsung Galaxy, Xiaomi/Redmi/POCO, Google Pixel, OnePlus, and Motorola families.
+
+### Termux
+
+    pkg update
+    pkg install clang cmake ninja make git
+    ./scripts/termux-build.sh
+
+Use `STORM_BUILD_JOBS=1` on constrained phones. See `docs/MOBILE_COMPATIBILITY.md` and `.github/TERMUX.md` for the detailed matrix and lifecycle requirements.
+
 The portable C++ core can be built and tested directly in Termux. Android APK construction remains an SDK/NDK/Gradle workflow.
 
 Representative Android test families are Samsung Galaxy, Xiaomi/Redmi/POCO, Google Pixel, OnePlus, and Motorola. These are compatibility-test families, not blanket certification.
@@ -36,7 +50,7 @@ Termux quick start:
 Requirements:
 
 - C++20 compiler.
-- CMake 3.20+.
+- CMake 3.23+ for repository presets; direct builds still support CMake 3.20+.
 - Git.
 - Android SDK/NDK and Gradle for Android APKs.
 - Termux users can use the repository script for native builds.
@@ -63,6 +77,8 @@ GLES configuration:
     .github/   CI and repository policy
 
 ## CI
+
+Pull requests and pushes to `main` run Linux CMake/CTest, sanitizer CTest, Termux-compatible native validation, Android APK build, and CodeQL. Workflow concurrency cancels superseded runs to avoid wasting CI capacity.
 
 Pull requests and pushes to main run Linux CMake/CTest, sanitizer, Android debug APK, and CodeQL checks.
 
