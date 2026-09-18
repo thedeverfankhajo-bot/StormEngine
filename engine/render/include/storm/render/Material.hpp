@@ -7,7 +7,6 @@
 #include <unordered_map>
 #include <variant>
 #include <utility>
-
 #include "RenderTypes.hpp"
 
 namespace storm::render {
@@ -16,8 +15,9 @@ using MaterialScalar = float;
 using MaterialVec2 = std::array<float, 2>;
 using MaterialVec3 = std::array<float, 3>;
 using MaterialVec4 = std::array<float, 4>;
+using MaterialMat4 = std::array<float, 16>;
 using MaterialValue = std::variant<MaterialScalar, MaterialVec2, MaterialVec3, MaterialVec4,
-                                   TextureHandle>;
+                                   MaterialMat4, TextureHandle>;
 
 class Material final {
 public:
