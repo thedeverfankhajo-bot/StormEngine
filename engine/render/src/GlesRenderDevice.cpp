@@ -188,7 +188,9 @@ bool GlesRenderDevice::onContextRestored() noexcept {
                          GL_RGBA, GL_UNSIGNED_BYTE,
                          record.cpuData.empty() ? nullptr : record.cpuData.data() + offset);
         }
-        if (record.desc.mipLevels > 1) glGenerateMipmap(GL_TEXTURE_2D);
+        // CPU-side mip data is authoritative after context loss. Do not
+        // regenerate the chain here, because glGenerateMipmap would overwrite
+        // explicitly stored higher-resolution mip levels.
         if (glGetError() != GL_NO_ERROR) { glDeleteTextures(1, &id); onContextLost(); return false; }
         record.glId = id;
     }
@@ -343,7 +345,10 @@ void GlesRenderDevice::destroyShader(ShaderHandle handle) {
 void GlesRenderDevice::beginFrame() { frameActive_ = true; submittedDraws_ = 0; }
 
 bool GlesRenderDevice::submit(const DrawCommand& command) {
-    if (!gpuResourcesValid_ || !frameActive_ || !bufferHandles_.valid(command.vertexBuffer) || command.vertexCount == 0 || !command.vertexLayout.valid()) return false;
+    if (!gpuResourcesValid_ || !frameActive_ || !bufferHandles_.valid(command.vertexBuffer) ||
+        command.vertexCount == 0 || !command.vertexLayout.valid()) return false;
+    if (command.viewportWidth > static_cast<std::uint32_t>(std::numeric_limits<GLsizei>::max()) ||
+        command.viewportHeight > static_cast<std::uint32_t>(std::numeric_limits<GLsizei>::max())) return false;
     if (!shaderHandles_.valid(command.shader) || !shaderHandles_.valid(command.fragmentShader)) return false;
     const auto vertexBufferIt = buffers_.find(command.vertexBuffer.id());
     if (vertexBufferIt == buffers_.end() || command.baseVertex != 0) return false;
@@ -361,6 +366,7 @@ bool GlesRenderDevice::submit(const DrawCommand& command) {
 
     for (std::uint32_t i = 0; i < command.vertexLayout.attributeCount; ++i) {
         const auto& attribute = command.vertexLayout.attributes[i];
+        if (attribute.location >= VertexLayout::maxAttributes) return false;
         const GLint components = componentCount(attribute.format);
         if (components == 0) return false;
         const std::uint64_t attributeBytes = static_cast<std::uint64_t>(components) * sizeof(float);
@@ -428,9 +434,6 @@ bool GlesRenderDevice::submit(const DrawCommand& command) {
                        static_cast<GLsizei>(desiredState.viewportHeight));
         stateCache_.markApplied(desiredState);
     }
-
-    if (command.viewportWidth > static_cast<std::uint32_t>(std::numeric_limits<GLsizei>::max()) ||
-        command.viewportHeight > static_cast<std::uint32_t>(std::numeric_limits<GLsizei>::max())) return false;
 
     if (vao_ == 0) {
         GLuint vao = 0;
