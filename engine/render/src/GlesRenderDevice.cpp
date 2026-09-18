@@ -49,10 +49,15 @@ constexpr std::uint64_t maxGlInt = static_cast<std::uint64_t>(std::numeric_limit
 
 bool applyMaterial(const Material& material,
                    GLuint program,
+                   std::unordered_map<std::uint64_t, std::unordered_map<std::string, std::int32_t>>& uniformLocations,
                    const std::unordered_map<std::uint32_t, GlesRenderDevice::TextureRecord>& textures) noexcept {
     std::uint32_t textureUnit = 0;
     for (const auto& [name, value] : material.parameters()) {
-        const GLint location = glGetUniformLocation(program, name.c_str());
+        auto& locations = uniformLocations[static_cast<std::uint64_t>(program)];
+        const auto cached = locations.find(name);
+        const GLint location = cached != locations.end()
+            ? static_cast<GLint>(cached->second)
+            : (locations.emplace(name, glGetUniformLocation(program, name.c_str())).first->second);
         if (location < 0) continue;
 
         bool supported = true;
@@ -179,6 +184,7 @@ void GlesRenderDevice::destroyShader(ShaderHandle handle) {
         if (vertex == handle.id() || fragment == handle.id()) {
             glDeleteProgram(static_cast<GLuint>(programIt->second));
             if (program_ == programIt->second) program_ = 0;
+            uniformLocations_.erase(static_cast<std::uint64_t>(programIt->second));
             programIt = programs_.erase(programIt);
         } else ++programIt;
     }
@@ -231,13 +237,31 @@ bool GlesRenderDevice::submit(const DrawCommand& command) {
     }
     program_ = programIt->second;
 
+    RenderState desiredState{};
+    desiredState.shader = command.shader;
+    desiredState.fragmentShader = command.fragmentShader;
+    desiredState.topology = command.topology;
+    if (stateCache_.needsApply(desiredState)) {
+        glUseProgram(static_cast<GLuint>(program_));
+        if (desiredState.depthTestEnabled) glEnable(GL_DEPTH_TEST);
+        else glDisable(GL_DEPTH_TEST);
+        if (desiredState.depthWriteEnabled) glDepthMask(GL_TRUE);
+        else glDepthMask(GL_FALSE);
+        if (desiredState.cullEnabled) glEnable(GL_CULL_FACE);
+        else glDisable(GL_CULL_FACE);
+        if (desiredState.blendEnabled) glEnable(GL_BLEND);
+        else glDisable(GL_BLEND);
+        if (desiredState.scissorEnabled) glEnable(GL_SCISSOR_TEST);
+        else glDisable(GL_SCISSOR_TEST);
+        stateCache_.markApplied(desiredState);
+    }
+
     if (vao_ == 0) {
         GLuint vao = 0;
         glGenVertexArrays(1, &vao);
         vao_ = static_cast<std::uint32_t>(vao);
     }
     if (vao_ == 0) return false;
-    glUseProgram(static_cast<GLuint>(program_));
     glBindVertexArray(static_cast<GLuint>(vao_));
     glBindBuffer(GL_ARRAY_BUFFER, static_cast<GLuint>(command.vertexBuffer.id()));
     for (std::uint32_t i = 0; i < command.vertexLayout.attributeCount; ++i) {
@@ -250,7 +274,7 @@ bool GlesRenderDevice::submit(const DrawCommand& command) {
     }
 
     if (command.materialData != nullptr && !applyMaterial(*command.materialData,
-                                                            static_cast<GLuint>(program_), textures_)) return false;
+                                                            static_cast<GLuint>(program_), uniformLocations_, textures_)) return false;
 
     if (command.indexed()) {
         if (!command.indexBuffer.valid()) return false;
