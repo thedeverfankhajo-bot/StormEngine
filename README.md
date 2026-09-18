@@ -104,7 +104,7 @@ The Android CI verifies that generated debug APKs contain the configured native 
 
 ## CI
 
-Pull requests and pushes to main run native CMake/CTest, sanitizer, Android debug APK, and CodeQL validation.
+Pull requests and pushes to main run CMake-preset CTest, sanitizer, Android debug APK/lint, and CodeQL validation. CodeQL results are published to GitHub code scanning when repository security settings permit uploads.
 
 CI uses workflow-level concurrency cancellation so obsolete runs on the same ref do not consume resources while newer commits are being validated.
 
