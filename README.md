@@ -150,6 +150,12 @@ Workflow concurrency cancels obsolete runs on the same ref. Repository mutations
 
 Do not merge with unexplained failing checks.
 
+## Mobile validation matrix
+
+Android CI packages all four supported ABIs: `arm64-v8a`, `armeabi-v7a`, `x86_64`, and `x86`. This is ABI/build validation, not certification of every handset. The representative physical-device target families are Samsung Galaxy, Xiaomi/Redmi/POCO, Google Pixel, OnePlus, and Motorola; device certification requires a physical device or emulator.
+
+Termux native validation exercises the portable core with GLES disabled. Android GLES validation uses the NDK build and runtime smoke path.
+
 ## Engine architecture roadmap
 
 StormEngine is moving toward an Unreal Engine 5-class architecture in **capability and subsystem depth**, not by copying Unreal's implementation or APIs. The target is a modular runtime with explicit ownership and platform boundaries:

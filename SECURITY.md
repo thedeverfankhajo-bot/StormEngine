@@ -70,7 +70,7 @@ CPU-side resource data is retained where required for context recreation. GPU ob
 
 ## CI security and reliability
 
-CI uses least-privilege repository permissions and workflow concurrency to cancel obsolete runs. Build scripts fail closed on unsupported platform/toolchain combinations. Do not execute untrusted pull-request data as shell code; review third-party action updates before adopting them.
+CI uses least-privilege repository permissions and workflow concurrency to cancel obsolete runs. CI action references are pinned to immutable commit SHAs. Build scripts fail closed on unsupported platform/toolchain combinations. Do not execute untrusted pull-request data as shell code; review third-party action updates before adopting them. Each workflow job also has an explicit execution timeout.
 
 ## Engine architecture security
 
