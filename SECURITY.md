@@ -45,7 +45,23 @@ Please allow reasonable time for investigation and remediation before publicly d
 
 Android and Termux builds must not embed signing keys, keystores, API tokens, device identifiers, or local absolute paths. Native asset and shader inputs should be treated as untrusted data at load boundaries. Do not enable executable-memory or shell-command behavior for assets.
 
-## Mobile and build security\n\n- Treat Android/Termux asset, shader, and configuration inputs as untrusted.\n- Do not execute shell commands or native code from assets.\n- Do not commit APK signing material, keystores, SDK credentials, or device identifiers.\n- Keep CI permissions least-privilege and avoid workflow tokens with write access unless a job explicitly requires it.\n\n## Security development practices
+## Mobile and build security\n\n- Treat Android/Termux asset, shader, and configuration inputs as untrusted.\n- Do not execute shell commands or native code from assets.\n- Do not commit APK signing material, keystores, SDK credentials, or device identifiers.\n- Keep CI permissions least-privilege and avoid workflow tokens with write access unless a job explicitly requires it.\n\nSecurity development practices
+
+Contributors should:
+
+- Validate untrusted input at subsystem boundaries.
+- Avoid unchecked buffer sizes, integer overflow, and out-of-bounds access.
+- Keep third-party dependencies and GitHub Actions dependencies up to date.
+- Never commit credentials, private keys, access tokens, keystores, or device-specific secrets.
+- Treat Android assets, shaders, package inputs, and native file paths as untrusted at load boundaries.
+- Add regression tests for security-sensitive fixes where practical.
+- Prefer deterministic, reproducible builds and tests.
+- Do not paste private vulnerability details into public issues or pull requests.
+
+### Mobile and Termux
+
+Termux is a development environment, not a trust boundary. Do not assume files accessible to a Termux process are safe input. Android builds must not embed signing credentials or local machine paths. Native code must validate sizes, offsets, handles, and external data before use.
+
 
 Contributors should:
 
