@@ -56,7 +56,7 @@ For Android changes, run the Android CI-equivalent build:
     cd android
     gradle assembleDebug --no-daemon
 
-The current APK build targets arm64-v8a, armeabi-v7a, x86_64, and x86.
+The current APK build targets arm64-v8a, armeabi-v7a, x86_64, and x86. The smoke Activity is intentionally rotation-capable so surface recreation is exercised rather than hidden by a portrait lock.
 
 Do not claim device-level behavior unless it was tested on a device or emulator. Record exact device/model, Android API, ABI, SoC/GPU, OpenGL ES version, renderer string, commit, and lifecycle observations.
 
@@ -70,7 +70,7 @@ Do not claim device-level behavior unless it was tested on a device or emulator.
 - Keep backend-neutral code independent of OpenGL ES types.
 - Prefer RAII and deterministic cleanup.
 - Add regression tests for new behavior and bug fixes.
-- Keep changes warning-clean under the project's enabled warning flags.
+- Keep changes warning-clean under the project's enabled warning flags; test executables are compiled with the same warning policy.
 
 ## Rendering
 
@@ -95,7 +95,7 @@ A pull request should describe:
 
 Keep related changes in one coherent PR rather than creating many tiny PRs that are difficult to validate together.
 
-Do not merge with unexplained failing checks. Wait for the complete required CI set after the final commit.
+Do not merge with unexplained failing checks. Wait for the complete required CI set after the final commit, including code-scanning publication where enabled.
 
 ## Repository workflow
 
