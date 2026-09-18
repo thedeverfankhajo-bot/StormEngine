@@ -300,7 +300,7 @@ bool GlesRenderDevice::submit(const DrawCommand& command) {
                                                             static_cast<GLuint>(program_), uniformLocations_, textures_, maxTextureUnits_)) return false;
 
     if (command.indexed()) {
-        if (!command.indexBuffer.valid()) return false;
+        if (!bufferHandles_.valid(command.indexBuffer)) return false;
         const auto indexIt = buffers_.find(command.indexBuffer.id());
         if (indexIt == buffers_.end()) return false;
         const std::uint64_t indexSize = command.indexType == IndexType::UInt16 ? 2u : 4u;
