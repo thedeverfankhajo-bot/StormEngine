@@ -98,6 +98,13 @@ bool GlesContext::initializeWindow(void* nativeWindow) noexcept {
         return false;
     }
 
+    EGLint nativeFormat = 0;
+    if (eglGetConfigAttrib(display, config, EGL_NATIVE_VISUAL_ID, &nativeFormat) != EGL_TRUE ||
+        nativeFormat == 0 || ANativeWindow_setBuffersGeometry(window, 0, 0, nativeFormat) != 0) {
+        eglTerminate(display);
+        return false;
+    }
+
     EGLSurface surface = eglCreateWindowSurface(display, config, window, nullptr);
     if (surface == EGL_NO_SURFACE) {
         eglTerminate(display);
