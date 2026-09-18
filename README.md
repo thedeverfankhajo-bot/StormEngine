@@ -22,7 +22,7 @@ Current foundations include:
 Requirements:
 
 - C++20 compiler.
-- CMake 3.23+.
+- CMake 3.20+ for direct builds; CMake 3.23+ for shared presets.
 - Git.
 - Ninja is recommended; Make is supported by the Termux helper.
 - Android SDK/NDK and Gradle are required only for Android APK builds.
