@@ -7,12 +7,22 @@ StormEngine is an active C++20 engine project. Keep changes focused, testable, p
 ## Requirements
 
 - C++20 compiler.
-- CMake 3.20+.
+- CMake 3.23+ for repository presets; direct builds can use CMake 3.20+.
 - Git.
 - Android SDK/NDK and Gradle for Android work.
 - Termux users should use scripts/termux-build.sh for native validation.
 
 ## Termux validation
+
+Install clang, cmake, ninja (or make), and git, then run:
+
+    ./scripts/termux-build.sh
+
+For resource-constrained Android phones:
+
+    STORM_BUILD_JOBS=1 ./scripts/termux-build.sh
+
+The script does not download remote tools or replace the Android SDK/NDK workflow.
 
 Install clang, cmake, ninja (or make), and git, then run:
 
@@ -31,6 +41,14 @@ For GLES/Android changes, validate the Android workflow or equivalent Android bu
 
 ## Code
 
+- Use C++20 and keep public APIs platform-neutral.
+- Preserve resource/entity lifetime and stale-handle invariants.
+- Validate finite values, bounds, counts, overflow, and untrusted input.
+- Prefer RAII and explicit thread shutdown ordering.
+- Keep backend-neutral code independent of OpenGL ES types.
+- Add deterministic tests for bug fixes and new behavior.
+- Do not claim physical-device compatibility without device evidence.
+
 - Use C++20 and keep public APIs portable unless a platform boundary requires otherwise.
 - Preserve resource and entity lifetime invariants.
 - Validate external input at subsystem boundaries.
@@ -48,6 +66,17 @@ Consider resource lifetime, shader/program lifetime, vertex/index bounds, render
 The documented Samsung, Xiaomi/Redmi/POCO, Google Pixel, OnePlus, and Motorola families are representative validation targets only. Record exact device, Android API, ABI, SoC/GPU, renderer string, commit, and lifecycle test results.
 
 ## Pull requests
+
+A pull request should:
+
+1. Describe the problem and implementation.
+2. Document invariants, ownership, lifetime, and thread-safety impact.
+3. Include deterministic regression tests where practical.
+4. State Linux/Android/GLES/Termux and ABI impact.
+5. List exact validation commands and CI results.
+6. Avoid unrelated formatting/refactoring churn.
+
+Do not merge with unexplained failing checks.
 
 A pull request should describe the problem, implementation, invariants, tests, Linux/Android/GLES impact, API/ABI/build compatibility impact, and validation results.
 
