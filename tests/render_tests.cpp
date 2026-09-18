@@ -142,6 +142,20 @@ int main() {
     assert(queue.size() == 1);
     assert(queue.at(0).indexType == IndexType::UInt16);
 
+    DrawCommand invalidScissor = indexed;
+    invalidScissor.scissorEnabled = true;
+    invalidScissor.scissorWidth = 0;
+    invalidScissor.scissorHeight = 100;
+    queue.beginFrame();
+    assert(!queue.submit(invalidScissor));
+    invalidScissor.scissorWidth = 100;
+    invalidScissor.scissorHeight = 50;
+    invalidScissor.scissorX = -10;
+    invalidScissor.scissorY = 4;
+    assert(queue.submit(invalidScissor));
+    assert(queue.at(0).scissorEnabled);
+    assert(queue.at(0).scissorX == -10);
+
 
     ResourceHandleAllocator<BufferHandle> allocator;
     const auto first = allocator.allocate();
