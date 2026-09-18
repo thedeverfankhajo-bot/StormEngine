@@ -38,8 +38,8 @@ else
 fi
 
 CMAKE_VERSION="$(cmake --version | sed -n '1s/[^0-9]*//p')"
-if [ -z "$CMAKE_VERSION" ] || [ "$(printf '%s\n3.23.0\n' "$CMAKE_VERSION" | sort -V | head -n1)" != "3.23.0" ]; then
-    printf 'CMake 3.23 or newer is required (found %s)\n' "${CMAKE_VERSION:-unknown}" >&2
+if [ -z "$CMAKE_VERSION" ] || [ "$(printf '%s\n3.20.0\n' "$CMAKE_VERSION" | sort -V | head -n1)" != "3.20.0" ]; then
+    printf 'CMake 3.20 or newer is required (found %s)\n' "${CMAKE_VERSION:-unknown}" >&2
     exit 2
 fi
 
