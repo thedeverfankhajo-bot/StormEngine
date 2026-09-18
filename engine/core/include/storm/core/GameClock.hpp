@@ -2,12 +2,13 @@
 
 #include <algorithm>
 #include <cmath>
-#include <limits>
 
 namespace storm {
 
 class GameClock final {
 public:
+    static constexpr unsigned int maxFixedStepsPerAdvance = 240;
+
     explicit GameClock(float fixedDeltaSeconds = 1.0f / 60.0f,
                        float maxFrameDeltaSeconds = 0.25f) noexcept
         : fixedDeltaSeconds_(sanitizeFixedDelta(fixedDeltaSeconds)),
@@ -35,14 +36,10 @@ public:
         const float stepCount = std::floor(accumulatorSeconds_ / fixedDeltaSeconds_);
         if (!std::isfinite(stepCount) || stepCount <= 0.0f) return;
 
-        const auto maxSteps = static_cast<float>(std::numeric_limits<unsigned int>::max());
-        if (stepCount >= maxSteps) {
-            fixedSteps_ = std::numeric_limits<unsigned int>::max();
-            accumulatorSeconds_ = 0.0f;
-            return;
-        }
-
-        const auto steps = static_cast<unsigned int>(stepCount);
+        const auto maxSteps = static_cast<float>(maxFixedStepsPerAdvance);
+        const auto steps = stepCount >= maxSteps
+            ? maxFixedStepsPerAdvance
+            : static_cast<unsigned int>(stepCount);
         const auto remaining = accumulatorSeconds_ - static_cast<float>(steps) * fixedDeltaSeconds_;
         fixedSteps_ = fixedSteps_ > std::numeric_limits<unsigned int>::max() - steps
             ? std::numeric_limits<unsigned int>::max()
@@ -63,7 +60,7 @@ public:
 
     float interpolationAlpha() const noexcept {
         return fixedDeltaSeconds_ > 0.0f
-            ? accumulatorSeconds_ / fixedDeltaSeconds_
+            ? std::clamp(accumulatorSeconds_ / fixedDeltaSeconds_, 0.0f, 1.0f)
             : 0.0f;
     }
 

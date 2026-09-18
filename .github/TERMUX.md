@@ -1,22 +1,43 @@
 # Termux development
 
-StormEngine supports Termux as a native C++ development environment.
+StormEngine supports Termux as a native C++ development and test environment.
 
-## Prerequisites
+## Required packages
+
     pkg update
     pkg install clang cmake ninja make git
 
-## Build and test
-From the repository root:
+## Reproducible build
+
     ./scripts/termux-build.sh
 
-The script uses the Termux compiler and build tools and runs the complete CTest suite when tests are enabled.
+The helper validates build-mode inputs, uses Ninja when available and Make otherwise, bounds parallelism through STORM_BUILD_JOBS, runs CTest, and runs the native sandbox when available.
 
-## Android APKs
-Android APK construction is separate from the native Termux build. It requires Android SDK/NDK and Gradle.
+Examples:
 
-## GLES
-STORM_BUILD_GLES=ON is opt-in. A Termux host may not expose the same EGL/GLES development libraries as the Android NDK.
+    STORM_BUILD_TYPE=Release ./scripts/termux-build.sh
+    STORM_BUILD_JOBS=1 ./scripts/termux-build.sh
+    STORM_BUILD_TESTS=OFF ./scripts/termux-build.sh
 
-## Device testing
-Use physical Android hardware for EGL lifecycle, GPU driver, shader compiler, texture format, pause/resume, rotation, and surface recreation testing.
+## CMake presets
+
+Repository presets use schema version 4 and therefore require CMake 3.23+:
+
+    cmake --list-presets
+    cmake --preset termux-debug
+    cmake --build --preset termux-debug
+    ctest --preset termux-debug
+
+The termux-gles-debug preset is optional and requires compatible EGL/GLES development libraries.
+
+## Android boundary
+
+Termux builds the portable native engine. It does not replace Android SDK/NDK/Gradle, JNI packaging, or APK validation.
+
+## Resource-constrained phones
+
+Use STORM_BUILD_JOBS=1 on small-memory phones. Keep build directories on storage with sufficient free space. Prefer Debug for iteration and Release for final smoke validation.
+
+## Security
+
+The helper does not download or execute remote scripts. Do not add network bootstrap logic to it.

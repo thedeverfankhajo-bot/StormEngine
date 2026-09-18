@@ -48,6 +48,16 @@ void testInvalidClockInputsAreSafe() {
     assert(clock.pendingFixedSteps() == 0);
 }
 
+
+void testPathologicalFixedStepCatchupIsBounded() {
+    storm::GameClock clock{1.0e-12f, 0.25f};
+    clock.advance(0.25f);
+
+    assert(clock.pendingFixedSteps() == storm::GameClock::maxFixedStepsPerAdvance);
+    assert(clock.interpolationAlpha() >= 0.0f);
+    assert(clock.interpolationAlpha() <= 1.0f);
+}
+
 void testGameLoopOrder() {
     storm::GameLoop loop{0.1f, 1.0f};
     std::vector<int> events;
@@ -76,6 +86,7 @@ int main() {
     testFixedStepAccumulation();
     testFrameDeltaClamp();
     testInvalidClockInputsAreSafe();
+    testPathologicalFixedStepCatchupIsBounded();
     testGameLoopOrder();
     return 0;
 }

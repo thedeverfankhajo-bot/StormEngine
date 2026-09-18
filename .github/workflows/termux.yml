@@ -1,0 +1,37 @@
+name: StormEngine Termux-compatible native build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: stormengine-termux-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  termux-compatible:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Validate helper syntax
+        run: bash -n scripts/termux-build.sh
+
+      - name: Validate CMake presets
+        run: cmake --list-presets
+
+      - name: Build and test through Termux helper
+        env:
+          STORM_BUILD_JOBS: 2
+        run: bash scripts/termux-build.sh
+
+      - name: Release build
+        env:
+          STORM_BUILD_TYPE: Release
+          STORM_BUILD_JOBS: 2
+          STORM_BUILD_DIR: build/termux-release-ci
+        run: bash scripts/termux-build.sh
