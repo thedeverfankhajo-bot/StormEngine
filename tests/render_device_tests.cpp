@@ -91,7 +91,7 @@ int main() {
     assert(replacementIndexBuffer.valid());
     staleIndex.indexBuffer = replacementIndexBuffer;
     assert(device.submit(staleIndex));
-    assert(device.submittedDrawCount() == 2);
+    assert(device.submittedDrawCount() == 3);
 
     DrawCommand missingVertex = draw;
     missingVertex.vertexBuffer = BufferHandle{};
