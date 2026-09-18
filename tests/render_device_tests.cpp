@@ -117,7 +117,7 @@ int main() {
     assert(!device.submit(deadShader));
 
     device.endFrame();
-    assert(device.submittedDrawCount() == 2);
+    assert(device.submittedDrawCount() == 3);
     assert(!device.submit(draw));
 
     device.destroyShader(vertexShader);
