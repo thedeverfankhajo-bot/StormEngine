@@ -17,43 +17,49 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-
       - name: Configure
-        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug -DSTORM_BUILD_TESTS=ON
-
-      - name: Validate CMake presets
-        run: |
-          cmake --list-presets
-          cmake --preset host-debug
-
+        run: cmake --preset host-debug
       - name: Build
-        run: cmake --build build --parallel
-
+        run: cmake --build --preset host-debug
       - name: Test
-        run: ctest --test-dir build --output-on-failure
-
+        run: ctest --preset host-debug
       - name: Run sandbox
-        run: ./build/storm_sandbox
-
+        run: ./build/host-debug/storm_sandbox
       - name: Package build artifacts
         run: |
+          set -euo pipefail
           mkdir -p artifacts
-          cp build/storm_sandbox artifacts/
-          cp build/*_tests artifacts/
-
+          cp build/host-debug/storm_sandbox artifacts/
+          find build/host-debug -maxdepth 1 -type f -name '*_tests' -exec cp {} artifacts/ \;
+          test -n "$(find artifacts -type f -print -quit)"
       - name: Upload build artifacts
         uses: actions/upload-artifact@v7
         with:
           name: stormengine-linux-debug
           path: artifacts/
 
+  release-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Configure
+        run: cmake --preset host-release
+      - name: Build
+        run: cmake --build --preset host-release
+      - name: Test
+        run: ctest --preset host-release
+      - name: Run sandbox
+        run: ./build/host-release/storm_sandbox
+
   sanitizer:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
       - name: Configure with sanitizers
-        run: cmake -S . -B build-sanitized -DCMAKE_BUILD_TYPE=Debug -DSTORM_BUILD_TESTS=ON -DSTORM_ENABLE_SANITIZERS=ON
+        run: cmake -S . -B build-sanitized -DCMAKE_BUILD_TYPE=Debug -DSTORM_BUILD_TESTS=ON -DSTORM_ENABLE_SANITIZERS=ON -DSTORM_ENABLE_WARNINGS=ON
       - name: Build
         run: cmake --build build-sanitized --parallel
       - name: Test
         run: ctest --test-dir build-sanitized --output-on-failure
+      - name: Run sandbox
+        run: ./build-sanitized/storm_sandbox
