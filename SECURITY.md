@@ -2,52 +2,36 @@
 
 ## Supported versions
 
-StormEngine is currently in active development. Security fixes are applied to the `main` branch first.
+Security fixes are applied to main first.
 
 | Version | Supported |
 | --- | --- |
-| `main` | Yes |
+| main | Yes |
 | Released versions | Not yet applicable |
 
 ## Reporting a vulnerability
 
-Please do **not** report security vulnerabilities in public issues.
+Do not report security vulnerabilities in public issues.
 
-For a private report, use GitHub's private vulnerability reporting feature for this repository when available. Include:
+Use GitHub private vulnerability reporting when available. Include a clear description, affected component, reproduction steps, expected/observed behavior, impact, and affected commit/tag/build when known.
 
-- A clear description of the vulnerability.
-- The affected component, file, or subsystem.
-- Reproduction steps or a minimal proof of concept.
-- The expected and observed behavior.
-- The potential security impact.
-- The affected commit, tag, or build when known.
-
-Please avoid including real secrets, personal data, production credentials, or destructive proof-of-concept code in a report.
+Do not include real secrets, personal data, credentials, or destructive proof-of-concept material.
 
 ## Scope
 
-Security reports are especially relevant to:
+Relevant areas include runtime/resource handling, asset and shader parsing, rendering backends, Android/platform integration, build/CI configuration, serialization, filesystem, and future network-facing code.
 
-- Engine runtime and resource handling.
-- Asset loading and parsing.
-- Rendering backends and shader handling.
-- Android and platform integration.
-- Build and CI configuration.
-- Serialization, file-system, and network-facing code added to the engine.
+## Mobile and Termux security
 
-## Response
+Never commit Android signing keys, keystores, API tokens, device identifiers, or local absolute paths. Treat asset and shader input as untrusted at load boundaries. Assets must not trigger shell commands or executable-memory behavior.
 
-Reports will be reviewed by the maintainers. Once a vulnerability is confirmed, the maintainers will determine the affected versions, prepare a fix, and document the impact and remediation as appropriate.
+Termux build scripts must fail closed on missing tools and must not download or execute arbitrary remote scripts.
 
-Please allow reasonable time for investigation and remediation before publicly disclosing an unresolved vulnerability.
-
-## Security development practices
-
-Contributors should:
+## Development practices
 
 - Validate untrusted input at subsystem boundaries.
-- Avoid unchecked buffer sizes, integer overflow, and out-of-bounds access.
-- Keep third-party dependencies and GitHub Actions dependencies up to date.
+- Avoid unchecked sizes, integer overflow, and out-of-bounds access.
+- Keep dependencies and GitHub Actions dependencies current.
 - Never commit credentials, private keys, access tokens, or device-specific secrets.
-- Add regression tests for security-sensitive fixes where practical.
+- Add regression tests for security-sensitive fixes.
 - Prefer deterministic, reproducible builds and tests.

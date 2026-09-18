@@ -4,79 +4,59 @@
 
 StormEngine is an active C++20 engine project. Keep changes focused, testable, portable, and explicit about ownership and lifetime.
 
-For a substantial new subsystem or public API, open or update an issue before implementation when practical.
-
 ## Requirements
 
 - C++20 compiler.
-- CMake 3.20 or newer.
+- CMake 3.20+.
 - Git.
-- Android SDK/NDK and the repository Gradle tooling for Android work.
+- Android SDK/NDK and Gradle for Android work.
+- Termux users should use scripts/termux-build.sh for native validation.
+
+## Termux validation
+
+Install clang, cmake, ninja (or make), and git, then run:
+
+    ./scripts/termux-build.sh
+
+This validates the portable native engine. It does not replace Android APK validation.
 
 ## Host validation
 
-Run:
+    cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug -DSTORM_BUILD_TESTS=ON
+    cmake --build build --parallel
+    ctest --test-dir build --output-on-failure
+    ./build/storm_sandbox
 
-```bash
-cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug -DSTORM_BUILD_TESTS=ON
-cmake --build build --parallel
-ctest --test-dir build --output-on-failure
-./build/storm_sandbox
-```
-
-For GLES/Android changes, validate the Android workflow or an equivalent Android build. Do not claim device-level behavior unless it was tested on a device/emulator.
+For GLES/Android changes, validate the Android workflow or equivalent Android build. Do not claim device-level behavior unless tested on a device or emulator.
 
 ## Code
 
-- Use C++20 and keep public APIs portable unless a backend/platform boundary requires otherwise.
+- Use C++20 and keep public APIs portable unless a platform boundary requires otherwise.
 - Preserve resource and entity lifetime invariants.
-- Validate external and untrusted input at subsystem boundaries.
-- Check finite values, integer overflow, bounds, invalid handles, and destruction order where relevant.
+- Validate external input at subsystem boundaries.
+- Check finite values, overflow, bounds, invalid handles, and destruction order.
 - Avoid hidden ownership and unnecessary global state.
 - Keep backend-neutral code independent of OpenGL ES types.
 - Add deterministic regression tests for new behavior and bug fixes.
-- Do not mix unrelated formatting or refactoring with feature changes.
-- Use clear names and comments only where behavior is not obvious from the code.
 
 ## Rendering
 
-Rendering changes must consider:
+Consider resource lifetime, shader/program lifetime, vertex/index bounds, render-state transitions, texture/sampler binding, Android/EGL lifecycle, and backend-independent behavior.
 
-- resource lifetime and generation safety;
-- shader compilation/linking and program lifetime;
-- vertex/index bounds and integer overflow;
-- render-state transitions;
-- texture and sampler binding;
-- Android/EGL context and surface lifetime;
-- backend-independent API behavior.
+## Mobile compatibility
+
+The documented Samsung, Xiaomi/Redmi/POCO, Google Pixel, OnePlus, and Motorola families are representative validation targets only. Record exact device, Android API, ABI, SoC/GPU, renderer string, commit, and lifecycle test results.
 
 ## Pull requests
 
-A pull request should:
+A pull request should describe the problem, implementation, invariants, tests, Linux/Android/GLES impact, API/ABI/build compatibility impact, and validation results.
 
-1. Describe the problem.
-2. Describe the implementation and important invariants.
-3. Include tests or explain why a test is not practical.
-4. State Linux/Android/GLES impact.
-5. State API, ABI, build, and compatibility impact.
-6. List validation commands and CI results.
-
-Do not merge with unexplained failing required checks.
-
-## Commits
-
-Use short imperative subjects, for example:
-
-```text
-Add shader resource lifecycle tests
-Fix world transform cycle detection
-Cache GLES uniform locations
-```
+Do not merge with unexplained failing checks.
 
 ## Security
 
-Do not disclose vulnerabilities in public issues. Follow [SECURITY.md](SECURITY.md).
+Do not disclose vulnerabilities in public issues. Follow SECURITY.md.
 
 ## License
 
-By contributing, you agree that your contribution is provided under the repository's MIT License, subject to applicable law and the repository's contribution terms.
+By contributing, you agree that your contribution is provided under the repository's MIT License, subject to applicable law.
