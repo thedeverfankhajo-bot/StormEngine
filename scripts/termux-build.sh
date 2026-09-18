@@ -8,6 +8,7 @@ BUILD_TESTS="${STORM_BUILD_TESTS:-ON}"
 BUILD_GLES="${STORM_BUILD_GLES:-OFF}"
 BUILD_SANITIZERS="${STORM_ENABLE_SANITIZERS:-OFF}"
 JOBS="${STORM_BUILD_JOBS:-2}"
+RUN_SANDBOX="${STORM_RUN_SANDBOX:-ON}"
 CC="${CC:-clang}"
 CXX="${CXX:-clang++}"
 GENERATOR="${STORM_BUILD_GENERATOR:-Ninja}"
@@ -50,9 +51,10 @@ case "$BUILD_TESTS" in ON|OFF) ;; *) printf 'STORM_BUILD_TESTS must be ON or OFF
 case "$BUILD_GLES" in ON|OFF) ;; *) printf 'STORM_BUILD_GLES must be ON or OFF\n' >&2; exit 2 ;; esac
 case "$BUILD_SANITIZERS" in ON|OFF) ;; *) printf 'STORM_ENABLE_SANITIZERS must be ON or OFF\n' >&2; exit 2 ;; esac
 case "$JOBS" in ''|*[!0-9]*|0) printf 'STORM_BUILD_JOBS must be a positive integer\n' >&2; exit 2 ;; esac
+case "$RUN_SANDBOX" in ON|OFF) ;; *) printf 'STORM_RUN_SANDBOX must be ON or OFF\n' >&2; exit 2 ;; esac
 
 printf '%s\n' 'StormEngine Termux build'
-printf '  root=%s\n  build=%s\n  type=%s\n  tests=%s\n  GLES=%s\n  sanitizers=%s\n  jobs=%s\n  compiler=%s\n'     "$ROOT_DIR" "$BUILD_DIR" "$BUILD_TYPE" "$BUILD_TESTS" "$BUILD_GLES" "$BUILD_SANITIZERS" "$JOBS" "$CXX"
+printf '  root=%s\n  build=%s\n  type=%s\n  tests=%s\n  GLES=%s\n  sanitizers=%s\n  jobs=%s\n  compiler=%s\n'     "$ROOT_DIR" "$BUILD_DIR" "$BUILD_TYPE" "$BUILD_TESTS" "$BUILD_GLES" "$BUILD_SANITIZERS" "$JOBS" "$CXX" "$RUN_SANDBOX"
 
 cmake -S "$ROOT_DIR" -B "$BUILD_DIR" "${GENERATOR_ARGS[@]}"     -DCMAKE_BUILD_TYPE="$BUILD_TYPE"     -DCMAKE_C_COMPILER="$CC"     -DCMAKE_CXX_COMPILER="$CXX"     -DSTORM_BUILD_TESTS="$BUILD_TESTS"     -DSTORM_BUILD_GLES="$BUILD_GLES"     -DSTORM_ENABLE_WARNINGS=ON     -DSTORM_ENABLE_SANITIZERS="$BUILD_SANITIZERS"
 
@@ -62,6 +64,6 @@ if [ "$BUILD_TESTS" = "ON" ]; then
     ctest --test-dir "$BUILD_DIR" --output-on-failure
 fi
 
-if [ -x "$BUILD_DIR/storm_sandbox" ]; then
+if [ "$RUN_SANDBOX" = "ON" ] && [ -x "$BUILD_DIR/storm_sandbox" ]; then
     "$BUILD_DIR/storm_sandbox"
 fi
