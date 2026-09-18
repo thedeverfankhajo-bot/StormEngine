@@ -62,8 +62,6 @@ constexpr std::uint64_t maxGlSize = static_cast<std::uint64_t>(std::numeric_limi
 constexpr std::uint64_t maxGlCount = static_cast<std::uint64_t>(std::numeric_limits<GLsizei>::max());
 constexpr std::uint64_t maxGlInt = static_cast<std::uint64_t>(std::numeric_limits<GLint>::max());
 
-std::size_t mipByteOffset(const TextureDesc& desc, std::uint32_t mipLevel) noexcept;
-std::size_t textureByteSize(const TextureDesc& desc) noexcept;
 
 bool applyMaterial(const Material& material,
                    GLuint program,
@@ -107,6 +105,24 @@ bool applyMaterial(const Material& material,
     }
     return true;
 }
+
+std::size_t mipByteOffset(const TextureDesc& desc, std::uint32_t mipLevel) noexcept {
+    std::size_t offset = 0;
+    for (std::uint32_t level = 0; level < mipLevel; ++level) {
+        const std::uint32_t width = std::max(1u, desc.width >> std::min(level, 31u));
+        const std::uint32_t height = std::max(1u, desc.height >> std::min(level, 31u));
+        const std::uint64_t bytes = static_cast<std::uint64_t>(width) * height * 4u;
+        if (bytes > std::numeric_limits<std::size_t>::max() - offset) return 0;
+        offset += static_cast<std::size_t>(bytes);
+    }
+    return offset;
+}
+
+std::size_t textureByteSize(const TextureDesc& desc) noexcept {
+    const std::size_t offset = mipByteOffset(desc, desc.mipLevels);
+    return offset;
+}
+
 } // namespace
 
 GlesRenderDevice::~GlesRenderDevice() {
@@ -203,23 +219,6 @@ std::uint32_t maxMipLevels(std::uint32_t width, std::uint32_t height) noexcept {
         ++levels;
     }
     return levels;
-}
-
-std::size_t mipByteOffset(const TextureDesc& desc, std::uint32_t mipLevel) noexcept {
-    std::size_t offset = 0;
-    for (std::uint32_t level = 0; level < mipLevel; ++level) {
-        const std::uint32_t width = std::max(1u, desc.width >> std::min(level, 31u));
-        const std::uint32_t height = std::max(1u, desc.height >> std::min(level, 31u));
-        const std::uint64_t bytes = static_cast<std::uint64_t>(width) * height * 4u;
-        if (bytes > std::numeric_limits<std::size_t>::max() - offset) return 0;
-        offset += static_cast<std::size_t>(bytes);
-    }
-    return offset;
-}
-
-std::size_t textureByteSize(const TextureDesc& desc) noexcept {
-    const std::size_t offset = mipByteOffset(desc, desc.mipLevels);
-    return offset;
 }
 
 BufferHandle GlesRenderDevice::createBuffer(const BufferDesc& desc) {
