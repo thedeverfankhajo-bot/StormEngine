@@ -43,7 +43,7 @@ public:
         if (!free_.empty()) {
             const auto id = free_.back();
             free_.pop_back();
-            return Handle(id, generations_[id]);
+            return Handle(id, generations_[id - 1]);
         }
         if (generations_.size() >= static_cast<std::size_t>(std::numeric_limits<std::uint32_t>::max()))
             return {};
