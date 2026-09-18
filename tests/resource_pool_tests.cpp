@@ -74,10 +74,6 @@ int main() {
     assert(pool.get(beforeClear) == nullptr);
     assert(pool.get(afterClear)->value == 456);
 
-    // Generation overflow must fail closed rather than wrap into a live handle.
-    // This is exercised through the allocator used by renderer resources in a
-    // separate focused test; ResourcePool remains responsible for its own generation contract.
-
     using ThrowingPool = storm::core::ResourcePool<ThrowingResource, struct ThrowingTag>;
     ThrowingPool throwingPool;
     const auto live = throwingPool.emplace(11);
