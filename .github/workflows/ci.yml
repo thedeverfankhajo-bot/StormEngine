@@ -13,6 +13,25 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  workflow-policy:
+    timeout-minutes: 5
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Require immutable action references
+        shell: bash
+        run: |
+          set -euo pipefail
+          bad=0
+          while IFS= read -r line; do
+            ref="${line#*@}"
+            if [[ ! "$ref" =~ ^[0-9a-f]{40}$ ]]; then
+              printf 'Unpinned workflow action: %s\n' "$line" >&2
+              bad=1
+            fi
+          done < <(grep -RhoE '^[[:space:]-]+uses:[[:space:]]*[^[:space:]]+' .github/workflows | sed -E 's/^[[:space:]-]+uses:[[:space:]]*//')
+          test "$bad" -eq 0
+
   build-and-test:
     timeout-minutes: 15
     runs-on: ubuntu-latest
