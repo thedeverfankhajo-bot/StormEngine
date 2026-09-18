@@ -119,15 +119,14 @@ GlesRenderDevice::~GlesRenderDevice() {
 }
 
 void GlesRenderDevice::onContextLost() noexcept {
-    for (auto& [key, program] : programs_) { (void)key; if (program != 0) glDeleteProgram(static_cast<GLuint>(program)); program = 0; }
-    if (vao_ != 0) {
-        const GLuint id = static_cast<GLuint>(vao_);
-        glDeleteVertexArrays(1, &id);
-        vao_ = 0;
-    }
-    for (auto& [handle, shader] : shaders_) { (void)handle; if (shader.glId != 0) glDeleteShader(static_cast<GLuint>(shader.glId)); shader.glId = 0; }
-    for (auto& [handle, record] : buffers_) { (void)handle; if (record.glId != 0) { const GLuint id = static_cast<GLuint>(record.glId); glDeleteBuffers(1, &id); } record.glId = 0; }
-    for (auto& [handle, record] : textures_) { (void)handle; if (record.glId != 0) { const GLuint id = static_cast<GLuint>(record.glId); glDeleteTextures(1, &id); } record.glId = 0; }
+    // Do not issue GL deletion calls here: this hook is also invoked after
+    // EGL reports EGL_CONTEXT_LOST, where the old context is no longer safe
+    // to use. The context teardown owns the old GL objects.
+    for (auto& [key, program] : programs_) { (void)key; program = 0; }
+    vao_ = 0;
+    for (auto& [handle, shader] : shaders_) { (void)handle; shader.glId = 0; }
+    for (auto& [handle, record] : buffers_) { (void)handle; record.glId = 0; }
+    for (auto& [handle, record] : textures_) { (void)handle; record.glId = 0; }
     programs_.clear();
     uniformLocations_.clear();
     program_ = 0;
@@ -136,7 +135,6 @@ void GlesRenderDevice::onContextLost() noexcept {
     frameActive_ = false;
     gpuResourcesValid_ = false;
 }
-
 bool GlesRenderDevice::onContextRestored() noexcept {
     if (gpuResourcesValid_) return true;
 
