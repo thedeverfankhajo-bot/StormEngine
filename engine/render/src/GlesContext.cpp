@@ -1,6 +1,6 @@
 #include "storm/render/GlesContext.hpp"
 
-#if defined(__ANDROID__)
+#if defined(__ANDROID__) && defined(STORM_BUILD_GLES)
 
 #include <EGL/egl.h>
 #include <GLES3/gl3.h>
