@@ -99,6 +99,16 @@ GlesRenderDevice::~GlesRenderDevice() {
     for (const auto& [handle, record] : textures_) { (void)handle; const GLuint id = static_cast<GLuint>(record.glId); if (id != 0) glDeleteTextures(1, &id); }
 }
 
+std::uint32_t maxMipLevels(std::uint32_t width, std::uint32_t height) noexcept {
+    std::uint32_t levels = 1;
+    while (width > 1 || height > 1) {
+        width = std::max(1u, width / 2u);
+        height = std::max(1u, height / 2u);
+        ++levels;
+    }
+    return levels;
+}
+
 std::uint32_t GlesRenderDevice::allocateHandle(std::uint32_t& next) {
     const auto id = next++;
     return id == BufferHandle::invalidId ? 0u : id;
@@ -135,7 +145,7 @@ bool GlesRenderDevice::updateBuffer(BufferHandle handle, const void* data, std::
     return glGetError() == GL_NO_ERROR;
 }
 TextureHandle GlesRenderDevice::createTexture(const TextureDesc& desc) {
-    if (desc.width == 0 || desc.height == 0 || desc.mipLevels == 0 || desc.format != TextureFormat::RGBA8 ||
+    if (desc.width == 0 || desc.height == 0 || desc.mipLevels == 0 || desc.mipLevels > maxMipLevels(desc.width, desc.height) || desc.format != TextureFormat::RGBA8 ||
         desc.width > static_cast<std::uint32_t>(std::numeric_limits<GLsizei>::max()) ||
         desc.height > static_cast<std::uint32_t>(std::numeric_limits<GLsizei>::max())) return {};
     GLuint glId = 0;
