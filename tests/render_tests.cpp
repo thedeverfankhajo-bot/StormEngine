@@ -104,6 +104,7 @@ int main() {
 
     indexed.indexCount = 0;
     assert(!indexed.indexed());
+    indexed.indexCount = 96;
 
     RenderQueue queue;
     assert(queue.empty());
