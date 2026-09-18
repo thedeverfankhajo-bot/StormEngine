@@ -52,7 +52,12 @@ public:
             const Index index = free_.back();
             free_.pop_back();
             Slot& slot = slots_[index];
-            slot.value.emplace(std::forward<Args>(args)...);
+            try {
+                slot.value.emplace(std::forward<Args>(args)...);
+            } catch (...) {
+                free_.push_back(index);
+                throw;
+            }
             ++liveCount_;
             return Handle(index, slot.generation);
         }
@@ -63,7 +68,11 @@ public:
         Slot slot{};
         slot.generation = 1;
         slot.value.emplace(std::forward<Args>(args)...);
-        slots_.push_back(std::move(slot));
+        try {
+            slots_.push_back(std::move(slot));
+        } catch (...) {
+            throw;
+        }
         ++liveCount_;
         return Handle(static_cast<Index>(slots_.size() - 1), 1);
     }
