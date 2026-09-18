@@ -65,6 +65,13 @@ void testDuplicateNamesInvalidateSchedule() {
     scheduler.add<TestSystem>("same", storm::ecs::SystemPhase::Gameplay, log);
     scheduler.add<TestSystem>("same", storm::ecs::SystemPhase::Physics, log);
     assert(!scheduler.hasValidOrder());
+
+    // A later graph rebuild must recover after the duplicate systems are no
+    // longer present; invalidOrder is not a permanent scheduler state.
+    storm::ecs::SystemScheduler recovered;
+    recovered.add<TestSystem>("a", storm::ecs::SystemPhase::Gameplay, log);
+    recovered.add<TestSystem>("b", storm::ecs::SystemPhase::Gameplay, log);
+    assert(recovered.hasValidOrder());
 }
 
 } // namespace
