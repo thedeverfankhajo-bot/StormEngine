@@ -66,11 +66,15 @@ bool NullRenderDevice::submit(const DrawCommand& command) {
         if (!bufferHandles_.valid(command.indexBuffer)) return false;
         const auto indexIt = buffers_.find(command.indexBuffer.id()); if (indexIt == buffers_.end()) return false;
         const std::uint64_t indexSize = command.indexType == IndexType::UInt16 ? 2u : 4u;
+        if (command.firstIndex > std::numeric_limits<std::uint64_t>::max() / indexSize ||
+            command.indexCount > std::numeric_limits<std::uint64_t>::max() / indexSize) return false;
         const std::uint64_t indexOffset = static_cast<std::uint64_t>(command.firstIndex) * indexSize;
         const std::uint64_t indexBytes = static_cast<std::uint64_t>(command.indexCount) * indexSize;
         if (indexOffset > indexIt->second || indexBytes > indexIt->second - indexOffset) return false;
     } else if (command.indexBuffer.valid()) return false;
     if (!command.shader.valid() || !command.fragmentShader.valid()) return false;
+    if (command.viewportWidth > static_cast<std::uint32_t>(std::numeric_limits<std::int32_t>::max()) ||
+        command.viewportHeight > static_cast<std::uint32_t>(std::numeric_limits<std::int32_t>::max())) return false;
     if (!shaderHandles_.valid(command.shader) || !shaderHandles_.valid(command.fragmentShader)) return false;
     const auto vertexShader = shaders_.find(command.shader.id());
     const auto fragmentShader = shaders_.find(command.fragmentShader.id());

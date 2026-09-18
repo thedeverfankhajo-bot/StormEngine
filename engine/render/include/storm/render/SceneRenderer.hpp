@@ -7,6 +7,7 @@
 #include "storm/math/Mat4.hpp"
 #include <array>
 #include <deque>
+#include <limits>
 #include <cstddef>
 #include <utility>
 #include <vector>
@@ -16,11 +17,12 @@ namespace storm::render {
 class SceneRenderer final {
 public:
     explicit SceneRenderer(std::size_t materialReserve = 64) {
-        (void)materialReserve;
+        materialCopies_.resize(0);
+        materialReserve_ = materialReserve;
     }
 
     void reserve(std::size_t renderables) {
-        (void)renderables;
+        materialReserve_ = renderables;
     }
 
     void beginFrame() noexcept {
@@ -52,14 +54,21 @@ public:
                 Material snapshot = renderable.material;
                 snapshot.setParameter("uMVP", toMaterialMat4(mvp));
 
+                if (camera.viewportWidth() > static_cast<float>(std::numeric_limits<std::uint32_t>::max()) ||
+                    camera.viewportHeight() > static_cast<float>(std::numeric_limits<std::uint32_t>::max())) {
+                    ++rejectedCount_;
+                    return;
+                }
+
                 DrawCommand command = renderable.mesh.drawCommand();
                 command.shader = snapshot.shader();
                 command.fragmentShader = snapshot.shader();
                 command.material = snapshot.handle();
                 command.materialData = &materialCopies_.emplace_back(std::move(snapshot));
+                command.viewportWidth = static_cast<std::uint32_t>(camera.viewportWidth());
+                command.viewportHeight = static_cast<std::uint32_t>(camera.viewportHeight());
 
-                if (command.shader.valid() && command.fragmentShader.valid()) {
-                    queue.submit(command);
+                if (command.shader.valid() && command.fragmentShader.valid() && queue.submit(command)) {
                     ++submittedCount_;
                 } else {
                     ++rejectedCount_;
@@ -80,6 +89,7 @@ private:
     }
 
     std::deque<Material> materialCopies_;
+    std::size_t materialReserve_{64};
     std::size_t submittedCount_{0};
     std::size_t rejectedCount_{0};
 };
