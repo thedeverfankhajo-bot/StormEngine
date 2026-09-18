@@ -15,7 +15,6 @@ public:
         if (!command.vertexBuffer.valid() || command.vertexCount == 0 || !command.vertexLayout.valid()) return false;
         if (command.viewportWidth > 0 && command.viewportHeight == 0) return false;
         if (command.viewportHeight > 0 && command.viewportWidth == 0) return false;
-        if (command.baseVertex != 0) return false;
         if (command.indexed()) {
             if (!command.indexBuffer.valid()) return false;
         } else if (command.indexBuffer.valid()) {
