@@ -47,7 +47,7 @@ CMake presets:
     cmake --build --preset host-debug
     ctest --preset host-debug
 
-The presets schema is version 4, so CMake 3.23 is the minimum supported version. citeturn0search0turn0search2
+The presets schema is version 4, so CMake 3.23 is the minimum supported version.
 
 ## Android
 
@@ -60,9 +60,9 @@ The Android build currently targets API 36 and four ABIs:
 - x86_64
 - x86
 
-Android 16/API 36 is the current Google Play target floor for new apps and updates from August 31, 2026. citeturn1search0
+Android 16/API 36 is the current Google Play target floor for new apps and updates from August 31, 2026.
 
-The project uses Android Gradle Plugin 9.4 with Gradle 9.6 and JDK 17. AGP 9.4 supports API 37, so API 36 is within the supported toolchain range. citeturn0search6
+The project uses Android Gradle Plugin 9.4 with Gradle 9.6 and JDK 17. AGP 9.4 supports API 37, so API 36 is within the supported toolchain range.
 
 These ABI entries are build targets, not blanket hardware certification. Runtime compatibility must be validated on physical devices.
 
@@ -97,7 +97,7 @@ Record for every physical-device run:
 - basic 3D rendering;
 - sustained stability and visible driver errors.
 
-The Android NDK documentation requires runtime probing of the actual OpenGL ES version/capabilities rather than assuming support from the presence of the library; the manifest declares the required GLES feature. citeturn3search3
+The Android NDK documentation requires runtime probing of the actual OpenGL ES version/capabilities rather than assuming support from the presence of the library; the manifest declares the required GLES feature.
 
 ## Build and test
 
