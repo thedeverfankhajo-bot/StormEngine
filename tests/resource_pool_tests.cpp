@@ -19,7 +19,7 @@ int main() {
 
     const auto first = pool.emplace(42);
     assert(first.valid());
-    assert(pool.liveCount() == 0); // live count is updated below by regression guard
+    assert(pool.liveCount() == 1);
 
     // A pool handle must remain usable until explicit destruction.
     assert(pool.get(first) != nullptr);
