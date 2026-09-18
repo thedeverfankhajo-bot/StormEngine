@@ -222,7 +222,7 @@ std::uint32_t maxMipLevels(std::uint32_t width, std::uint32_t height) noexcept {
 }
 
 BufferHandle GlesRenderDevice::createBuffer(const BufferDesc& desc) {
-    if (desc.size == 0 || desc.size > maxGlSize) return {};
+    if (!gpuResourcesValid_ || desc.size == 0 || desc.size > maxGlSize) return {};
     GLuint glId = 0;
     glGenBuffers(1, &glId);
     if (glId == 0) return {};
@@ -249,7 +249,7 @@ void GlesRenderDevice::destroyBuffer(BufferHandle handle) {
     if (id != 0) glDeleteBuffers(1, &id);
 }
 bool GlesRenderDevice::updateBuffer(BufferHandle handle, const void* data, std::size_t size, std::size_t offset) {
-    if (!bufferHandles_.valid(handle) || data == nullptr || size == 0) return false;
+    if (!gpuResourcesValid_ || !bufferHandles_.valid(handle) || data == nullptr || size == 0) return false;
     const auto it = buffers_.find(handle.id());
     if (it == buffers_.end() || offset > it->second.size || size > it->second.size - offset ||
         size > maxGlSize || offset > maxGlSize) return false;
@@ -260,7 +260,7 @@ bool GlesRenderDevice::updateBuffer(BufferHandle handle, const void* data, std::
     return true;
 }
 TextureHandle GlesRenderDevice::createTexture(const TextureDesc& desc) {
-    if (desc.width == 0 || desc.height == 0 || desc.mipLevels == 0 ||
+    if (!gpuResourcesValid_ || desc.width == 0 || desc.height == 0 || desc.mipLevels == 0 ||
         desc.mipLevels > maxMipLevels(desc.width, desc.height) || desc.format != TextureFormat::RGBA8 ||
         desc.width > static_cast<std::uint32_t>(std::numeric_limits<GLsizei>::max()) ||
         desc.height > static_cast<std::uint32_t>(std::numeric_limits<GLsizei>::max())) return {};
@@ -287,7 +287,7 @@ TextureHandle GlesRenderDevice::createTexture(const TextureDesc& desc) {
     return handle;
 }
 bool GlesRenderDevice::updateTexture(TextureHandle handle, const void* data, std::size_t size, std::uint32_t mipLevel) {
-    if (!textureHandles_.valid(handle) || data == nullptr) return false;
+    if (!gpuResourcesValid_ || !textureHandles_.valid(handle) || data == nullptr) return false;
     const auto it = textures_.find(handle.id());
     if (it == textures_.end() || it->second.desc.format != TextureFormat::RGBA8 || mipLevel >= it->second.desc.mipLevels) return false;
     const std::uint32_t width = std::max(1u, it->second.desc.width >> std::min(mipLevel, 31u));
@@ -312,7 +312,7 @@ void GlesRenderDevice::destroyTexture(TextureHandle handle) {
     if (id != 0) glDeleteTextures(1, &id);
 }
 ShaderHandle GlesRenderDevice::createShader(const ShaderDesc& desc, const std::string& source) {
-    if (source.empty()) return {};
+    if (!gpuResourcesValid_ || source.empty()) return {};
     const GLenum type = desc.stage == ShaderStage::Vertex ? GL_VERTEX_SHADER : GL_FRAGMENT_SHADER;
     const GLuint shader = compileShader(type, source.c_str());
     if (shader == 0) return {};
@@ -440,6 +440,8 @@ bool GlesRenderDevice::submit(const DrawCommand& command) {
     if (vao_ == 0) return false;
     glBindVertexArray(static_cast<GLuint>(vao_));
     glBindBuffer(GL_ARRAY_BUFFER, static_cast<GLuint>(vertexBufferIt->second.glId));
+    for (std::uint32_t location = 0; location < VertexLayout::maxAttributes; ++location)
+        glDisableVertexAttribArray(location);
     for (std::uint32_t i = 0; i < command.vertexLayout.attributeCount; ++i) {
         const auto& attribute = command.vertexLayout.attributes[i];
         const GLint components = componentCount(attribute.format);
