@@ -1,9 +1,13 @@
 #include <cassert>
+#include <cstdint>
 
 #include "storm/render/GlesContext.hpp"
+#include "storm/render/GlesRenderDevice.hpp"
 
 int main() {
-    storm::render::GlesContext context;
+    using namespace storm::render;
+
+    GlesContext context;
 
     assert(!context.initializePbuffer(0, 1));
     assert(!context.initializePbuffer(1, 0));
@@ -21,6 +25,14 @@ int main() {
     assert(context.makeCurrent());
     assert(context.swap());
     assert(!context.contextLost());
+
+    GlesRenderDevice device;
+    device.onContextLost();
+    device.beginFrame();
+    assert(device.submittedDrawCount() == 0);
+    assert(!device.submit(DrawCommand{}));
+    device.endFrame();
+
     context.shutdown();
     assert(!context.valid());
     assert(!context.contextLost());
