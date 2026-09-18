@@ -105,6 +105,9 @@ int main() {
     indexed.indexCount = 0;
     assert(!indexed.indexed());
     indexed.indexCount = 96;
+    assert(indexed.indexBuffer.valid());
+    assert(indexed.vertexBuffer.valid());
+    assert(indexed.vertexLayout.valid());
 
     RenderQueue queue;
     assert(queue.empty());
@@ -115,7 +118,7 @@ int main() {
     assert(!queue.empty());
     assert(queue.size() == 2);
     assert(queue.at(0).vertexCount == 36);
-    assert(queue.at(1).indexCount == 0);
+    assert(queue.at(1).indexCount == 96);
 
     indexed.indexCount = 1;
     indexed.indexBuffer = BufferHandle{};
