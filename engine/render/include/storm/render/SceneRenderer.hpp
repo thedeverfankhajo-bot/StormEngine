@@ -7,6 +7,7 @@
 #include "storm/math/Mat4.hpp"
 #include <array>
 #include <deque>
+#include <limits>
 #include <cstddef>
 #include <utility>
 #include <vector>
@@ -52,6 +53,12 @@ public:
 
                 Material snapshot = renderable.material;
                 snapshot.setParameter("uMVP", toMaterialMat4(mvp));
+
+                if (camera.viewportWidth() > static_cast<float>(std::numeric_limits<std::uint32_t>::max()) ||
+                    camera.viewportHeight() > static_cast<float>(std::numeric_limits<std::uint32_t>::max())) {
+                    ++rejectedCount_;
+                    return;
+                }
 
                 DrawCommand command = renderable.mesh.drawCommand();
                 command.shader = snapshot.shader();
