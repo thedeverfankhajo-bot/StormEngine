@@ -11,6 +11,8 @@ public final class MainActivity extends Activity implements SurfaceHolder.Callba
     }
 
     private SurfaceView surfaceView;
+    private SurfaceHolder surfaceHolder;
+    private boolean surfaceReady;
 
     private static native void nativeStart(android.view.Surface surface);
     private static native void nativeStop();
@@ -19,13 +21,15 @@ public final class MainActivity extends Activity implements SurfaceHolder.Callba
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         surfaceView = new SurfaceView(this);
-        surfaceView.getHolder().addCallback(this);
+        surfaceHolder = surfaceView.getHolder();
+        surfaceHolder.addCallback(this);
         setContentView(surfaceView);
     }
 
     @Override
     public void surfaceCreated(SurfaceHolder holder) {
-        nativeStart(holder.getSurface());
+        surfaceReady = true;
+        if (!isFinishing()) nativeStart(holder.getSurface());
     }
 
     @Override
@@ -35,7 +39,22 @@ public final class MainActivity extends Activity implements SurfaceHolder.Callba
 
     @Override
     public void surfaceDestroyed(SurfaceHolder holder) {
+        surfaceReady = false;
         nativeStop();
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        if (surfaceReady && surfaceHolder != null && !isFinishing()) {
+            nativeStart(surfaceHolder.getSurface());
+        }
+    }
+
+    @Override
+    protected void onPause() {
+        nativeStop();
+        super.onPause();
     }
 
     @Override

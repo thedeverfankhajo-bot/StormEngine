@@ -165,17 +165,19 @@ Java_storm_engine_smoke_MainActivity_nativeStart(JNIEnv* env, jclass, jobject su
     ANativeWindow* window = ANativeWindow_fromSurface(env, surface);
     if (!window) return;
 
+    std::thread finishedThread;
     {
         std::lock_guard<std::mutex> lock(gMutex);
-        if (gRunning.load() || gThread.joinable()) {
+        if (gRunning.load()) {
             ANativeWindow_release(window);
             return;
         }
+        if (gThread.joinable()) finishedThread = std::move(gThread);
         gRunning.store(true);
         gThread = std::thread(renderLoop, window);
     }
+    if (finishedThread.joinable()) finishedThread.join();
 }
-
 extern "C" JNIEXPORT void JNICALL
 Java_storm_engine_smoke_MainActivity_nativeStop(JNIEnv*, jclass) {
     gRunning.store(false);
