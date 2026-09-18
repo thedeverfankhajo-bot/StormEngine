@@ -26,6 +26,8 @@ if(STORM_BUILD_GLES)
     if(ANDROID)
         target_link_libraries(storm_core PRIVATE GLESv3 EGL)
     endif()
+else()
+    target_sources(storm_core PRIVATE engine/render/src/GlesContext.cpp)
 endif()
 
 target_include_directories(storm_core PUBLIC
