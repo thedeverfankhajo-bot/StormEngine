@@ -84,6 +84,10 @@ int main() {
     indexed.vertexLayout = layout();
     assert(queue.submit(indexed));
     assert(queue.size() == 1);
+
+    DrawCommand invalidTopology = first;
+    invalidTopology.topology = static_cast<PrimitiveTopology>(255);
+    assert(!queue.submit(invalidTopology));
     assert(queue.at(0).indexed());
     DrawCommand badViewport = first;
     badViewport.viewportWidth = 1280;
