@@ -7,7 +7,7 @@ StormEngine supports Termux as a native C++ development environment for the port
     pkg update
     pkg install clang cmake ninja make git
 
-CMake 3.23+ is required because the repository's shared CMake preset schema is version 4. Ninja is preferred; the helper can use Make.
+CMake 3.20+ is sufficient for the native helper. CMake 3.23+ is required when using the shared preset schema version 4. Ninja is preferred; the helper can use Make.
 
 ## Build and test
 
