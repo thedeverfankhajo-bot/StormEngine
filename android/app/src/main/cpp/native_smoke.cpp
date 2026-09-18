@@ -1,97 +1,131 @@
-#include <cstdio>
 #include <jni.h>
+#include <android/native_window.h>
+#include <android/native_window_jni.h>
 #include <GLES3/gl3.h>
+#include <array>
+#include <atomic>
+#include <chrono>
+#include <cstdint>
+#include <mutex>
+#include <thread>
 
+#include "storm/math/Mat4.hpp"
+#include "storm/render/Camera3D.hpp"
 #include "storm/render/GlesContext.hpp"
 #include "storm/render/GlesRenderDevice.hpp"
+#include "storm/render/Material.hpp"
 
-extern "C" JNIEXPORT jstring JNICALL
-Java_storm_engine_smoke_MainActivity_nativeRunSmoke(JNIEnv* env, jobject) {
+namespace {
+std::mutex gMutex;
+std::thread gThread;
+std::atomic_bool gRunning{false};
+
+std::array<float, 16> toGlMatrix(const storm::math::Mat4& m) {
+    std::array<float, 16> out{};
+    for (int row = 0; row < 4; ++row)
+        for (int col = 0; col < 4; ++col)
+            out[col * 4 + row] = m.m[row][col];
+    return out;
+}
+
+void renderLoop(ANativeWindow* window) {
     storm::render::GlesContext context;
-    if (!context.initializePbuffer(16, 16)) return env->NewStringUTF("FAIL:EGL initialization");
-
-    const auto* vendor = reinterpret_cast<const char*>(glGetString(GL_VENDOR));
-    const auto* renderer = reinterpret_cast<const char*>(glGetString(GL_RENDERER));
-    const auto* version = reinterpret_cast<const char*>(glGetString(GL_VERSION));
-    if (vendor == nullptr || renderer == nullptr || version == nullptr) {
-        context.shutdown();
-        return env->NewStringUTF("FAIL:GL strings");
+    if (!context.initializeWindow(window)) {
+        ANativeWindow_release(window);
+        gRunning = false;
+        return;
     }
 
-    glViewport(0, 0, 16, 16);
-    glClearColor(0.05f, 0.02f, 0.08f, 1.0f);
-    glClear(GL_COLOR_BUFFER_BIT);
-
     storm::render::GlesRenderDevice device;
-    const auto vertexBuffer = device.createBuffer({3 * 7 * sizeof(float), storm::render::BufferUsage::Static});
-    const float triangle[] = {
-        -0.70f, -0.70f, 0.0f,  1.0f, 0.0f, 0.0f, 1.0f,
-         0.70f, -0.70f, 0.0f,  0.0f, 1.0f, 0.0f, 1.0f,
-         0.00f,  0.70f, 0.0f,  0.0f, 0.0f, 1.0f, 1.0f,
-    };
-    const bool bufferOk = vertexBuffer.valid() && device.updateBuffer(vertexBuffer, triangle, sizeof(triangle));
 
-    constexpr const char* vertexSource = R"glsl(#version 300 es
+    struct Vertex { float x,y,z,r,g,b,a; };
+    const Vertex vertices[] = {
+        {-1,-1,-1,1,0,0,1},{1,-1,-1,0,1,0,1},{1,1,-1,0,0,1,1},{-1,1,-1,1,1,0,1},
+        {-1,-1,1,1,0,1,1},{1,-1,1,0,1,1,1},{1,1,1,1,1,1,1},{-1,1,1,.2f,.6f,1,1}
+    };
+    const std::uint16_t indices[] = {
+        0,1,2,2,3,0, 4,6,5,6,4,7, 0,4,5,5,1,0,
+        3,2,6,6,7,3, 0,3,7,7,4,0, 1,5,6,6,2,1
+    };
+
+    const auto vb=device.createBuffer({sizeof(vertices),storm::render::BufferUsage::Static});
+    const auto ib=device.createBuffer({sizeof(indices),storm::render::BufferUsage::Static});
+    if(!vb.valid()||!ib.valid()||!device.updateBuffer(vb,vertices,sizeof(vertices))||
+       !device.updateBuffer(ib,indices,sizeof(indices))) {
+        context.shutdown(); ANativeWindow_release(window); gRunning=false; return;
+    }
+
+    constexpr const char* vs=R"glsl(#version 300 es
 layout(location=0) in vec3 aPosition;
 layout(location=1) in vec4 aColor;
+uniform mat4 uMVP;
 out vec4 vColor;
-void main(){ gl_Position=vec4(aPosition,1.0); vColor=aColor; })glsl";
-    constexpr const char* fragmentSource = R"glsl(#version 300 es
+void main(){gl_Position=uMVP*vec4(aPosition,1.0);vColor=aColor;})glsl";
+    constexpr const char* fs=R"glsl(#version 300 es
 precision mediump float;
 in vec4 vColor;
 out vec4 outColor;
-void main(){ outColor=vColor; })glsl";
+void main(){outColor=vColor;})glsl";
 
-    const auto vertexShader = device.createShader({storm::render::ShaderStage::Vertex}, vertexSource);
-    const auto fragmentShader = device.createShader({storm::render::ShaderStage::Fragment}, fragmentSource);
-    const bool shaderOk = vertexShader.valid() && fragmentShader.valid() && device.liveShaderCount() == 2;
-
+    const auto vsh=device.createShader({storm::render::ShaderStage::Vertex},vs);
+    const auto fsh=device.createShader({storm::render::ShaderStage::Fragment},fs);
     storm::render::VertexLayout layout{};
-    layout.attributeCount = 2;
-    layout.stride = 7 * sizeof(float);
-    layout.attributes[0] = {0, storm::render::VertexFormat::Float32x3, 0};
-    layout.attributes[1] = {1, storm::render::VertexFormat::Float32x4, 3 * sizeof(float)};
+    layout.attributeCount=2; layout.stride=sizeof(Vertex);
+    layout.attributes[0]={0,storm::render::VertexFormat::Float32x3,0};
+    layout.attributes[1]={1,storm::render::VertexFormat::Float32x4,3*sizeof(float)};
 
-    storm::render::DrawCommand command{};
-    command.topology = storm::render::PrimitiveTopology::Triangles;
-    command.vertexBuffer = vertexBuffer;
-    command.vertexCount = 3;
-    command.vertexLayout = layout;
-    command.shader = vertexShader;
-    command.fragmentShader = fragmentShader;
+    storm::render::Material material;
+    storm::render::Camera3D camera;
+    camera.setPosition({0,0,5});
+    camera.setPerspective(1.0471975512f,1,0.1f,100);
 
-    device.beginFrame();
-    const bool drawOk = bufferOk && shaderOk && device.submit(command) && device.submittedDrawCount() == 1;
-    device.endFrame();
+    float angle=0;
+    auto last=std::chrono::steady_clock::now();
+    while(gRunning.load()) {
+        if(!context.makeCurrent()) break;
+        const int w=ANativeWindow_getWidth(window), h=ANativeWindow_getHeight(window);
+        if(w<=0||h<=0) break;
+        glViewport(0,0,w,h);
+        camera.setViewport((float)w,(float)h);
+        glClearColor(.015f,.01f,.03f,1);
+        glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
 
-    glFinish();
-    if (glGetError() != GL_NO_ERROR) {
-        device.destroyShader(vertexShader);
-        device.destroyShader(fragmentShader);
-        device.destroyBuffer(vertexBuffer);
-        context.shutdown();
-        return env->NewStringUTF("FAIL:GPU draw");
+        const auto now=std::chrono::steady_clock::now();
+        float dt=std::chrono::duration<float>(now-last).count(); last=now;
+        angle += dt<0.05f?dt:0.05f;
+        const auto model=storm::math::Mat4::rotationY(angle)*storm::math::Mat4::rotationX(angle*.7f);
+        material.setParameter("uMVP",toGlMatrix(camera.viewProjectionMatrix()*model));
+
+        storm::render::DrawCommand cmd{};
+        cmd.topology=storm::render::PrimitiveTopology::Triangles;
+        cmd.vertexBuffer=vb; cmd.indexBuffer=ib; cmd.vertexCount=8; cmd.indexCount=36;
+        cmd.indexType=storm::render::IndexType::UInt16; cmd.vertexLayout=layout;
+        cmd.shader=vsh; cmd.fragmentShader=fsh; cmd.materialData=&material;
+        device.beginFrame(); device.submit(cmd); device.endFrame();
+        context.swap();
+        std::this_thread::sleep_for(std::chrono::milliseconds(8));
     }
 
-    unsigned char pixel[4] = {0, 0, 0, 0};
-    glReadPixels(8, 8, 1, 1, GL_RGBA, GL_UNSIGNED_BYTE, pixel);
-    const bool triangleVisible = pixel[0] > 20 || pixel[1] > 20 || pixel[2] > 20;
+    device.destroyShader(vsh); device.destroyShader(fsh);
+    device.destroyBuffer(ib); device.destroyBuffer(vb);
+    context.shutdown(); ANativeWindow_release(window); gRunning=false;
+}
+}
 
-    const auto liveBeforeDestroy = device.liveBufferCount();
-    device.destroyShader(vertexShader);
-    device.destroyShader(fragmentShader);
-    device.destroyBuffer(vertexBuffer);
-    const bool resourcesOk = liveBeforeDestroy == 1 && device.liveBufferCount() == 0 && device.liveShaderCount() == 0;
+extern "C" JNIEXPORT void JNICALL
+Java_storm_engine_smoke_MainActivity_nativeStart(JNIEnv* env,jclass,jobject surface) {
+    if(!env||!surface) return;
+    std::lock_guard<std::mutex> lock(gMutex);
+    if(gRunning.load()) return;
+    ANativeWindow* window=ANativeWindow_fromSurface(env,surface);
+    if(!window) return;
+    gRunning=true;
+    gThread=std::thread(renderLoop,window);
+}
 
-    char result[1024];
-    std::snprintf(result, sizeof(result),
-                  "GLES SHADER TRIANGLE %s\nVENDOR=%s\nRENDERER=%s\nVERSION=%s\nPIXEL=%u,%u,%u,%u",
-                  (drawOk && triangleVisible && resourcesOk) ? "OK" : "FAIL",
-                  vendor, renderer, version, pixel[0], pixel[1], pixel[2], pixel[3]);
-    context.shutdown();
-
-    if (!drawOk) return env->NewStringUTF("FAIL:GLES shader draw submission");
-    if (!triangleVisible) return env->NewStringUTF("FAIL:triangle readback");
-    if (!resourcesOk) return env->NewStringUTF("FAIL:GLES shader resources");
-    return env->NewStringUTF(result);
+extern "C" JNIEXPORT void JNICALL
+Java_storm_engine_smoke_MainActivity_nativeStop(JNIEnv*,jclass) {
+    std::lock_guard<std::mutex> lock(gMutex);
+    gRunning=false;
+    if(gThread.joinable()) gThread.join();
 }
