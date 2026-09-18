@@ -410,11 +410,29 @@ void GlesRenderDevice::invalidateGpuResources() noexcept {
 
 bool GlesRenderDevice::restoreGpuResources() noexcept {
     if (gpuContextValid_) return true;
+    auto failRestore = [&]() noexcept {
+        for (auto& [id, record] : buffers_) { (void)id; if (record.glId != 0) { const GLuint glId = static_cast<GLuint>(record.glId); glDeleteBuffers(1, &glId); record.glId = 0; } }
+        for (auto& [id, record] : textures_) { (void)id; if (record.glId != 0) { const GLuint glId = static_cast<GLuint>(record.glId); glDeleteTextures(1, &glId); record.glId = 0; } }
+        for (auto& [id, record] : shaders_) { (void)id; if (record.glId != 0) { glDeleteShader(static_cast<GLuint>(record.glId)); record.glId = 0; } }
+        for (const auto& [key, program] : programs_) { (void)key; glDeleteProgram(static_cast<GLuint>(program)); }
+        programs_.clear();
+        uniformLocations_.clear();
+        if (vao_ != 0) {
+            const GLuint id = static_cast<GLuint>(vao_);
+            glDeleteVertexArrays(1, &id);
+            vao_ = 0;
+        }
+        program_ = 0;
+        maxTextureUnits_ = 0;
+        stateCache_.invalidate();
+        gpuContextValid_ = false;
+        return false;
+    };
 
     for (auto& [id, record] : buffers_) {
         GLuint glId = 0;
         glGenBuffers(1, &glId);
-        if (glId == 0) { invalidateGpuResources(); return false; }
+        if (glId == 0) { return failRestore(); }
         glBindBuffer(GL_ARRAY_BUFFER, glId);
         glBufferData(GL_ARRAY_BUFFER, static_cast<GLsizeiptr>(record.size),
                      record.data.empty() ? nullptr : record.data.data(), toUsage(record.usage));
