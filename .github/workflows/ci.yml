@@ -14,9 +14,10 @@ concurrency:
 
 jobs:
   build-and-test:
+    timeout-minutes: 15
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Configure
         run: cmake --preset host-debug
       - name: Build
@@ -33,15 +34,16 @@ jobs:
           find build/host-debug -maxdepth 1 -type f -name '*_tests' -exec cp {} artifacts/ \;
           test -n "$(find artifacts -type f -print -quit)"
       - name: Upload build artifacts
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: stormengine-linux-debug
           path: artifacts/
 
   release-smoke:
+    timeout-minutes: 15
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Configure
         run: cmake --preset host-release
       - name: Build
@@ -52,9 +54,10 @@ jobs:
         run: ./build/host-release/storm_sandbox
 
   sanitizer:
+    timeout-minutes: 20
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Configure with sanitizers
         run: cmake -S . -B build-sanitized -DCMAKE_BUILD_TYPE=Debug -DSTORM_BUILD_TESTS=ON -DSTORM_ENABLE_SANITIZERS=ON -DSTORM_ENABLE_WARNINGS=ON
       - name: Build
