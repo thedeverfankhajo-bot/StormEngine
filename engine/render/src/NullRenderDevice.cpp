@@ -47,7 +47,7 @@ bool NullRenderDevice::updateTexture(TextureHandle handle, const void* pixels, s
     return static_cast<std::uint64_t>(size) == expected;
 }
 void NullRenderDevice::destroyTexture(TextureHandle handle) { if (handle.valid()) textures_.erase(handle.id()); }
-ShaderHandle NullRenderDevice::createShader(const ShaderDesc&, const std::string& source) {
+ShaderHandle NullRenderDevice::createShader(const ShaderDesc& desc, const std::string& source) {
     if (source.empty()) return {};
     const auto id = ++nextShaderId_; if (id == ShaderHandle::invalidId) return {};
     shaders_.emplace(id, desc.stage); return ShaderHandle(id);
