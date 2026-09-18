@@ -32,7 +32,9 @@ Release:
 
     STORM_BUILD_TYPE=Release ./scripts/termux-build.sh
 
-GLES is an Android/NDK backend; a generic Termux native build validates the portable core rather than pretending to be an Android cross-build.
+GLES is an Android/NDK backend. Native Termux builds intentionally use `STORM_BUILD_GLES=OFF`; the helper rejects `STORM_BUILD_GLES=ON` instead of producing a misleading host-toolchain failure.
+
+CTest tests have a 30-second per-test timeout.
 
 ## Host validation
 
