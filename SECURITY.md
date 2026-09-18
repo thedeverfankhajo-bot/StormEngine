@@ -72,6 +72,10 @@ CPU-side resource data is retained where required for context recreation. GPU ob
 
 CI uses least-privilege repository permissions and workflow concurrency to cancel obsolete runs. Build scripts fail closed on unsupported platform/toolchain combinations. Do not execute untrusted pull-request data as shell code; review third-party action updates before adopting them.
 
+## Engine architecture security
+
+As the engine grows toward a large modular runtime, subsystem boundaries are security boundaries. New resource managers, render graphs, asset loaders, task systems, serialization, editor tooling, and platform adapters must validate ownership, sizes, generations, thread affinity, and lifetime transitions at their public boundaries. Do not assume a caller has already validated data merely because it came from another engine subsystem.
+
 ## Development practices
 
 - Validate untrusted input at subsystem boundaries.
