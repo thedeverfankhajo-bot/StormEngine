@@ -39,14 +39,13 @@ public:
         queue.beginFrame();
 
         world.registry().each<math::Transform, Renderable>(
-            [&](ecs::Entity, math::Transform&, Renderable& renderable) {
+            [&](ecs::Entity entity, math::Transform&, Renderable& renderable) {
                 if (!renderable.valid()) {
                     ++rejectedCount_;
                     return;
                 }
 
-                const math::Mat4 model = world.worldMatrix(
-                    worldEntityForTransform(world, renderable));
+                const math::Mat4 model = world.worldMatrix(entity);
                 const math::Mat4 mvp = camera.viewProjectionMatrix() * model;
 
                 Material snapshot = renderable.material;
@@ -76,15 +75,6 @@ private:
         for (std::size_t row = 0; row < 4; ++row)
             for (std::size_t col = 0; col < 4; ++col)
                 result[col * 4 + row] = matrix.m[row][col];
-        return result;
-    }
-
-    static ecs::Entity worldEntityForTransform(core::World& world, Renderable& target) {
-        ecs::Entity result{};
-        world.registry().each<math::Transform, Renderable>(
-            [&](ecs::Entity entity, math::Transform&, Renderable& renderable) {
-                if (&renderable == &target) result = entity;
-            });
         return result;
     }
 
