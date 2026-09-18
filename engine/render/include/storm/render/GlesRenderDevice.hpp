@@ -16,7 +16,7 @@ namespace storm::render {
 
 class GlesRenderDevice final : public RenderDevice {
 public:
-    struct TextureRecord { TextureDesc desc{}; std::uint32_t glId{0}; };
+    struct TextureRecord { TextureDesc desc{}; std::uint32_t glId{0}; std::vector<std::vector<std::uint8_t>> mipData; };
     GlesRenderDevice() = default;
     ~GlesRenderDevice() override;
     GlesRenderDevice(const GlesRenderDevice&) = delete;
@@ -57,6 +57,7 @@ private:
     ResourceHandleAllocator<ShaderHandle> shaderHandles_;
     std::size_t submittedDraws_{0};
     bool frameActive_{false};
+    bool gpuContextValid_{true};
 #if defined(__ANDROID__)
     std::unordered_map<std::uint32_t, BufferRecord> buffers_;
     std::unordered_map<std::uint32_t, TextureRecord> textures_;
