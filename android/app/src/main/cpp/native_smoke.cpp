@@ -77,7 +77,7 @@ void main(){outColor=vColor;})glsl";
     storm::render::Material material;
     storm::render::Camera3D camera;
     camera.setPosition({0,0,5});
-    camera.setPerspective(1.0471975512f,1,0.1f,100);
+    camera.setPerspective(1.0471975512f,0.1f,100.0f);
 
     float angle=0;
     auto last=std::chrono::steady_clock::now();
