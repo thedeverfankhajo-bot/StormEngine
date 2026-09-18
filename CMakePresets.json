@@ -1,6 +1,10 @@
 {
   "version": 4,
-  "cmakeMinimumRequired": { "major": 3, "minor": 20, "patch": 0 },
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 20,
+    "patch": 0
+  },
   "configurePresets": [
     {
       "name": "host-debug",
@@ -32,6 +36,17 @@
         "CMAKE_BUILD_TYPE": "Release",
         "STORM_BUILD_TESTS": "ON",
         "STORM_BUILD_GLES": "OFF",
+        "STORM_ENABLE_WARNINGS": "ON"
+      }
+    },
+    {
+      "name": "termux-gles-debug",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/termux-gles-debug",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "STORM_BUILD_TESTS": "ON",
+        "STORM_BUILD_GLES": "ON",
         "STORM_ENABLE_WARNINGS": "ON"
       }
     }
