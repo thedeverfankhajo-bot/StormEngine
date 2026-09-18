@@ -67,6 +67,13 @@ int main() {
     draw.vertexLayout = layout;
 
     assert(!device.submit(draw));
+    DrawCommand staleIndex = draw;
+    staleIndex.indexCount = 1;
+    staleIndex.indexBuffer = indexBuffer;
+    device.destroyBuffer(indexBuffer);
+    device.beginFrame();
+    assert(!device.submit(staleIndex));
+    device.endFrame();
 
     DrawCommand wrongStage = draw;
     wrongStage.shader = fragmentShader;
