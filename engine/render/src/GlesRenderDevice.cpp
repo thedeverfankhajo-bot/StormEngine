@@ -196,7 +196,6 @@ bool GlesRenderDevice::onContextRestored() noexcept {
     };
 
     for (auto& [handle, record] : buffers_) {
-        (void)handle;
         if (record.cpuData.size() != record.size) {
             rollbackRestoration();
             return false;
@@ -235,7 +234,6 @@ bool GlesRenderDevice::onContextRestored() noexcept {
                          GL_RGBA, GL_UNSIGNED_BYTE,
                          record.cpuData.empty() ? nullptr : record.cpuData.data() + offset);
         }
-        if (record.desc.mipLevels > 1) glGenerateMipmap(GL_TEXTURE_2D);
         if (glGetError() != GL_NO_ERROR) { glDeleteTextures(1, &id); rollbackRestoration(); return false; }
         record.glId = id;
     }
