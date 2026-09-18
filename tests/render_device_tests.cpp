@@ -120,18 +120,17 @@ int main() {
     assert(device.submittedDrawCount() == 3);
     assert(!device.submit(draw));
 
-    device.destroyShader(vertexShader);
-    device.destroyBuffer(replacementIndexBuffer);
     // A stale handle must not become valid again when its numeric id is reused.
-    const auto staleVertex = vertexBuffer;
-    device.destroyBuffer(staleVertex);
-    const auto replacementVertex = device.createBuffer(BufferDesc{1024, BufferUsage::Static});
+    const auto staleIndexHandle = replacementIndexBuffer;
+    device.destroyBuffer(staleIndexHandle);
+    const auto replacementVertex = device.createBuffer(BufferDesc{512, BufferUsage::Static});
     assert(replacementVertex.valid());
-    assert(replacementVertex.id() == staleVertex.id());
-    assert(replacementVertex.generation() != staleVertex.generation());
-    assert(!device.updateBuffer(staleVertex, bytes, sizeof(bytes), 0));
+    assert(replacementVertex.id() == staleIndexHandle.id());
+    assert(replacementVertex.generation() != staleIndexHandle.generation());
+    assert(!device.updateBuffer(staleIndexHandle, bytes, sizeof(bytes), 0));
     assert(device.updateBuffer(replacementVertex, bytes, sizeof(bytes), 0));
     device.destroyBuffer(replacementVertex);
+    device.destroyShader(vertexShader);
     device.destroyTexture(texture);
     assert(device.liveShaderCount() == 0);
     assert(device.liveBufferCount() == 0);
