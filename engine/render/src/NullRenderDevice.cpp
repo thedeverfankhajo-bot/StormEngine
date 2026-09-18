@@ -47,10 +47,10 @@ bool NullRenderDevice::updateTexture(TextureHandle handle, const void* pixels, s
     return static_cast<std::uint64_t>(size) == expected;
 }
 void NullRenderDevice::destroyTexture(TextureHandle handle) { if (handle.valid()) textures_.erase(handle.id()); }
-ShaderHandle NullRenderDevice::createShader(const ShaderDesc&, const std::string& source) {
+ShaderHandle NullRenderDevice::createShader(const ShaderDesc& desc, const std::string& source) {
     if (source.empty()) return {};
     const auto id = ++nextShaderId_; if (id == ShaderHandle::invalidId) return {};
-    shaders_.insert(id); return ShaderHandle(id);
+    shaders_.emplace(id, desc.stage); return ShaderHandle(id);
 }
 void NullRenderDevice::destroyShader(ShaderHandle handle) { if (handle.valid()) shaders_.erase(handle.id()); }
 void NullRenderDevice::beginFrame() { frameActive_ = true; submittedDraws_ = 0; }
@@ -69,7 +69,10 @@ bool NullRenderDevice::submit(const DrawCommand& command) {
         if (indexOffset > indexIt->second || indexBytes > indexIt->second - indexOffset) return false;
     } else if (command.indexBuffer.valid()) return false;
     if (!command.shader.valid() || !command.fragmentShader.valid()) return false;
-    if (shaders_.find(command.shader.id()) == shaders_.end() || shaders_.find(command.fragmentShader.id()) == shaders_.end()) return false;
+    const auto vertexShader = shaders_.find(command.shader.id());
+    const auto fragmentShader = shaders_.find(command.fragmentShader.id());
+    if (vertexShader == shaders_.end() || fragmentShader == shaders_.end() ||
+        vertexShader->second != ShaderStage::Vertex || fragmentShader->second != ShaderStage::Fragment) return false;
     ++submittedDraws_; return true;
 }
 void NullRenderDevice::endFrame() { frameActive_ = false; }
