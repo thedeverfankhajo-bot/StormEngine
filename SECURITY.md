@@ -2,7 +2,7 @@
 
 ## Supported versions
 
-Security fixes are applied to main first.
+Security fixes are applied to the default development branch first.
 
 | Version | Supported |
 | --- | --- |
@@ -11,35 +11,54 @@ Security fixes are applied to main first.
 
 ## Reporting a vulnerability
 
-Do not report security vulnerabilities in public issues.
+Do **not** report security vulnerabilities in public issues, pull requests, or discussions.
 
-Use GitHub private vulnerability reporting when available. Include a clear description, affected component, reproduction steps, expected/observed behavior, impact, and affected commit/tag/build when known.
+Use GitHub private vulnerability reporting when it is enabled for the repository. If private reporting is unavailable, contact the repository maintainers through a private GitHub channel and do not disclose the vulnerability publicly before a fix is available.
 
-Do not include real secrets, personal data, credentials, or destructive proof-of-concept material.
+Include, when safe:
+
+- affected component and commit/tag;
+- concise vulnerability description;
+- minimal reproduction steps;
+- expected and observed behavior;
+- security impact;
+- relevant platform, ABI, or build configuration.
+
+Do not include real credentials, API tokens, private keys, personal data, device identifiers, or destructive proof-of-concept material.
 
 ## Scope
 
-Relevant areas include runtime/resource handling, asset and shader parsing, rendering backends, Android/platform integration, build/CI configuration, serialization, filesystem, and future network-facing code.
+Security-sensitive areas include:
+
+- runtime and resource lifetime handling;
+- ECS and bounds/overflow validation;
+- asset, shader, and serialization input;
+- rendering backends;
+- Android/EGL/platform integration;
+- build and CI configuration;
+- filesystem and future network-facing code.
 
 ## Mobile and Termux security
 
-Never commit Android signing keys, keystores, API tokens, device identifiers, or local absolute paths. Treat asset and shader input as untrusted at load boundaries. Assets must not trigger shell commands or executable-memory behavior.
+Never commit:
 
-Termux build scripts must fail closed on missing tools and must not download or execute arbitrary remote scripts.
+- Android signing keys or keystores;
+- API tokens or credentials;
+- device identifiers;
+- local absolute paths containing private information.
 
-## Mobile and Termux security
+Treat assets and shader source as untrusted input at load boundaries. Asset processing must not execute shell commands or turn untrusted data into executable code.
 
-- Never commit Android signing keys, keystores, credentials, API tokens, device identifiers, or local absolute paths.
-- Treat assets, shaders, serialized data, and configuration as untrusted at load boundaries.
-- Termux build helpers must fail closed on missing tools and must not download or execute arbitrary remote scripts.
-- Validate native buffer sizes, counts, indices, handles, and arithmetic before backend calls.
-- Make JNI/EGL ownership and thread shutdown ordering explicit.
+Termux scripts must fail closed when required tools are missing and must not download or execute arbitrary remote scripts.
+
+Android native code must validate JNI/native handles, surface lifetime, buffer sizes, integer conversions, and GPU resource lifetime.
 
 ## Development practices
 
 - Validate untrusted input at subsystem boundaries.
-- Avoid unchecked sizes, integer overflow, and out-of-bounds access.
-- Keep dependencies and GitHub Actions dependencies current.
-- Never commit credentials, private keys, access tokens, or device-specific secrets.
-- Add regression tests for security-sensitive fixes.
-- Prefer deterministic, reproducible builds and tests.
+- Check finite values, integer overflow, sizes, indices, and handle generations.
+- Preserve explicit ownership and destruction order.
+- Keep backend-neutral code independent of OpenGL ES types.
+- Add deterministic regression tests for security-sensitive fixes.
+- Prefer reproducible builds and pinned/maintained CI actions.
+- Keep dependency and toolchain versions documented and reviewable.

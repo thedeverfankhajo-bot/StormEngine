@@ -33,7 +33,7 @@ jobs:
         working-directory: android
         run: gradle assembleDebug --no-daemon --stacktrace
 
-      - name: Verify generated APKs and native ABIs
+      - name: Verify generated APKs
         working-directory: android
         shell: bash
         run: |
@@ -41,7 +41,14 @@ jobs:
           mapfile -t apks < <(find app/build/outputs/apk/debug -type f -name '*.apk' -print)
           test "${#apks[@]}" -gt 0
           printf '%s\n' "${apks[@]}"
-          apk="${apks[0]}"
-          for abi in arm64-v8a armeabi-v7a x86_64 x86; do
-            unzip -l "$apk" | grep -q "lib/$abi/libstorm_android_smoke.so"
+          for apk in "${apks[@]}"; do
+            echo "Inspecting $apk"
+            unzip -l "$apk" | grep -E 'lib/(arm64-v8a|armeabi-v7a|x86_64|x86)/libstorm_android_smoke\.so$'
+            for abi in arm64-v8a armeabi-v7a x86_64 x86; do
+              unzip -l "$apk" | grep -q "lib/$abi/libstorm_android_smoke.so"
+            done
           done
+
+      - name: Android lint
+        working-directory: android
+        run: gradle lintDebug --no-daemon --stacktrace

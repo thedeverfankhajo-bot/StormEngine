@@ -1,71 +1,80 @@
 # Mobile compatibility
 
-StormEngine currently targets Android through the NDK, CMake, EGL, and OpenGL ES. iOS/Metal is not implemented.
+StormEngine currently targets Android through the NDK, CMake, EGL, and OpenGL ES. It does not yet provide an iOS/Metal backend.
 
 ## Android build targets
 
-| ABI | Architecture | Intended use |
+| Target | Architecture | Role |
 | --- | --- | --- |
-| arm64-v8a | AArch64 | Primary physical-device target |
-| armeabi-v7a | 32-bit ARM | Compatibility target |
-| x86_64 | x86-64 | Emulator/build target |
-| x86 | 32-bit x86 | Emulator/build target |
+| Android | arm64-v8a | Primary modern-device target |
+| Android | armeabi-v7a | Compatibility target |
+| Android | x86_64 | Emulator/legacy build target |
+| Android | x86 | Emulator/legacy build target |
 
-These are build targets, not device certification.
+These are build targets, not claims that every GPU/device has been physically tested.
 
 ## Representative device families
 
-Physical validation is organized into five families:
+The validation matrix is intentionally distributed across five families:
+
 1. Samsung Galaxy
 2. Xiaomi / Redmi / POCO
 3. Google Pixel
 4. OnePlus
 5. Motorola
 
-A family entry is only a test category. Record the exact model, Android API, SoC/GPU, ABI, OpenGL ES version, renderer string, engine commit, lifecycle results, and observed errors.
+A family entry is not certification for every model.
 
-## Required lifecycle checks
+## Required physical-device record
 
-For every exact device:
-1. Launch the smoke application.
-2. Verify EGL initialization and GLES 3.x shader compilation.
-3. Verify repeated 3D frames without visible corruption.
-4. Background/foreground the app and verify renderer restart.
-5. Destroy/recreate the surface and verify renderer restart.
-6. Test rotation/configuration when enabled by the activity.
-7. Exercise context-loss recovery when the device/test harness can trigger it.
-8. Verify stale resource handles are rejected after destruction.
-9. Record crashes, GL errors, frame stalls, and visual corruption.
+For every device validation run, record:
 
-A successful APK build is not physical-device certification.
+- exact model;
+- Android version/API level;
+- ABI;
+- SoC/GPU;
+- OpenGL ES version;
+- GL renderer/vendor strings;
+- StormEngine commit;
+- APK build variant;
+- surface creation/destruction;
+- pause/resume;
+- rotation/configuration change;
+- context-loss/recreation behavior;
+- shader compilation;
+- texture upload;
+- buffer creation/update/destruction;
+- basic 3D draw;
+- visible corruption/errors;
+- sustained frame stability.
+
+## Graphics requirements
+
+The Android renderer requires OpenGL ES 3.x. The manifest declares GLES 3.0 as a required feature.
+
+Runtime probing is still required for optional GPU capabilities. Do not infer a feature solely from a device family or GPU name.
 
 ## Termux
 
-Termux is a native development environment for the portable C++ core.
+Termux is a first-class native C++ development environment for the portable core.
+
+Install:
 
     pkg update
     pkg install clang cmake ninja make git
+
+Build:
+
     ./scripts/termux-build.sh
 
-For constrained phones:
-    STORM_BUILD_JOBS=1 ./scripts/termux-build.sh
+Release:
 
-Optional EGL/GLES host build:
-    STORM_BUILD_GLES=ON ./scripts/termux-build.sh
+    STORM_BUILD_TYPE=Release ./scripts/termux-build.sh
 
-This option requires compatible development libraries and is separate from the Android NDK build.
+The Termux helper explicitly disables the Android GLES backend. Android APK/GLES validation remains an NDK/Gradle/device workflow.
 
-## Android versus Termux
+## Compatibility interpretation
 
-| Capability | Termux | Android SDK/NDK/Gradle |
-| --- | --- | --- |
-| C++20 core | Yes | Yes |
-| CTest | Yes | Android APK build disables host tests |
-| JNI library | No | Yes |
-| APK packaging | No | Yes |
-| NDK cross compilation | No | Yes |
-| Physical GPU validation | No | Yes |
+An APK that compiles for all configured ABIs demonstrates packaging/build coverage only. It does not demonstrate that every ABI, GPU driver, vendor extension, Android version, or physical device has passed runtime validation.
 
-## Evidence rule
-
-Never mark a device family as supported from ABI/build success alone. Keep exact-device evidence with commit and renderer information.
+Failures should be recorded with exact hardware/software information so driver-specific behavior is distinguishable from engine bugs.
