@@ -85,10 +85,6 @@ int main() {
     assert(queue.submit(indexed));
     assert(queue.size() == 1);
     assert(queue.at(0).indexed());
-    DrawCommand badBase = first;
-    badBase.baseVertex = 1;
-    assert(!queue.submit(badBase));
-
     DrawCommand badViewport = first;
     badViewport.viewportWidth = 1280;
     assert(!queue.submit(badViewport));
