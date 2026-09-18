@@ -8,23 +8,42 @@ int main() {
     storm::render::NullRenderDevice device;
 
     const auto vertexBuffer = device.createBuffer({1024, storm::render::BufferUsage::Static});
-    if (!vertexBuffer.valid()) {
-        std::cerr << "failed to create vertex buffer\n";
+    const auto vertexShader = device.createShader(
+        {storm::render::ShaderStage::Vertex}, "void main() {}");
+    const auto fragmentShader = device.createShader(
+        {storm::render::ShaderStage::Fragment}, "void main() {}");
+
+    if (!vertexBuffer.valid() || !vertexShader.valid() || !fragmentShader.valid()) {
+        std::cerr << "failed to create sandbox resources\n";
         return 1;
     }
 
-    device.beginFrame();
+    storm::render::VertexLayout layout{};
+    layout.attributeCount = 1;
+    layout.stride = 12;
+    layout.attributes[0] = {
+        0, storm::render::VertexFormat::Float32x3, 0
+    };
 
     storm::render::DrawCommand draw{};
     draw.vertexBuffer = vertexBuffer;
     draw.vertexCount = 3;
+    draw.shader = vertexShader;
+    draw.fragmentShader = fragmentShader;
+    draw.vertexLayout = layout;
 
-    if (!device.submit(draw)) {
+    device.beginFrame();
+    const bool submitted = device.submit(draw);
+    device.endFrame();
+
+    if (!submitted) {
         std::cerr << "failed to submit draw command\n";
         return 2;
     }
 
-    device.endFrame();
+    device.destroyShader(fragmentShader);
+    device.destroyShader(vertexShader);
+    device.destroyBuffer(vertexBuffer);
 
     std::cout << engine.name() << ' ' << engine.version()
               << " | headless frame: draws=" << device.submittedDrawCount()
