@@ -58,6 +58,7 @@ if(STORM_BUILD_TESTS AND NOT ANDROID)
     endfunction()
 
     storm_add_test(storm_core_tests tests/core_tests.cpp)
+    storm_add_test(storm_resource_pool_tests tests/resource_pool_tests.cpp)
     storm_add_test(storm_ecs_tests tests/ecs_tests.cpp)
     storm_add_test(storm_game_loop_tests tests/game_loop_tests.cpp)
     storm_add_test(storm_scheduler_tests tests/scheduler_tests.cpp)
