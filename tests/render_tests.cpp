@@ -12,7 +12,7 @@ int main() {
 
     static_assert(std::is_trivially_copyable_v<DrawCommand>);
     static_assert(std::is_trivially_copyable_v<BufferHandle>);
-    static_assert(sizeof(BufferHandle) == sizeof(std::uint32_t));
+    static_assert(sizeof(BufferHandle) == sizeof(std::uint32_t) * 2);
 
     BufferHandle invalid;
     assert(!invalid.valid());
@@ -141,6 +141,20 @@ int main() {
     queue.submit(indexed);
     assert(queue.size() == 1);
     assert(queue.at(0).indexType == IndexType::UInt16);
+
+
+    ResourceHandleAllocator<BufferHandle> allocator;
+    const auto first = allocator.allocate();
+    assert(first.valid());
+    assert(allocator.valid(first));
+    assert(allocator.release(first));
+    assert(!allocator.valid(first));
+    const auto second = allocator.allocate();
+    assert(second.valid());
+    assert(second.id() == first.id());
+    assert(second.generation() != first.generation());
+    assert(!allocator.valid(first));
+    assert(allocator.valid(second));
 
     return 0;
 }
