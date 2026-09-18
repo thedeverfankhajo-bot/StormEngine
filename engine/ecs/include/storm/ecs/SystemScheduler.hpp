@@ -89,15 +89,6 @@ public:
         });
     }
 
-    bool updateSystemName(std::string_view oldName, std::string newName) {
-        if (oldName == newName || newName.empty() || contains(newName)) return false;
-        const auto it = std::find_if(systems_.begin(), systems_.end(), [oldName](const auto& system) {
-            return system->name() == oldName;
-        });
-        if (it == systems_.end()) return false;
-        return false;
-    }
-
     bool hasValidOrder() {
         rebuildOrderIfNeeded();
         return validOrder_;
