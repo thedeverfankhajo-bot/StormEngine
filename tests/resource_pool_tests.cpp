@@ -53,5 +53,18 @@ int main() {
     assert(pool.capacity() == 0);
     assert(!pool.valid(third));
 
+    // Clearing a pool must invalidate every pre-clear handle, even if the
+    // next allocation reuses the same slot index.
+    const beforeClear = pool.emplace(123);
+    assert(beforeClear.valid());
+    pool.clear();
+    const afterClear = pool.emplace(456);
+    assert(afterClear.valid());
+    assert(afterClear.index() == beforeClear.index());
+    assert(afterClear.generation() != beforeClear.generation());
+    assert(!pool.valid(beforeClear));
+    assert(pool.get(beforeClear) == nullptr);
+    assert(pool.get(afterClear)->value == 456);
+
     return 0;
 }
