@@ -2,21 +2,45 @@ package storm.engine.smoke;
 
 import android.app.Activity;
 import android.os.Bundle;
-import android.widget.TextView;
+import android.view.SurfaceHolder;
+import android.view.SurfaceView;
 
-public final class MainActivity extends Activity {
+public final class MainActivity extends Activity implements SurfaceHolder.Callback {
     static {
         System.loadLibrary("storm_android_smoke");
     }
 
-    private static native String nativeRunSmoke();
+    private SurfaceView surfaceView;
+
+    private static native void nativeStart(SurfaceHolder holder);
+    private static native void nativeStop();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        TextView view = new TextView(this);
-        view.setText(nativeRunSmoke());
-        view.setTextSize(14.0f);
-        setContentView(view);
+        surfaceView = new SurfaceView(this);
+        surfaceView.getHolder().addCallback(this);
+        setContentView(surfaceView);
+    }
+
+    @Override
+    public void surfaceCreated(SurfaceHolder holder) {
+        nativeStart(holder);
+    }
+
+    @Override
+    public void surfaceChanged(SurfaceHolder holder, int format, int width, int height) {
+        // The native renderer queries the current ANativeWindow dimensions each frame.
+    }
+
+    @Override
+    public void surfaceDestroyed(SurfaceHolder holder) {
+        nativeStop();
+    }
+
+    @Override
+    protected void onDestroy() {
+        nativeStop();
+        super.onDestroy();
     }
 }
