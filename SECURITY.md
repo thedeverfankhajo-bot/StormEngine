@@ -41,6 +41,10 @@ Reports will be reviewed by the maintainers. Once a vulnerability is confirmed, 
 
 Please allow reasonable time for investigation and remediation before publicly disclosing an unresolved vulnerability.
 
+## Platform-specific security notes
+
+Android and Termux builds must not embed signing keys, keystores, API tokens, device identifiers, or local absolute paths. Native asset and shader inputs should be treated as untrusted data at load boundaries. Do not enable executable-memory or shell-command behavior for assets.
+
 ## Security development practices
 
 Contributors should:
