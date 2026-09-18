@@ -69,8 +69,10 @@ bool applyMaterial(const Material& material,
             glUniform2fv(location, 1, vec2->data());
         } else if (const auto* vec3 = std::get_if<MaterialVec3>(&value)) {
             glUniform3fv(location, 1, vec3->data());
-        } else if (const auto* vec4 = std::get_if<MaterialVec4>(&value)) {
+         } else if (const auto* vec4 = std::get_if<MaterialVec4>(&value)) {
             glUniform4fv(location, 1, vec4->data());
+        } else if (const auto* mat4 = std::get_if<MaterialMat4>(&value)) {
+            glUniformMatrix4fv(location, 1, GL_FALSE, mat4->data());
         } else if (const auto* texture = std::get_if<TextureHandle>(&value)) {
             if (!texture->valid() || textures.find(texture->id()) == textures.end() || textureUnit >= maxUnits) {
                 return false;
