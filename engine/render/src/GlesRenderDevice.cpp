@@ -403,6 +403,14 @@ bool GlesRenderDevice::submit(const DrawCommand& command) {
     desiredState.shader = command.shader;
     desiredState.fragmentShader = command.fragmentShader;
     desiredState.topology = command.topology;
+    desiredState.viewportWidth = command.viewportWidth;
+    desiredState.viewportHeight = command.viewportHeight;
+    desiredState.blendEnabled = command.blendEnabled;
+    desiredState.depthTestEnabled = command.depthTestEnabled;
+    desiredState.depthWriteEnabled = command.depthWriteEnabled;
+    desiredState.cullEnabled = command.cullEnabled;
+    desiredState.scissorEnabled = command.scissorEnabled;
+
     if (stateCache_.needsApply(desiredState)) {
         glUseProgram(static_cast<GLuint>(program_));
         if (desiredState.depthTestEnabled) glEnable(GL_DEPTH_TEST);
@@ -415,8 +423,14 @@ bool GlesRenderDevice::submit(const DrawCommand& command) {
         else glDisable(GL_BLEND);
         if (desiredState.scissorEnabled) glEnable(GL_SCISSOR_TEST);
         else glDisable(GL_SCISSOR_TEST);
+        if (desiredState.viewportWidth != 0 && desiredState.viewportHeight != 0)
+            glViewport(0, 0, static_cast<GLsizei>(desiredState.viewportWidth),
+                       static_cast<GLsizei>(desiredState.viewportHeight));
         stateCache_.markApplied(desiredState);
     }
+
+    if (command.viewportWidth > static_cast<std::uint32_t>(std::numeric_limits<GLsizei>::max()) ||
+        command.viewportHeight > static_cast<std::uint32_t>(std::numeric_limits<GLsizei>::max())) return false;
 
     if (vao_ == 0) {
         GLuint vao = 0;
