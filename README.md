@@ -4,96 +4,74 @@ StormEngine is a C++20 game-engine project targeting a unified 1D, 2D, and 3D ru
 
 ## Status
 
-The engine is under active development. The current tree contains the core runtime loop, fixed-step timing, ECS, scheduler, 1D/2D/3D math primitives, transforms, cameras, AABB foundations, scene/world transforms, backend-neutral rendering types, a Null renderer, an OpenGL ES backend, SpriteBatch CPU geometry, generation-safe resource lifetime, and a render-state cache.
-
-The project is **not yet a complete 1D/2D/3D engine**. The remaining work is tracked in [Issue #9](https://github.com/thedeverfankhajo-bot/StormEngine/issues/9).
+The engine is under active development and is not yet a complete 1D/2D/3D engine. Remaining engine work is tracked in Issue #9.
 
 ## Implemented
 
 - C++20 core runtime and fixed-step game clock.
-- ECS with sparse-set storage, queries, phases, dependencies, and deterministic scheduling.
-- 1D, 2D, and 3D vector/matrix math.
-- Quaternion and 3D transform support.
-- Perspective and orthographic projection.
-- 1D, 2D, and 3D AABB primitives.
-- 1D, 2D, and 3D camera foundations.
+- ECS, scheduler, dimensional math, transforms, cameras, AABB foundations.
 - Parent/child world transforms with cached revisions.
-- Backend-neutral render resources and draw commands.
-- Null render-device validation.
-- OpenGL ES texture, shader, VAO, and draw foundations.
-- CPU-side SpriteBatch geometry generation.
-- Generation-safe resource lifetime primitives.
-- Backend-independent render-state caching.
-- Linux, Android, and CodeQL GitHub Actions checks.
-- Automated CTest regression coverage.
+- Backend-neutral render resources, draw commands, Null renderer, OpenGL ES backend.
+- CPU SpriteBatch geometry.
+- Generation-safe resource lifetime and render-state caching.
+- Android lifecycle/EGL context recovery work.
+- Automated CTest, sanitizer, Android, and CodeQL validation.
 
-## In development
+## Platform and Termux
 
-- Generation-safe renderer resource managers for buffers, textures, shaders, materials, and meshes.
-- GLES uniform and texture-binding caches.
-- Render graph and render passes.
-- GPU SpriteBatch upload and draw.
-- Complete 2D renderer.
-- Complete 3D mesh/material/camera/light renderer.
-- 1D/2D/3D physics bodies, broad phase, narrow phase, and solvers.
-- Input and platform events.
-- Asset/resource pipeline.
-- Animation and audio.
-- Android lifecycle and EGL surface recreation.
-- Integration, sanitizer, and performance tests.
-- Editor and development tooling.
+The portable C++ core can be built and tested directly in Termux. Android APK construction remains an SDK/NDK/Gradle workflow.
+
+Representative Android test families are Samsung Galaxy, Xiaomi/Redmi/POCO, Google Pixel, OnePlus, and Motorola. These are compatibility-test families, not blanket certification.
+
+Android build targets are arm64-v8a, armeabi-v7a, x86_64, and x86. Physical-device GPU validation is separate from APK compilation.
+
+Termux quick start:
+
+    pkg update
+    pkg install clang cmake ninja make git
+    ./scripts/termux-build.sh
 
 ## Build
 
 Requirements:
 
 - C++20 compiler.
-- CMake 3.20 or newer.
+- CMake 3.20+.
 - Git.
-- Android SDK/NDK and the repository's Gradle tooling for Android builds.
+- Android SDK/NDK and Gradle for Android APKs.
+- Termux users can use the repository script for native builds.
 
-Host build and tests:
+Host:
 
-```bash
-cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug -DSTORM_BUILD_TESTS=ON
-cmake --build build --parallel
-ctest --test-dir build --output-on-failure
-./build/storm_sandbox
-```
+    cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug -DSTORM_BUILD_TESTS=ON
+    cmake --build build --parallel
+    ctest --test-dir build --output-on-failure
 
 GLES configuration:
 
-```bash
-cmake -S . -B build-gles -DCMAKE_BUILD_TYPE=Debug -DSTORM_BUILD_TESTS=ON -DSTORM_BUILD_GLES=ON
-cmake --build build-gles --parallel
-```
+    cmake -S . -B build-gles -DCMAKE_BUILD_TYPE=Debug -DSTORM_BUILD_TESTS=ON -DSTORM_BUILD_GLES=ON
+    cmake --build build-gles --parallel
 
 ## Repository layout
 
-```text
-engine/    engine source
-android/   Android build and native smoke test
-examples/  example applications
-tests/     automated tests
-.github/   CI and repository policy
-```
+    engine/    engine source
+    android/   Android build and native smoke test
+    examples/  example applications
+    tests/     automated tests
+    scripts/   local build helpers
+    docs/      platform documentation
+    .github/   CI and repository policy
 
 ## CI
 
-Pull requests and pushes to `main` run:
-
-- Linux CMake build and CTest suite.
-- Android debug APK build.
-- C++ CodeQL analysis.
-
-The Linux workflow publishes debug build artifacts.
+Pull requests and pushes to main run Linux CMake/CTest, sanitizer, Android debug APK, and CodeQL checks.
 
 ## Development
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for build, testing, coding, rendering, security, and pull-request requirements.
+See CONTRIBUTING.md for build, testing, rendering, security, and pull-request requirements. See docs/MOBILE_COMPATIBILITY.md for the mobile test matrix.
 
-Security reports must follow [SECURITY.md](SECURITY.md), not public issues.
+Security reports must follow SECURITY.md, not public issues.
 
 ## License
 
-StormEngine is licensed under the [MIT License](LICENSE).
+StormEngine is licensed under the MIT License.
