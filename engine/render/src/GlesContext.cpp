@@ -5,19 +5,26 @@
 #include <EGL/egl.h>
 #include <GLES3/gl3.h>
 #include <android/native_window.h>
+#include <android/log.h>
 
 namespace storm::render {
 namespace {
+void logEglError(const char* operation) noexcept {
+    const EGLint error = eglGetError();
+    __android_log_print(ANDROID_LOG_ERROR, "StormEngine",
+                        "EGL %s failed: 0x%04x", operation, static_cast<unsigned int>(error));
+}
 bool createContext(EGLDisplay display, EGLConfig config, EGLSurface surface,
                    EGLContext& outContext) noexcept {
     const EGLint contextAttribs[] = {
         EGL_CONTEXT_CLIENT_VERSION, 3,
         EGL_NONE
     };
-    if (eglBindAPI(EGL_OPENGL_ES_API) != EGL_TRUE) return false;
+    if (eglBindAPI(EGL_OPENGL_ES_API) != EGL_TRUE) { logEglError("eglBindAPI"); return false; }
     outContext = eglCreateContext(display, config, EGL_NO_CONTEXT, contextAttribs);
-    if (outContext == EGL_NO_CONTEXT) return false;
+    if (outContext == EGL_NO_CONTEXT) { logEglError("eglCreateContext"); return false; }
     if (eglMakeCurrent(display, surface, surface, outContext) != EGL_TRUE) {
+        logEglError("eglMakeCurrent");
         eglDestroyContext(display, outContext);
         outContext = EGL_NO_CONTEXT;
         return false;
@@ -51,12 +58,13 @@ bool GlesContext::initializePbuffer(int width, int height) noexcept {
     if (width <= 0 || height <= 0) return false;
 
     EGLDisplay display = eglGetDisplay(EGL_DEFAULT_DISPLAY);
-    if (display == EGL_NO_DISPLAY) return false;
+    if (display == EGL_NO_DISPLAY) { logEglError("eglGetDisplay"); return false; }
     EGLint major = 0, minor = 0;
-    if (eglInitialize(display, &major, &minor) != EGL_TRUE) return false;
+    if (eglInitialize(display, &major, &minor) != EGL_TRUE) { logEglError("eglInitialize"); return false; }
 
     EGLConfig config = nullptr;
     if (!chooseConfig(display, EGL_PBUFFER_BIT, config)) {
+        logEglError("eglChooseConfig");
         eglTerminate(display);
         return false;
     }
@@ -64,12 +72,15 @@ bool GlesContext::initializePbuffer(int width, int height) noexcept {
     const EGLint surfaceAttribs[] = {EGL_WIDTH, width, EGL_HEIGHT, height, EGL_NONE};
     EGLSurface surface = eglCreatePbufferSurface(display, config, surfaceAttribs);
     if (surface == EGL_NO_SURFACE) {
+        logEglError("eglCreatePbufferSurface");
         eglTerminate(display);
         return false;
     }
 
     EGLContext context = EGL_NO_CONTEXT;
     if (!createContext(display, config, surface, context)) {
+        eglDestroySurface(display, surface);
+        logEglError("createContext");
         eglDestroySurface(display, surface);
         eglTerminate(display);
         return false;
@@ -127,16 +138,20 @@ bool GlesContext::initializeWindow(void* nativeWindow) noexcept {
 
 bool GlesContext::makeCurrent() noexcept {
     if (!valid_) return false;
-    return eglMakeCurrent(static_cast<EGLDisplay>(display_),
-                          static_cast<EGLSurface>(surface_),
-                          static_cast<EGLSurface>(surface_),
-                          static_cast<EGLContext>(context_)) == EGL_TRUE;
+    const bool ok = eglMakeCurrent(static_cast<EGLDisplay>(display_),
+                                   static_cast<EGLSurface>(surface_),
+                                   static_cast<EGLSurface>(surface_),
+                                   static_cast<EGLContext>(context_)) == EGL_TRUE;
+    if (!ok) logEglError("eglMakeCurrent");
+    return ok;
 }
 
 bool GlesContext::swap() noexcept {
     if (!valid_) return false;
-    return eglSwapBuffers(static_cast<EGLDisplay>(display_),
-                          static_cast<EGLSurface>(surface_)) == EGL_TRUE;
+    const bool ok = eglSwapBuffers(static_cast<EGLDisplay>(display_),
+                                   static_cast<EGLSurface>(surface_)) == EGL_TRUE;
+    if (!ok) logEglError("eglSwapBuffers");
+    return ok;
 }
 
 void GlesContext::shutdown() noexcept {
