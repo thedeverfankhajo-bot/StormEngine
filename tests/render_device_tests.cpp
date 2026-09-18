@@ -49,6 +49,8 @@ int main() {
     assert(!device.updateTexture(texture, rgba64, sizeof(rgba64), 2));
     assert(!device.updateTexture(texture, nullptr, sizeof(rgba64), 0));
     assert(!device.updateTexture(TextureHandle{}, rgba64, sizeof(rgba64), 0));
+    device.destroyTexture(texture);
+    assert(!device.updateTexture(texture, rgba64, sizeof(rgba64), 0));
 
     VertexLayout layout{};
     layout.attributeCount = 1;
