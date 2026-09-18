@@ -1,21 +1,21 @@
 # Contributing to StormEngine
 
-Thanks for helping build StormEngine.
+## Scope
 
-## Before you start
+StormEngine is an active C++20 engine project. Keep changes focused, testable, portable, and explicit about ownership and lifetime.
 
-StormEngine is an early-stage C++20 engine. APIs and architecture can change quickly. For larger changes, open an issue first so the design and scope can be discussed before substantial implementation work.
+For a substantial new subsystem or public API, open or update an issue before implementation when practical.
 
-## Development requirements
+## Requirements
 
 - C++20 compiler.
 - CMake 3.20 or newer.
 - Git.
-- For Android work: Android SDK/NDK and the project Gradle tooling used by CI.
+- Android SDK/NDK and the repository Gradle tooling for Android work.
 
-## Build and test
+## Host validation
 
-From the repository root:
+Run:
 
 ```bash
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug -DSTORM_BUILD_TESTS=ON
@@ -24,55 +24,59 @@ ctest --test-dir build --output-on-failure
 ./build/storm_sandbox
 ```
 
-When changing the OpenGL ES backend, also validate the Android build and the native smoke test when the change affects Android rendering or platform integration.
+For GLES/Android changes, validate the Android workflow or an equivalent Android build. Do not claim device-level behavior unless it was tested on a device/emulator.
 
-## Coding expectations
+## Code
 
-- Keep production code C++20 and portable unless a platform-specific implementation is required.
-- Prefer small, focused changes with clear ownership and lifetime semantics.
-- Preserve generation-safe entity/resource handles and existing invariants.
-- Avoid unrelated formatting or refactoring in feature/fix commits.
-- Use deterministic tests for new behavior and regressions.
-- Check error paths, resource destruction, invalid handles, and boundary conditions.
-- Keep public headers documented through clear names and concise comments where behavior is non-obvious.
+- Use C++20 and keep public APIs portable unless a backend/platform boundary requires otherwise.
+- Preserve resource and entity lifetime invariants.
+- Validate external and untrusted input at subsystem boundaries.
+- Check finite values, integer overflow, bounds, invalid handles, and destruction order where relevant.
+- Avoid hidden ownership and unnecessary global state.
+- Keep backend-neutral code independent of OpenGL ES types.
+- Add deterministic regression tests for new behavior and bug fixes.
+- Do not mix unrelated formatting or refactoring with feature changes.
+- Use clear names and comments only where behavior is not obvious from the code.
 
-## Rendering changes
+## Rendering
 
-For render-device, shader, mesh, buffer, texture, or backend changes:
+Rendering changes must consider:
 
-- Keep backend-neutral types independent from a specific graphics API where possible.
-- Validate resource handles before use.
-- Consider resource lifetime and destruction order.
-- Add or update tests for validation and lifecycle behavior.
-- For GLES changes, consider shader compilation/linking, vertex layouts, draw parameters, and Android device compatibility.
+- resource lifetime and generation safety;
+- shader compilation/linking and program lifetime;
+- vertex/index bounds and integer overflow;
+- render-state transitions;
+- texture and sampler binding;
+- Android/EGL context and surface lifetime;
+- backend-independent API behavior.
 
 ## Pull requests
 
-A good pull request should:
+A pull request should:
 
-1. Explain the problem and the intended solution.
-2. Keep the diff focused.
-3. Include tests for behavior that can be tested on the host.
-4. State whether Android/GLES behavior is affected.
-5. Mention any API, ABI, build, or compatibility impact.
-6. Report commands used to validate the change.
+1. Describe the problem.
+2. Describe the implementation and important invariants.
+3. Include tests or explain why a test is not practical.
+4. State Linux/Android/GLES impact.
+5. State API, ABI, build, and compatibility impact.
+6. List validation commands and CI results.
 
-Maintainers may ask for changes before merging. CI must remain green unless a failing check is directly explained by the change and intentionally being addressed.
+Do not merge with unexplained failing required checks.
 
-## Commit messages
+## Commits
 
-Use short, imperative commit subjects, for example:
+Use short imperative subjects, for example:
 
 ```text
 Add shader resource lifecycle tests
 Fix world transform cycle detection
-Improve GLES shader validation
+Cache GLES uniform locations
 ```
 
-## Reporting security issues
+## Security
 
-Do not open a public issue for a suspected vulnerability. Follow [`SECURITY.md`](SECURITY.md) instead.
+Do not disclose vulnerabilities in public issues. Follow [SECURITY.md](SECURITY.md).
 
 ## License
 
-The repository does not currently declare a project license. Do not assume that a contribution is licensed under a particular open-source license until the repository adds one.
+By contributing, you agree that your contribution is provided under the repository's MIT License, subject to applicable law and the repository's contribution terms.
