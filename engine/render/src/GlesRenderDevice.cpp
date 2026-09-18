@@ -109,11 +109,6 @@ std::uint32_t maxMipLevels(std::uint32_t width, std::uint32_t height) noexcept {
     return levels;
 }
 
-std::uint32_t GlesRenderDevice::allocateHandle(std::uint32_t& next) {
-    const auto id = next++;
-    return id == BufferHandle::invalidId ? 0u : id;
-}
-
 BufferHandle GlesRenderDevice::createBuffer(const BufferDesc& desc) {
     if (desc.size == 0 || desc.size > maxGlSize) return {};
     GLuint glId = 0;
@@ -122,22 +117,22 @@ BufferHandle GlesRenderDevice::createBuffer(const BufferDesc& desc) {
     glBindBuffer(GL_ARRAY_BUFFER, glId);
     glBufferData(GL_ARRAY_BUFFER, static_cast<GLsizeiptr>(desc.size), nullptr, toUsage(desc.usage));
     if (glGetError() != GL_NO_ERROR) { glDeleteBuffers(1, &glId); return {}; }
-    const auto handle = allocateHandle(nextBufferId_);
-    if (handle == 0) { glDeleteBuffers(1, &glId); return {}; }
-    buffers_.emplace(handle, BufferRecord{desc.size, glId});
-    return BufferHandle(handle);
+    const auto handle = bufferHandles_.allocate();
+    if (!handle.valid()) { glDeleteBuffers(1, &glId); return {}; }
+    buffers_.emplace(handle.id(), BufferRecord{desc.size, glId});
+    return handle;
 }
 void GlesRenderDevice::destroyBuffer(BufferHandle handle) {
-    if (!handle.valid()) return;
-    if (!bufferHandles_.valid(handle)) return false;
+    if (!bufferHandles_.valid(handle)) return;
     const auto it = buffers_.find(handle.id());
     if (it == buffers_.end()) return;
     const GLuint id = static_cast<GLuint>(it->second.glId);
     buffers_.erase(it);
+    bufferHandles_.release(handle);
     if (id != 0) glDeleteBuffers(1, &id);
 }
 bool GlesRenderDevice::updateBuffer(BufferHandle handle, const void* data, std::size_t size, std::size_t offset) {
-    if (!handle.valid() || data == nullptr || size == 0) return false;
+    if (!bufferHandles_.valid(handle) || data == nullptr || size == 0) return false;
     const auto it = buffers_.find(handle.id());
     if (it == buffers_.end() || offset > it->second.size || size > it->second.size - offset ||
         size > maxGlSize || offset > maxGlSize) return false;
@@ -146,7 +141,8 @@ bool GlesRenderDevice::updateBuffer(BufferHandle handle, const void* data, std::
     return glGetError() == GL_NO_ERROR;
 }
 TextureHandle GlesRenderDevice::createTexture(const TextureDesc& desc) {
-    if (desc.width == 0 || desc.height == 0 || desc.mipLevels == 0 || desc.mipLevels > maxMipLevels(desc.width, desc.height) || desc.format != TextureFormat::RGBA8 ||
+    if (desc.width == 0 || desc.height == 0 || desc.mipLevels == 0 ||
+        desc.mipLevels > maxMipLevels(desc.width, desc.height) || desc.format != TextureFormat::RGBA8 ||
         desc.width > static_cast<std::uint32_t>(std::numeric_limits<GLsizei>::max()) ||
         desc.height > static_cast<std::uint32_t>(std::numeric_limits<GLsizei>::max())) return {};
     GLuint glId = 0;
@@ -160,14 +156,13 @@ TextureHandle GlesRenderDevice::createTexture(const TextureDesc& desc) {
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, static_cast<GLsizei>(desc.width), static_cast<GLsizei>(desc.height), 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
     if (desc.mipLevels > 1) glGenerateMipmap(GL_TEXTURE_2D);
     if (glGetError() != GL_NO_ERROR) { glDeleteTextures(1, &glId); return {}; }
-    const auto handle = allocateHandle(nextTextureId_);
-    if (handle == 0) { glDeleteTextures(1, &glId); return {}; }
-    textures_.emplace(handle, TextureRecord{desc, glId});
-    return TextureHandle(handle);
+    const auto handle = textureHandles_.allocate();
+    if (!handle.valid()) { glDeleteTextures(1, &glId); return {}; }
+    textures_.emplace(handle.id(), TextureRecord{desc, glId});
+    return handle;
 }
 bool GlesRenderDevice::updateTexture(TextureHandle handle, const void* data, std::size_t size, std::uint32_t mipLevel) {
-    if (!handle.valid() || data == nullptr) return false;
-    if (!textureHandles_.valid(handle)) return false;
+    if (!textureHandles_.valid(handle) || data == nullptr) return false;
     const auto it = textures_.find(handle.id());
     if (it == textures_.end() || it->second.desc.format != TextureFormat::RGBA8 || mipLevel >= it->second.desc.mipLevels) return false;
     const std::uint32_t width = std::max(1u, it->second.desc.width >> std::min(mipLevel, 31u));
@@ -177,15 +172,15 @@ bool GlesRenderDevice::updateTexture(TextureHandle handle, const void* data, std
     glBindTexture(GL_TEXTURE_2D, static_cast<GLuint>(it->second.glId));
     glTexSubImage2D(GL_TEXTURE_2D, static_cast<GLint>(mipLevel), 0, 0,
                     static_cast<GLsizei>(width), static_cast<GLsizei>(height), GL_RGBA, GL_UNSIGNED_BYTE, data);
-    if (glGetError() != GL_NO_ERROR) return false;
-    return true;
+    return glGetError() == GL_NO_ERROR;
 }
 void GlesRenderDevice::destroyTexture(TextureHandle handle) {
-    if (!handle.valid()) return;
+    if (!textureHandles_.valid(handle)) return;
     const auto it = textures_.find(handle.id());
     if (it == textures_.end()) return;
     const GLuint id = static_cast<GLuint>(it->second.glId);
     textures_.erase(it);
+    textureHandles_.release(handle);
     if (id != 0) glDeleteTextures(1, &id);
 }
 ShaderHandle GlesRenderDevice::createShader(const ShaderDesc& desc, const std::string& source) {
@@ -193,13 +188,12 @@ ShaderHandle GlesRenderDevice::createShader(const ShaderDesc& desc, const std::s
     const GLenum type = desc.stage == ShaderStage::Vertex ? GL_VERTEX_SHADER : GL_FRAGMENT_SHADER;
     const GLuint shader = compileShader(type, source.c_str());
     if (shader == 0) return {};
-    const auto handle = allocateHandle(nextShaderId_);
-    if (handle == 0) { glDeleteShader(shader); return {}; }
-    shaders_.emplace(handle, ShaderRecord{shader, desc.stage});
-    return ShaderHandle(handle);
+    const auto handle = shaderHandles_.allocate();
+    if (!handle.valid()) { glDeleteShader(shader); return {}; }
+    shaders_.emplace(handle.id(), ShaderRecord{shader, desc.stage});
+    return handle;
 }
 void GlesRenderDevice::destroyShader(ShaderHandle handle) {
-    if (!handle.valid()) return;
     if (!shaderHandles_.valid(handle)) return;
     const auto it = shaders_.find(handle.id());
     if (it == shaders_.end()) return;
