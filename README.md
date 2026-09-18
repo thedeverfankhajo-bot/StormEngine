@@ -22,7 +22,7 @@ Current foundations include:
 Requirements:
 
 - C++20 compiler.
-- CMake 3.20+ for direct builds; CMake 3.23+ for shared presets.
+- CMake 3.20+ for direct builds and the repository's shared presets.
 - Git.
 - Ninja is recommended; Make is supported by the Termux helper.
 - Android SDK/NDK and Gradle are required only for Android APK builds.
@@ -47,7 +47,7 @@ CMake presets:
     cmake --build --preset host-debug
     ctest --preset host-debug
 
-The presets schema is version 4, so CMake 3.23 is the minimum supported version.
+CMakePresets.json uses schema version 2; build and test presets are supported starting with CMake 3.20.
 
 ## Android
 
@@ -142,7 +142,7 @@ Android:
 
 Pull requests and pushes to main run native debug/release CTest, sanitizer validation, Android debug APK/lint, and CodeQL.
 
-Workflow concurrency cancels obsolete runs on the same ref. Repository mutations are intentionally kept sequential during maintenance so a failed API request can be recovered from the branch SHA before another mutation is attempted.
+Workflow concurrency cancels obsolete runs on the same ref. Repository mutations are intentionally kept sequential during maintenance. After every write, re-read the branch/file SHA before issuing another write. If an API call is interrupted, do not retry blindly: first inspect the branch and file SHA to determine whether the write already landed.
 
 Do not merge with unexplained failing checks.
 
