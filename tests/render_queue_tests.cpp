@@ -49,14 +49,14 @@ int main() {
     first.vertexBuffer = BufferHandle(1);
     first.vertexCount = 3;
     first.vertexLayout = layout();
-    queue.submit(first);
+    assert(queue.submit(first));
 
     DrawCommand second{};
     second.topology = PrimitiveTopology::Lines;
     second.vertexBuffer = BufferHandle(2);
     second.vertexCount = 6;
     second.vertexLayout = layout();
-    queue.submit(second);
+    assert(queue.submit(second));
 
     assert(!queue.empty());
     assert(queue.size() == 2);
@@ -69,7 +69,7 @@ int main() {
     DrawCommand invalid{};
     invalid.vertexBuffer = BufferHandle(99);
     invalid.vertexCount = 3;
-    queue.submit(invalid);
+    assert(!queue.submit(invalid));
     assert(queue.size() == 2);
 
     queue.beginFrame();
@@ -82,9 +82,16 @@ int main() {
     indexed.indexCount = 12;
     indexed.vertexCount = 3;
     indexed.vertexLayout = layout();
-    queue.submit(indexed);
+    assert(queue.submit(indexed));
     assert(queue.size() == 1);
     assert(queue.at(0).indexed());
+    DrawCommand badBase = first;
+    badBase.baseVertex = 1;
+    assert(!queue.submit(badBase));
+
+    DrawCommand badViewport = first;
+    badViewport.viewportWidth = 1280;
+    assert(!queue.submit(badViewport));
 
     RecordingDevice device;
     assert(queue.execute(device));
