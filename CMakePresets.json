@@ -1,39 +1,14 @@
 {
-  "version": 4,
-  "cmakeMinimumRequired": {
-    "major": 3,
-    "minor": 23,
-    "patch": 0
-  },
+  "version": 2,
+  "cmakeMinimumRequired": { "major": 3, "minor": 20, "patch": 0 },
   "configurePresets": [
     {
       "name": "host-debug",
+      "displayName": "Host Debug",
       "generator": "Ninja",
       "binaryDir": "${sourceDir}/build/host-debug",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
-        "STORM_BUILD_TESTS": "ON",
-        "STORM_BUILD_GLES": "OFF",
-        "STORM_ENABLE_WARNINGS": "ON"
-      }
-    },
-    {
-      "name": "termux-debug",
-      "generator": "Ninja",
-      "binaryDir": "${sourceDir}/build/termux-debug",
-      "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Debug",
-        "STORM_BUILD_TESTS": "ON",
-        "STORM_BUILD_GLES": "OFF",
-        "STORM_ENABLE_WARNINGS": "ON"
-      }
-    },
-    {
-      "name": "termux-release",
-      "generator": "Ninja",
-      "binaryDir": "${sourceDir}/build/termux-release",
-      "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Release",
         "STORM_BUILD_TESTS": "ON",
         "STORM_BUILD_GLES": "OFF",
         "STORM_ENABLE_WARNINGS": "ON"
@@ -52,68 +27,40 @@
       }
     },
     {
-      "name": "termux-gles-debug",
-      "displayName": "Termux EGL/GLES Debug",
+      "name": "termux-debug",
+      "displayName": "Termux Debug",
       "generator": "Ninja",
-      "binaryDir": "${sourceDir}/build/termux-gles-debug",
+      "binaryDir": "${sourceDir}/build/termux-debug",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
         "STORM_BUILD_TESTS": "ON",
-        "STORM_BUILD_GLES": "ON",
+        "STORM_BUILD_GLES": "OFF",
+        "STORM_ENABLE_WARNINGS": "ON"
+      }
+    },
+    {
+      "name": "termux-release",
+      "displayName": "Termux Release",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/termux-release",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "STORM_BUILD_TESTS": "ON",
+        "STORM_BUILD_GLES": "OFF",
         "STORM_ENABLE_WARNINGS": "ON"
       }
     }
   ],
   "buildPresets": [
-    {
-      "name": "host-debug",
-      "configurePreset": "host-debug"
-    },
-    {
-      "name": "termux-debug",
-      "configurePreset": "termux-debug"
-    },
-    {
-      "name": "termux-release",
-      "configurePreset": "termux-release"
-    },
-    {
-      "name": "host-release",
-      "configurePreset": "host-release"
-    },
-    {
-      "name": "termux-gles-debug",
-      "configurePreset": "termux-gles-debug"
-    }
+    { "name": "host-debug", "configurePreset": "host-debug" },
+    { "name": "host-release", "configurePreset": "host-release" },
+    { "name": "termux-debug", "configurePreset": "termux-debug" },
+    { "name": "termux-release", "configurePreset": "termux-release" }
   ],
   "testPresets": [
-    {
-      "name": "host-debug",
-      "configurePreset": "host-debug",
-      "output": {
-        "outputOnFailure": true
-      }
-    },
-    {
-      "name": "termux-debug",
-      "configurePreset": "termux-debug",
-      "output": {
-        "outputOnFailure": true
-      }
-    },
-    {
-      "name": "termux-release",
-      "configurePreset": "termux-release",
-      "output": {
-        "outputOnFailure": true
-      }
-    },
-    {
-      "name": "host-release",
-      "configurePreset": "host-release",
-      "output": {
-        "outputOnFailure": true
-      }
-    }
+    { "name": "host-debug", "configurePreset": "host-debug", "output": { "outputOnFailure": true } },
+    { "name": "host-release", "configurePreset": "host-release", "output": { "outputOnFailure": true } },
+    { "name": "termux-debug", "configurePreset": "termux-debug", "output": { "outputOnFailure": true } },
+    { "name": "termux-release", "configurePreset": "termux-release", "output": { "outputOnFailure": true } }
   ]
 }
