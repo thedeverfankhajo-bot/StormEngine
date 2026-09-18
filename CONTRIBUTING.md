@@ -7,7 +7,7 @@ StormEngine is an active C++20 engine project. Contributions should be focused, 
 ## Requirements
 
 - C++20 compiler.
-- CMake 3.20+.
+- CMake 3.23+.
 - Git.
 - Ninja recommended; Make is supported.
 - Android SDK/NDK and Gradle for Android work.
@@ -24,41 +24,62 @@ Run:
 
     ./scripts/termux-build.sh
 
-For a low-memory phone, reduce parallelism:
+For a low-memory phone:
 
     STORM_BUILD_JOBS=1 ./scripts/termux-build.sh
 
-This validates the portable native engine. It does not replace Android SDK/NDK APK validation or physical-device GPU testing.
+Release:
+
+    STORM_BUILD_TYPE=Release ./scripts/termux-build.sh
+
+GLES is an Android/NDK backend; a generic Termux native build validates the portable core rather than pretending to be an Android cross-build.
 
 ## Host validation
 
-    cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug -DSTORM_BUILD_TESTS=ON
-    cmake --build build --parallel
-    ctest --test-dir build --output-on-failure
-    ./build/storm_sandbox
+Debug:
 
-For release validation:
+    cmake --preset host-debug
+    cmake --build --preset host-debug
+    ctest --preset host-debug
+    ./build/host-debug/storm_sandbox
 
-    cmake -S . -B build-release -DCMAKE_BUILD_TYPE=Release -DSTORM_BUILD_TESTS=ON
-    cmake --build build-release --parallel
-    ctest --test-dir build-release --output-on-failure
+Release:
 
-For sanitizer validation:
+    cmake --preset host-release
+    cmake --build --preset host-release
+    ctest --preset host-release
+    ./build/host-release/storm_sandbox
+
+Sanitizers:
 
     cmake -S . -B build-sanitized -DCMAKE_BUILD_TYPE=Debug -DSTORM_BUILD_TESTS=ON -DSTORM_ENABLE_SANITIZERS=ON
     cmake --build build-sanitized --parallel
     ctest --test-dir build-sanitized --output-on-failure
+    ./build-sanitized/storm_sandbox
 
 ## Android validation
 
-For Android changes, run the Android CI-equivalent build:
+For Android changes, run:
 
     cd android
     gradle assembleDebug --no-daemon
+    gradle lintDebug --no-daemon
 
-The current APK build targets arm64-v8a, armeabi-v7a, x86_64, and x86.
+The APK build targets arm64-v8a, armeabi-v7a, x86_64, and x86.
 
-Do not claim device-level behavior unless it was tested on a device or emulator. Record exact device/model, Android API, ABI, SoC/GPU, OpenGL ES version, renderer string, commit, and lifecycle observations.
+Do not claim device-level behavior unless it was tested on a device or emulator. Record exact model, Android API, ABI, SoC/GPU, OpenGL ES version, renderer/vendor, commit, and lifecycle observations.
+
+## Device matrix
+
+The required representative Android matrix spans:
+
+- Samsung Galaxy;
+- Xiaomi / Redmi / POCO;
+- Google Pixel;
+- OnePlus;
+- Motorola.
+
+These are device families, not separate mobile operating systems and not blanket certification. Each result must identify the exact model and software stack.
 
 ## Code standards
 
@@ -70,17 +91,19 @@ Do not claim device-level behavior unless it was tested on a device or emulator.
 - Keep backend-neutral code independent of OpenGL ES types.
 - Prefer RAII and deterministic cleanup.
 - Add regression tests for new behavior and bug fixes.
-- Keep changes warning-clean under the project's enabled warning flags.
+- Keep changes warning-clean.
 
 ## Rendering
 
-Consider resource lifetime, shader/program lifetime, vertex/index bounds, render-state transitions, texture/sampler binding, Android/EGL lifecycle, context loss, surface recreation, and backend-independent validation.
+Review resource lifetime, shader/program lifetime, vertex/index bounds, render-state transitions, texture/mipmap behavior, Android/EGL lifecycle, surface recreation, context loss, and backend-independent validation.
+
+OpenGL ES 3.x is required by the Android smoke application. The Android NDK documentation recommends checking the runtime GL version/capabilities rather than inferring support from the device alone. citeturn3search3
 
 ## Threading
 
 Android renderer lifecycle changes must account for SurfaceView callbacks, pause/resume, native thread startup/shutdown, JNI object lifetime, ANativeWindow reference counting, and concurrent restart requests.
 
-Do not introduce polling loops that can busy-spin when a surface or resource is unavailable.
+Do not introduce polling loops that busy-spin when a surface or resource is unavailable.
 
 ## Pull requests
 
@@ -93,15 +116,26 @@ A pull request should describe:
 5. API/ABI/build compatibility impact;
 6. known limitations and device-validation status.
 
-Keep related changes in one coherent PR rather than creating many tiny PRs that are difficult to validate together.
+Keep related changes in one coherent PR rather than creating many tiny PRs.
 
-Do not merge with unexplained failing checks. Wait for the complete required CI set after the final commit.
+Before merge, wait for the complete required CI set after the final commit.
 
-## Repository workflow
+## Safe GitHub maintenance workflow
 
-Use a dedicated feature branch. Before mutation, establish the base SHA. After each logical mutation, record the resulting commit SHA. Keep GitHub API operations sequential and avoid repeatedly downloading full workflow logs.
+Repository maintenance should be performed as a checkpointed sequence:
 
-If a tool request fails or is interrupted, first re-read the branch/PR/commit state before retrying a mutation. Never assume a failed tool call did not commit.
+1. read the current default-branch SHA;
+2. create or rebase a clean feature branch from that SHA;
+3. make one logical file mutation at a time;
+4. record the resulting commit SHA;
+5. inspect the branch/PR state before retrying any interrupted mutation;
+6. avoid concurrent GitHub mutations and repeated workflow-log polling;
+7. create the PR only after the branch diff is coherent;
+8. wait for the final CI checks;
+9. merge only after checks pass;
+10. re-read main and verify the merge SHA.
+
+This prevents an interrupted API call from being mistaken for a failed commit and avoids unnecessary GitHub API pressure.
 
 ## Security
 
