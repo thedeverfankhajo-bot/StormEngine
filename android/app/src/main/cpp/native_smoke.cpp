@@ -143,9 +143,29 @@ void main() { outColor = vColor; })glsl";
         const bool submitted = device.submit(command);
         device.endFrame();
 
-        if (!submitted || !context.swap()) {
+        if (!submitted) {
             gRunning.store(false);
             break;
+        }
+
+        if (!context.swap()) {
+            if (!context.contextLost()) {
+                gRunning.store(false);
+                break;
+            }
+
+            // EGL context loss invalidates every GL object name. The render
+            // device keeps the CPU-side resource descriptions, so recreate
+            // the context and restore those GPU resources on this thread.
+            device.onContextLost();
+            if (!context.initializeWindow(window) || !device.onContextRestored()) {
+                context.shutdown();
+                ANativeWindow_release(window);
+                gRunning.store(false);
+                return;
+            }
+            previous = std::chrono::steady_clock::now();
+            continue;
         }
     }
 

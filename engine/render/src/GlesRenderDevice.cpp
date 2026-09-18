@@ -7,6 +7,7 @@
 #include <vector>
 #include <algorithm>
 #include <limits>
+#include <cstring>
 
 namespace storm::render {
 namespace {
@@ -61,6 +62,7 @@ constexpr std::uint64_t maxGlSize = static_cast<std::uint64_t>(std::numeric_limi
 constexpr std::uint64_t maxGlCount = static_cast<std::uint64_t>(std::numeric_limits<GLsizei>::max());
 constexpr std::uint64_t maxGlInt = static_cast<std::uint64_t>(std::numeric_limits<GLint>::max());
 
+
 bool applyMaterial(const Material& material,
                    GLuint program,
                    std::unordered_map<std::uint64_t, std::unordered_map<std::string, std::int32_t>>& uniformLocations,
@@ -103,17 +105,110 @@ bool applyMaterial(const Material& material,
     }
     return true;
 }
+
+std::size_t mipByteOffset(const TextureDesc& desc, std::uint32_t mipLevel) noexcept {
+    std::size_t offset = 0;
+    for (std::uint32_t level = 0; level < mipLevel; ++level) {
+        const std::uint32_t width = std::max(1u, desc.width >> std::min(level, 31u));
+        const std::uint32_t height = std::max(1u, desc.height >> std::min(level, 31u));
+        const std::uint64_t bytes = static_cast<std::uint64_t>(width) * height * 4u;
+        if (bytes > std::numeric_limits<std::size_t>::max() - offset) return 0;
+        offset += static_cast<std::size_t>(bytes);
+    }
+    return offset;
+}
+
+std::size_t textureByteSize(const TextureDesc& desc) noexcept {
+    const std::size_t offset = mipByteOffset(desc, desc.mipLevels);
+    return offset;
+}
+
 } // namespace
 
 GlesRenderDevice::~GlesRenderDevice() {
-    for (const auto& [key, program] : programs_) { (void)key; glDeleteProgram(static_cast<GLuint>(program)); }
+    if (!gpuResourcesValid_) return;
+    for (const auto& [key, program] : programs_) { (void)key; if (program != 0) glDeleteProgram(static_cast<GLuint>(program)); }
     if (vao_ != 0) {
         const GLuint id = static_cast<GLuint>(vao_);
         glDeleteVertexArrays(1, &id);
     }
-    for (const auto& [handle, shader] : shaders_) { (void)handle; glDeleteShader(static_cast<GLuint>(shader.glId)); }
+    for (const auto& [handle, shader] : shaders_) { (void)handle; if (shader.glId != 0) glDeleteShader(static_cast<GLuint>(shader.glId)); }
     for (const auto& [handle, record] : buffers_) { (void)handle; const GLuint id = static_cast<GLuint>(record.glId); if (id != 0) glDeleteBuffers(1, &id); }
     for (const auto& [handle, record] : textures_) { (void)handle; const GLuint id = static_cast<GLuint>(record.glId); if (id != 0) glDeleteTextures(1, &id); }
+}
+
+void GlesRenderDevice::onContextLost() noexcept {
+    // Do not issue GL deletion calls here: this hook is also invoked after
+    // EGL reports EGL_CONTEXT_LOST, where the old context is no longer safe
+    // to use. The context teardown owns the old GL objects.
+    for (auto& [key, program] : programs_) { (void)key; program = 0; }
+    vao_ = 0;
+    for (auto& [handle, shader] : shaders_) { (void)handle; shader.glId = 0; }
+    for (auto& [handle, record] : buffers_) { (void)handle; record.glId = 0; }
+    for (auto& [handle, record] : textures_) { (void)handle; record.glId = 0; }
+    programs_.clear();
+    uniformLocations_.clear();
+    program_ = 0;
+    maxTextureUnits_ = 0;
+    stateCache_.invalidate();
+    frameActive_ = false;
+    gpuResourcesValid_ = false;
+}
+bool GlesRenderDevice::onContextRestored() noexcept {
+    if (gpuResourcesValid_) return true;
+
+    for (auto& [handle, record] : buffers_) {
+        (void)handle;
+        GLuint id = 0;
+        glGenBuffers(1, &id);
+        if (id == 0) { onContextLost(); return false; }
+        glBindBuffer(GL_ARRAY_BUFFER, id);
+        glBufferData(GL_ARRAY_BUFFER, static_cast<GLsizeiptr>(record.size),
+                     record.cpuData.empty() ? nullptr : record.cpuData.data(), toUsage(record.usage));
+        if (glGetError() != GL_NO_ERROR) { glDeleteBuffers(1, &id); onContextLost(); return false; }
+        record.glId = id;
+    }
+
+    for (auto& [handle, record] : textures_) {
+        (void)handle;
+        GLuint id = 0;
+        glGenTextures(1, &id);
+        if (id == 0) { onContextLost(); return false; }
+        glBindTexture(GL_TEXTURE_2D, id);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, record.desc.mipLevels > 1 ? GL_LINEAR_MIPMAP_LINEAR : GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+        for (std::uint32_t level = 0; level < record.desc.mipLevels; ++level) {
+            const std::uint32_t width = std::max(1u, record.desc.width >> std::min(level, 31u));
+            const std::uint32_t height = std::max(1u, record.desc.height >> std::min(level, 31u));
+            const std::size_t offset = mipByteOffset(record.desc, level);
+            glTexImage2D(GL_TEXTURE_2D, static_cast<GLint>(level), GL_RGBA8,
+                         static_cast<GLsizei>(width), static_cast<GLsizei>(height), 0,
+                         GL_RGBA, GL_UNSIGNED_BYTE,
+                         record.cpuData.empty() ? nullptr : record.cpuData.data() + offset);
+        }
+        if (record.desc.mipLevels > 1) glGenerateMipmap(GL_TEXTURE_2D);
+        if (glGetError() != GL_NO_ERROR) { glDeleteTextures(1, &id); onContextLost(); return false; }
+        record.glId = id;
+    }
+
+    for (auto& [handle, record] : shaders_) {
+        (void)handle;
+        const GLenum type = record.stage == ShaderStage::Vertex ? GL_VERTEX_SHADER : GL_FRAGMENT_SHADER;
+        const GLuint id = compileShader(type, record.source.c_str());
+        if (id == 0) { onContextLost(); return false; }
+        record.glId = id;
+    }
+
+    program_ = 0;
+    vao_ = 0;
+    maxTextureUnits_ = 0;
+    uniformLocations_.clear();
+    stateCache_.invalidate();
+    frameActive_ = false;
+    gpuResourcesValid_ = true;
+    return true;
 }
 
 std::uint32_t maxMipLevels(std::uint32_t width, std::uint32_t height) noexcept {
@@ -136,7 +231,12 @@ BufferHandle GlesRenderDevice::createBuffer(const BufferDesc& desc) {
     if (glGetError() != GL_NO_ERROR) { glDeleteBuffers(1, &glId); return {}; }
     const auto handle = bufferHandles_.allocate();
     if (!handle.valid()) { glDeleteBuffers(1, &glId); return {}; }
-    buffers_.emplace(handle.id(), BufferRecord{desc.size, glId});
+    BufferRecord record{};
+    record.size = desc.size;
+    record.glId = glId;
+    record.usage = desc.usage;
+    record.cpuData.resize(desc.size);
+    buffers_.emplace(handle.id(), std::move(record));
     return handle;
 }
 void GlesRenderDevice::destroyBuffer(BufferHandle handle) {
@@ -155,7 +255,9 @@ bool GlesRenderDevice::updateBuffer(BufferHandle handle, const void* data, std::
         size > maxGlSize || offset > maxGlSize) return false;
     glBindBuffer(GL_ARRAY_BUFFER, static_cast<GLuint>(it->second.glId));
     glBufferSubData(GL_ARRAY_BUFFER, static_cast<GLintptr>(offset), static_cast<GLsizeiptr>(size), data);
-    return glGetError() == GL_NO_ERROR;
+    if (glGetError() != GL_NO_ERROR) return false;
+    std::memcpy(it->second.cpuData.data() + offset, data, size);
+    return true;
 }
 TextureHandle GlesRenderDevice::createTexture(const TextureDesc& desc) {
     if (desc.width == 0 || desc.height == 0 || desc.mipLevels == 0 ||
@@ -173,9 +275,15 @@ TextureHandle GlesRenderDevice::createTexture(const TextureDesc& desc) {
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, static_cast<GLsizei>(desc.width), static_cast<GLsizei>(desc.height), 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
     if (desc.mipLevels > 1) glGenerateMipmap(GL_TEXTURE_2D);
     if (glGetError() != GL_NO_ERROR) { glDeleteTextures(1, &glId); return {}; }
+    const std::size_t cpuBytes = textureByteSize(desc);
+    if (cpuBytes == 0) { glDeleteTextures(1, &glId); return {}; }
     const auto handle = textureHandles_.allocate();
     if (!handle.valid()) { glDeleteTextures(1, &glId); return {}; }
-    textures_.emplace(handle.id(), TextureRecord{desc, glId});
+    TextureRecord record{};
+    record.desc = desc;
+    record.glId = glId;
+    record.cpuData.resize(cpuBytes);
+    textures_.emplace(handle.id(), std::move(record));
     return handle;
 }
 bool GlesRenderDevice::updateTexture(TextureHandle handle, const void* data, std::size_t size, std::uint32_t mipLevel) {
@@ -189,7 +297,10 @@ bool GlesRenderDevice::updateTexture(TextureHandle handle, const void* data, std
     glBindTexture(GL_TEXTURE_2D, static_cast<GLuint>(it->second.glId));
     glTexSubImage2D(GL_TEXTURE_2D, static_cast<GLint>(mipLevel), 0, 0,
                     static_cast<GLsizei>(width), static_cast<GLsizei>(height), GL_RGBA, GL_UNSIGNED_BYTE, data);
-    return glGetError() == GL_NO_ERROR;
+    if (glGetError() != GL_NO_ERROR) return false;
+    const std::size_t offset = mipByteOffset(it->second.desc, mipLevel);
+    std::memcpy(it->second.cpuData.data() + offset, data, size);
+    return true;
 }
 void GlesRenderDevice::destroyTexture(TextureHandle handle) {
     if (!textureHandles_.valid(handle)) return;
@@ -207,7 +318,7 @@ ShaderHandle GlesRenderDevice::createShader(const ShaderDesc& desc, const std::s
     if (shader == 0) return {};
     const auto handle = shaderHandles_.allocate();
     if (!handle.valid()) { glDeleteShader(shader); return {}; }
-    shaders_.emplace(handle.id(), ShaderRecord{shader, desc.stage});
+    shaders_.emplace(handle.id(), ShaderRecord{shader, desc.stage, source});
     return handle;
 }
 void GlesRenderDevice::destroyShader(ShaderHandle handle) {
@@ -232,7 +343,7 @@ void GlesRenderDevice::destroyShader(ShaderHandle handle) {
 void GlesRenderDevice::beginFrame() { frameActive_ = true; submittedDraws_ = 0; }
 
 bool GlesRenderDevice::submit(const DrawCommand& command) {
-    if (!frameActive_ || !bufferHandles_.valid(command.vertexBuffer) || command.vertexCount == 0 || !command.vertexLayout.valid()) return false;
+    if (!gpuResourcesValid_ || !frameActive_ || !bufferHandles_.valid(command.vertexBuffer) || command.vertexCount == 0 || !command.vertexLayout.valid()) return false;
     if (!shaderHandles_.valid(command.shader) || !shaderHandles_.valid(command.fragmentShader)) return false;
     const auto vertexBufferIt = buffers_.find(command.vertexBuffer.id());
     if (vertexBufferIt == buffers_.end() || command.baseVertex != 0) return false;
@@ -361,6 +472,8 @@ std::size_t GlesRenderDevice::liveShaderCount() const noexcept { return shaders_
 #else
 namespace storm::render {
 GlesRenderDevice::~GlesRenderDevice() = default;
+void GlesRenderDevice::onContextLost() noexcept { gpuResourcesValid_ = false; }
+bool GlesRenderDevice::onContextRestored() noexcept { return true; }
 BufferHandle GlesRenderDevice::createBuffer(const BufferDesc&) { return {}; }
 void GlesRenderDevice::destroyBuffer(BufferHandle) {}
 bool GlesRenderDevice::updateBuffer(BufferHandle, const void*, std::size_t, std::size_t) { return false; }
