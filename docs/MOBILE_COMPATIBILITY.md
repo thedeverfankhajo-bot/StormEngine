@@ -16,9 +16,9 @@ StormEngine currently targets Android through the NDK, CMake, EGL, and OpenGL ES
 | Gradle | 9.6 |
 | Java | 17 |
 
-Google Play requires new apps and updates to target Android 16/API 36 or higher from August 31, 2026. citeturn1search0
+Google Play requires new apps and updates to target Android 16/API 36 or higher from August 31, 2026.
 
-The Android NDK documentation lists OpenGL ES 3.0 as available from API 18 and recommends querying the runtime GL version/extensions for actual device capabilities. citeturn3search3
+The Android NDK documentation lists OpenGL ES 3.0 as available from API 18 and recommends querying the runtime GL version/extensions for actual device capabilities.
 
 ## Representative device-family matrix
 
@@ -67,7 +67,7 @@ For every device validation run, record:
 8. If the driver exposes context loss, verify CPU-side resources restore into the new context.
 9. Record the final GL vendor/renderer and engine commit.
 
-The native window API exposes width/height and explicit acquire/release ownership, so the renderer must never retain a Java Surface or ANativeWindow beyond its valid lifecycle. citeturn3search0
+The native window API exposes width/height and explicit acquire/release ownership, so the renderer must never retain a Java Surface or ANativeWindow beyond its valid lifecycle.
 
 ## Graphics compatibility
 
