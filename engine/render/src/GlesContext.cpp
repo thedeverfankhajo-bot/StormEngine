@@ -89,6 +89,7 @@ bool GlesContext::initializePbuffer(int width, int height) noexcept {
     surface_ = surface;
     context_ = context;
     valid_ = true;
+    contextLost_ = false;
     return true;
 }
 
@@ -162,7 +163,13 @@ bool GlesContext::swap() noexcept {
     if (!valid_) return false;
     const bool ok = eglSwapBuffers(static_cast<EGLDisplay>(display_),
                                    static_cast<EGLSurface>(surface_)) == EGL_TRUE;
-    if (!ok) logEglError("eglSwapBuffers");
+    if (!ok) {
+        const EGLint error = eglGetError();
+        if (error == EGL_CONTEXT_LOST) contextLost_ = true;
+        __android_log_print(ANDROID_LOG_ERROR, "StormEngine",
+                            "EGL eglSwapBuffers failed: 0x%04x",
+                            static_cast<unsigned int>(error));
+    }
     return ok;
 }
 
@@ -182,6 +189,7 @@ void GlesContext::shutdown() noexcept {
     surface_ = nullptr;
     context_ = nullptr;
     valid_ = false;
+    contextLost_ = false;
 }
 
 } // namespace storm::render
@@ -197,6 +205,7 @@ void GlesContext::shutdown() noexcept {
     display_ = nullptr;
     surface_ = nullptr;
     context_ = nullptr;
+    contextLost_ = false;
 }
 bool GlesContext::makeCurrent() noexcept { return false; }
 bool GlesContext::swap() noexcept { return false; }
