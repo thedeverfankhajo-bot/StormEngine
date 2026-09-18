@@ -12,6 +12,11 @@ For a substantial new subsystem or public API, open or update an issue before im
 - CMake 3.20 or newer.
 - Git.
 - Android SDK/NDK and the repository Gradle tooling for Android work.
+- Termux users: use the repository Termux script rather than assuming an Android SDK exists in `$HOME`.
+
+## Termux validation
+
+On an Android phone running Termux, install `clang`, `cmake`, `ninja` (or `make`), and `git`, then run `./scripts/termux-build.sh`. This validates the native portable engine; it does not replace Android APK validation.
 
 ## Host validation
 
