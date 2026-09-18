@@ -164,7 +164,7 @@ void main() { outColor = vColor; })glsl";
                 gRunning.store(false);
                 return;
             }
-            last = std::chrono::steady_clock::now();
+            previous = std::chrono::steady_clock::now();
             continue;
         }
     }
