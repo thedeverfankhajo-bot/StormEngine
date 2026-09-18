@@ -48,6 +48,7 @@ public:
 
     template <typename... Args>
     [[nodiscard]] Handle emplace(Args&&... args) {
+        if (generationSeed_ == Handle::invalidGeneration) return {};
         if (!free_.empty()) {
             const Index index = free_.back();
             Slot& slot = slots_[index];
@@ -61,7 +62,7 @@ public:
             return {};
 
         Slot slot{};
-        slot.generation = 1;
+        slot.generation = generationSeed_;
         slot.value.emplace(std::forward<Args>(args)...);
         try {
             slots_.push_back(std::move(slot));
@@ -69,7 +70,7 @@ public:
             throw;
         }
         ++liveCount_;
-        return Handle(static_cast<Index>(slots_.size() - 1), 1);
+        return Handle(static_cast<Index>(slots_.size() - 1), generationSeed_);
     }
 
     bool destroy(Handle handle) noexcept {
@@ -110,6 +111,11 @@ public:
         slots_.clear();
         free_.clear();
         liveCount_ = 0;
+        if (generationSeed_ != std::numeric_limits<Generation>::max()) {
+            ++generationSeed_;
+        } else {
+            generationSeed_ = Handle::invalidGeneration;
+        }
     }
 
 private:
@@ -135,6 +141,7 @@ private:
     std::vector<Slot> slots_;
     std::vector<Index> free_;
     std::size_t liveCount_{0};
+    Generation generationSeed_{1};
 };
 
 } // namespace storm::core

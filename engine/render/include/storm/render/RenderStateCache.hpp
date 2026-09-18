@@ -13,6 +13,10 @@ struct RenderState final {
     bool scissorEnabled{false};
     std::uint32_t viewportWidth{0};
     std::uint32_t viewportHeight{0};
+    std::int32_t scissorX{0};
+    std::int32_t scissorY{0};
+    std::uint32_t scissorWidth{0};
+    std::uint32_t scissorHeight{0};
     friend constexpr bool operator==(const RenderState&, const RenderState&) noexcept = default;
 };
 class RenderStateCache final {
