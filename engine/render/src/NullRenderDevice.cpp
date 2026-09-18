@@ -71,6 +71,8 @@ bool NullRenderDevice::submit(const DrawCommand& command) {
         if (indexOffset > indexIt->second || indexBytes > indexIt->second - indexOffset) return false;
     } else if (command.indexBuffer.valid()) return false;
     if (!command.shader.valid() || !command.fragmentShader.valid()) return false;
+    if (command.viewportWidth > static_cast<std::uint32_t>(std::numeric_limits<std::int32_t>::max()) ||
+        command.viewportHeight > static_cast<std::uint32_t>(std::numeric_limits<std::int32_t>::max())) return false;
     if (!shaderHandles_.valid(command.shader) || !shaderHandles_.valid(command.fragmentShader)) return false;
     const auto vertexShader = shaders_.find(command.shader.id());
     const auto fragmentShader = shaders_.find(command.fragmentShader.id());
