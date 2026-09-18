@@ -214,7 +214,7 @@ void GlesRenderDevice::destroyShader(ShaderHandle handle) {
     shaderHandles_.release(handle);
 }
 
-void GlesRenderDevice::beginFrame() { frameActive_ = true; submittedDraws_ = 0; }
+void GlesRenderDevice::beginFrame() { frameActive_ = true; submittedDraws_ = 0; stateCache_.invalidate(); }
 
 bool GlesRenderDevice::submit(const DrawCommand& command) {
     if (!frameActive_ || !bufferHandles_.valid(command.vertexBuffer) || command.vertexCount == 0 || !command.vertexLayout.valid()) return false;
