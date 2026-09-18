@@ -59,6 +59,19 @@ void testUnknownDependencyRejected() {
     assert(scheduler.hasValidOrder());
 }
 
+void testDependencyCycleInvalidatesSchedule() {
+    storm::ecs::SystemScheduler scheduler;
+    std::vector<std::string> log;
+    scheduler.add<TestSystem>("a", storm::ecs::SystemPhase::Gameplay, log);
+    scheduler.add<TestSystem>("b", storm::ecs::SystemPhase::Gameplay, log);
+    assert(scheduler.dependsOn("b", "a"));
+    assert(scheduler.dependsOn("a", "b"));
+    assert(!scheduler.hasValidOrder());
+    storm::ecs::Registry registry;
+    scheduler.update(registry, 0.016f);
+    assert(log.empty());
+}
+
 void testDuplicateNamesInvalidateSchedule() {
     storm::ecs::SystemScheduler scheduler;
     std::vector<std::string> log;
@@ -81,5 +94,6 @@ int main() {
     testExplicitDependencySurvivesRebuild();
     testUnknownDependencyRejected();
     testDuplicateNamesInvalidateSchedule();
+    testDependencyCycleInvalidatesSchedule();
     return 0;
 }
