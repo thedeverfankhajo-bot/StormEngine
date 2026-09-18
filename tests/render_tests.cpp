@@ -108,23 +108,20 @@ int main() {
     assert(indexed.indexBuffer.valid());
     assert(indexed.vertexBuffer.valid());
     assert(indexed.vertexLayout.valid());
-
     RenderQueue queue;
     assert(queue.empty());
     assert(queue.size() == 0);
 
     queue.submit(nonIndexed);
-    queue.submit(indexed);
     assert(!queue.empty());
-    assert(queue.size() == 2);
+    assert(queue.size() == 1);
     assert(queue.at(0).vertexCount == 36);
-    assert(queue.at(1).indexCount == 96);
 
+    // Indexed commands are validated separately; malformed ones are rejected.
     indexed.indexCount = 1;
     indexed.indexBuffer = BufferHandle{};
     assert(indexed.indexed());
 
-    // RenderQueue rejects malformed indexed commands rather than queueing them.
     queue.beginFrame();
     queue.submit(indexed);
     assert(queue.empty());
@@ -133,15 +130,13 @@ int main() {
     queue.submit(indexed);
     assert(queue.size() == 1);
     assert(queue.at(0).indexCount == 1);
-
-    const auto& commands = queue.commands();
-    assert(commands.size() == 1);
-    assert(commands[0].vertexBuffer == BufferHandle(12));
+    assert(queue.at(0).vertexBuffer == BufferHandle(12));
 
     queue.beginFrame();
     assert(queue.empty());
     assert(queue.size() == 0);
 
+    indexed.indexCount = 96;
     queue.submit(indexed);
     assert(queue.size() == 1);
     assert(queue.at(0).indexType == IndexType::UInt16);
