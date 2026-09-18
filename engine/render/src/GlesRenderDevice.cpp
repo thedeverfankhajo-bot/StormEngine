@@ -144,8 +144,10 @@ TextureHandle GlesRenderDevice::createTexture(const TextureDesc& desc) {
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, static_cast<GLsizei>(desc.width), static_cast<GLsizei>(desc.height), 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
     if (desc.mipLevels > 1) glGenerateMipmap(GL_TEXTURE_2D);
     if (glGetError() != GL_NO_ERROR) { glDeleteTextures(1, &glId); return {}; }
-    textures_.emplace(glId, TextureRecord{desc});
-    return TextureHandle(glId);
+    const auto handle = allocateHandle(nextTextureId_);
+    if (handle == 0) { glDeleteTextures(1, &glId); return {}; }
+    textures_.emplace(handle, TextureRecord{desc, glId});
+    return TextureHandle(handle);
 }
 bool GlesRenderDevice::updateTexture(TextureHandle handle, const void* data, std::size_t size, std::uint32_t mipLevel) {
     if (!handle.valid() || data == nullptr) return false;
