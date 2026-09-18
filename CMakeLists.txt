@@ -17,10 +17,10 @@ endif()
 add_library(storm_core
     engine/core/src/Engine.cpp
     engine/render/src/NullRenderDevice.cpp
+    engine/render/src/GlesContext.cpp
 )
 
 if(STORM_BUILD_GLES)
-    target_sources(storm_core PRIVATE engine/render/src/GlesContext.cpp)
     target_compile_definitions(storm_core PRIVATE STORM_BUILD_GLES=1)
     target_sources(storm_core PRIVATE engine/render/src/GlesRenderDevice.cpp)
     if(ANDROID)
