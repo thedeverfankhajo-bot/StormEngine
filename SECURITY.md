@@ -27,6 +27,14 @@ Never commit Android signing keys, keystores, API tokens, device identifiers, or
 
 Termux build scripts must fail closed on missing tools and must not download or execute arbitrary remote scripts.
 
+## Mobile and Termux security
+
+- Never commit Android signing keys, keystores, credentials, API tokens, device identifiers, or local absolute paths.
+- Treat assets, shaders, serialized data, and configuration as untrusted at load boundaries.
+- Termux build helpers must fail closed on missing tools and must not download or execute arbitrary remote scripts.
+- Validate native buffer sizes, counts, indices, handles, and arithmetic before backend calls.
+- Make JNI/EGL ownership and thread shutdown ordering explicit.
+
 ## Development practices
 
 - Validate untrusted input at subsystem boundaries.
