@@ -57,6 +57,17 @@ void testQueryUsesMatchingEntities() {
     registry.each<Position, Velocity>([&](auto entity, Position& position, Velocity& velocity) { visited.push_back(entity.id()); position.x += velocity.x; });
     assert(visited.size() == 2 && registry.get<Position>(a).x == 11 && registry.get<Position>(c).x == 33 && registry.get<Position>(b).x == 2);
 }
+void testQueryKeepsCallableUsableAcrossMatches() {
+    storm::ecs::Registry registry;
+    const auto a = registry.create(), b = registry.create();
+    registry.emplace<Position>(a, 1, 0);
+    registry.emplace<Position>(b, 2, 0);
+    std::size_t calls = 0;
+    auto callback = [&](auto, Position&) { ++calls; };
+    registry.each<Position>(std::move(callback));
+    assert(calls == 2);
+}
+
 void testQueryUsesSmallestStorage() {
     storm::ecs::Registry registry;
     const auto a = registry.create(), b = registry.create(), c = registry.create();
@@ -78,5 +89,9 @@ void testQueryUsesSmallestStorage() {
 }
 int main() {
     testSparseSet(); testComponentStorageSwapBack(); testRegistryGeneration(); testRegistryComponents();
-    testRegistryGetThrowsInsteadOfUsingReleaseAssert(); testQueryUsesMatchingEntities(); testQueryUsesSmallestStorage(); return 0;
+    testRegistryGetThrowsInsteadOfUsingReleaseAssert();
+    testQueryUsesMatchingEntities();
+    testQueryKeepsCallableUsableAcrossMatches();
+    testQueryUsesSmallestStorage();
+    return 0;
 }
