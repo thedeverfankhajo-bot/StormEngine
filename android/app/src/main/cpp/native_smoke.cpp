@@ -143,9 +143,29 @@ void main() { outColor = vColor; })glsl";
         const bool submitted = device.submit(command);
         device.endFrame();
 
-        if (!submitted || !context.swap()) {
+        if (!submitted) {
             gRunning.store(false);
             break;
+        }
+
+        if (!context.swap()) {
+            if (!context.contextLost()) {
+                gRunning.store(false);
+                break;
+            }
+
+            // EGL has lost the current context. Keep the logical resources and
+            // their CPU-side shadows alive, rebuild the EGL context, then
+            // recreate all GPU objects before resuming the same scene.
+            device.invalidateGpuResources();
+            context.shutdown();
+            if (!context.initializeWindow(window) || !device.restoreGpuResources()) {
+                gRunning.store(false);
+                break;
+            }
+
+            previous = std::chrono::steady_clock::now();
+            continue;
         }
     }
 
