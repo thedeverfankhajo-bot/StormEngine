@@ -72,7 +72,7 @@ bool NullRenderDevice::submit(const DrawCommand& command) {
         const std::uint64_t indexBytes = static_cast<std::uint64_t>(command.indexCount) * indexSize;
         if (indexOffset > indexIt->second || indexBytes > indexIt->second - indexOffset) return false;
     } else if (command.indexBuffer.valid()) return false;
-    if (!command.shader.valid() || !command.fragmentShader.valid() || command.baseVertex != 0) return false;
+    if (!command.shader.valid() || !command.fragmentShader.valid()) return false;
     if (command.viewportWidth > static_cast<std::uint32_t>(std::numeric_limits<std::int32_t>::max()) ||
         command.viewportHeight > static_cast<std::uint32_t>(std::numeric_limits<std::int32_t>::max())) return false;
     if (!shaderHandles_.valid(command.shader) || !shaderHandles_.valid(command.fragmentShader)) return false;
