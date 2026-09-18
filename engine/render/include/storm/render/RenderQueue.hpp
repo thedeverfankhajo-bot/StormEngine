@@ -11,16 +11,18 @@ class RenderQueue final {
 public:
     void beginFrame() noexcept { commands_.clear(); }
 
-    void submit(const DrawCommand& command) {
-        if (!command.vertexBuffer.valid() || command.vertexCount == 0 || !command.vertexLayout.valid()) return;
-        if (command.viewportWidth > 0 && command.viewportHeight == 0) return;
-        if (command.viewportHeight > 0 && command.viewportWidth == 0) return;
+    bool submit(const DrawCommand& command) {
+        if (!command.vertexBuffer.valid() || command.vertexCount == 0 || !command.vertexLayout.valid()) return false;
+        if (command.viewportWidth > 0 && command.viewportHeight == 0) return false;
+        if (command.viewportHeight > 0 && command.viewportWidth == 0) return false;
+        if (command.baseVertex != 0) return false;
         if (command.indexed()) {
-            if (!command.indexBuffer.valid()) return;
+            if (!command.indexBuffer.valid()) return false;
         } else if (command.indexBuffer.valid()) {
-            return;
+            return false;
         }
         commands_.push_back(command);
+        return true;
     }
 
     [[nodiscard]] bool execute(RenderDevice& device) const {
