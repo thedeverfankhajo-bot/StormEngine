@@ -11,7 +11,7 @@ The current foundation includes:
 - C++20 core runtime and fixed-step game clock.
 - ECS, scheduler, dimensional math, transforms, cameras, and AABB foundations.
 - Parent/child world transforms with cached revisions.
-- Backend-neutral render resources, draw commands, render-state caching, Null renderer, and OpenGL ES renderer.
+- Backend-neutral render resources, draw commands, render-state caching, explicit viewport/scissor state, Null renderer, and OpenGL ES renderer.
 - CPU SpriteBatch geometry.
 - Generation-safe resource lifetime and renderer validation.
 - Android SurfaceView/EGL lifecycle hardening and context-loss recovery foundations.
