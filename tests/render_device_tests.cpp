@@ -67,14 +67,6 @@ int main() {
     draw.vertexLayout = layout;
 
     assert(!device.submit(draw));
-    DrawCommand staleIndex = draw;
-    staleIndex.indexCount = 1;
-    staleIndex.indexBuffer = indexBuffer;
-    device.destroyBuffer(indexBuffer);
-    device.beginFrame();
-    assert(!device.submit(staleIndex));
-    device.endFrame();
-
     DrawCommand wrongStage = draw;
     wrongStage.shader = fragmentShader;
     wrongStage.fragmentShader = vertexShader;
@@ -91,6 +83,14 @@ int main() {
     indexed.indexBuffer = indexBuffer;
     indexed.indexCount = 3;
     assert(device.submit(indexed));
+
+    DrawCommand staleIndex = indexed;
+    device.destroyBuffer(indexBuffer);
+    assert(!device.submit(staleIndex));
+    const auto replacementIndexBuffer = device.createBuffer(BufferDesc{512, BufferUsage::Static});
+    assert(replacementIndexBuffer.valid());
+    staleIndex.indexBuffer = replacementIndexBuffer;
+    assert(device.submit(staleIndex));
     assert(device.submittedDrawCount() == 2);
 
     DrawCommand missingVertex = draw;
@@ -121,7 +121,7 @@ int main() {
     assert(!device.submit(draw));
 
     device.destroyShader(vertexShader);
-    device.destroyBuffer(indexBuffer);
+    device.destroyBuffer(replacementIndexBuffer);
     device.destroyTexture(texture);
     assert(device.liveShaderCount() == 0);
     assert(device.liveBufferCount() == 0);
