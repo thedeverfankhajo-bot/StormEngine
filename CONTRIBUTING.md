@@ -97,7 +97,7 @@ These are device families, not separate mobile operating systems and not blanket
 
 Review resource lifetime, shader/program lifetime, vertex/index bounds, render-state transitions, texture/mipmap behavior, Android/EGL lifecycle, surface recreation, context loss, and backend-independent validation.
 
-OpenGL ES 3.x is required by the Android smoke application. The Android NDK documentation recommends checking the runtime GL version/capabilities rather than inferring support from the device alone. citeturn3search3
+OpenGL ES 3.x is required by the Android smoke application. The Android NDK documentation recommends checking the runtime GL version/capabilities rather than inferring support from the device alone.
 
 ## Threading
 
