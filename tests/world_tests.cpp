@@ -45,6 +45,14 @@ int main() {
     assert(near(childWorld.m[1][3], 3.0f));
     assert(near(childWorld.m[2][3], 4.0f));
 
+    // Cached world transforms must refresh even when callers mutate the
+    // public Transform fields directly.
+    assert(near(world.worldMatrix(child).m[0][3], 12.0f));
+    world.getTransform(parent).position.x = 20.0f;
+    assert(near(world.worldMatrix(child).m[0][3], 22.0f));
+    world.getTransform(child).position.y = 8.0f;
+    assert(near(world.worldMatrix(child).m[1][3], 8.0f));
+
     assert(!world.setParent(parent, child));
     assert(world.parentOf(child) == parent);
 
