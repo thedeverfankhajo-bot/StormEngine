@@ -165,18 +165,29 @@ Java_storm_engine_smoke_MainActivity_nativeStart(JNIEnv* env, jclass, jobject su
     ANativeWindow* window = ANativeWindow_fromSurface(env, surface);
     if (!window) return;
 
-    std::thread finishedThread;
+    std::thread oldThread;
     {
         std::lock_guard<std::mutex> lock(gMutex);
         if (gRunning.load()) {
             ANativeWindow_release(window);
             return;
         }
-        if (gThread.joinable()) finishedThread = std::move(gThread);
+        if (gThread.joinable()) oldThread = std::move(gThread);
+    }
+
+    // A finished render thread is still joinable. Join it before publishing a
+    // new running state, otherwise the old and new render threads can overlap.
+    if (oldThread.joinable()) oldThread.join();
+
+    {
+        std::lock_guard<std::mutex> lock(gMutex);
+        if (gRunning.load() || gThread.joinable()) {
+            ANativeWindow_release(window);
+            return;
+        }
         gRunning.store(true);
         gThread = std::thread(renderLoop, window);
     }
-    if (finishedThread.joinable()) finishedThread.join();
 }
 extern "C" JNIEXPORT void JNICALL
 Java_storm_engine_smoke_MainActivity_nativeStop(JNIEnv*, jclass) {
