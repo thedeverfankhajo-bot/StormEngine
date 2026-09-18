@@ -6,7 +6,7 @@ StormEngine is a C++20 game-engine project targeting a unified 1D, 2D, and 3D ru
 
 The engine is under active development. The current tree contains the core runtime loop, fixed-step timing, ECS, scheduler, 1D/2D/3D math primitives, transforms, cameras, AABB foundations, scene/world transforms, backend-neutral rendering types, a Null renderer, an OpenGL ES backend, SpriteBatch CPU geometry, generation-safe resource lifetime, and a render-state cache.
 
-The project is **not yet a complete 1D/2D/3D engine**. The remaining work is tracked in [Issue #9](https://github.com/thedeverfankhajo-bot/StormEngine/issues/9).
+The project is **not yet a complete 1D/2D/3D engine**. The remaining work is tracked in [Issue #9](https://github.com/thedeverfankhajo-bot/StormEngine/issues/9). Mobile and Termux platform work is tracked separately in the compatibility documentation.
 
 ## Implemented
 
@@ -42,6 +42,22 @@ The project is **not yet a complete 1D/2D/3D engine**. The remaining work is tra
 - Android lifecycle and EGL surface recreation.
 - Integration, sanitizer, and performance tests.
 - Editor and development tooling.
+
+## Platform and Termux support
+
+StormEngine provides a native C++ Termux workflow for development and testing. See [`.github/TERMUX.md`](.github/TERMUX.md) and [`docs/MOBILE_COMPATIBILITY.md`](docs/MOBILE_COMPATIBILITY.md).
+
+Representative Android compatibility targets are Samsung, Xiaomi/Redmi/POCO, Google Pixel, OnePlus, and Motorola. These are test families, not blanket device certification. Android builds target arm64-v8a, armeabi-v7a, x86_64, and x86; physical-device GPU validation remains separate from APK compilation.
+
+Termux quick start:
+
+```bash
+pkg update
+pkg install clang cmake ninja make git
+./scripts/termux-build.sh
+```
+
+Android APK builds remain a separate SDK/NDK/Gradle workflow.
 
 ## Build
 
