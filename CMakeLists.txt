@@ -7,6 +7,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 option(STORM_BUILD_TESTS "Build StormEngine tests" ON)
 option(STORM_BUILD_GLES "Build OpenGL ES 3.x backend" OFF)
+option(STORM_ENABLE_WARNINGS "Enable strict compiler warnings" ON)
 
 add_library(storm_core
     engine/core/src/Engine.cpp
@@ -28,6 +29,14 @@ target_include_directories(storm_core PUBLIC
     engine/render/include
     engine/physics/include
 )
+
+if(STORM_ENABLE_WARNINGS)
+    if(MSVC)
+        target_compile_options(storm_core PRIVATE /W4)
+    else()
+        target_compile_options(storm_core PRIVATE -Wall -Wextra -Wpedantic)
+    endif()
+endif()
 
 if(ANDROID)
     add_library(storm_android_smoke SHARED android/app/src/main/cpp/native_smoke.cpp)
@@ -53,8 +62,11 @@ if(STORM_BUILD_TESTS AND NOT ANDROID)
     storm_add_test(storm_game_loop_tests tests/game_loop_tests.cpp)
     storm_add_test(storm_scheduler_tests tests/scheduler_tests.cpp)
     storm_add_test(storm_math_tests tests/math_tests.cpp)
+    storm_add_test(storm_dimensional_math_tests tests/dimensional_math_tests.cpp)
     storm_add_test(storm_camera_tests tests/camera_tests.cpp)
+    storm_add_test(storm_camera1d_tests tests/camera1d_tests.cpp)
     storm_add_test(storm_camera2d_tests tests/camera2d_tests.cpp)
+    storm_add_test(storm_camera3d_tests tests/camera3d_tests.cpp)
     storm_add_test(storm_world_tests tests/world_tests.cpp)
     storm_add_test(storm_render_tests tests/render_tests.cpp)
     storm_add_test(storm_render_device_tests tests/render_device_tests.cpp)

@@ -9,7 +9,7 @@ int main() {
 
     const Aabb2 player{{0.0f, 0.0f}, {1.0f, 2.0f}};
     const Aabb2 floor{{-5.0f, -0.5f}, {5.0f, 0.0f}};
-    const Aabb2 wall{{1.0f, 0.0f}, {1.5f, 3.0f}};
+    const Aabb2 wall{{0.75f, 0.0f}, {1.5f, 3.0f}};
 
     assert(player.valid());
     assert(player.size().x == 1.0f);

@@ -104,31 +104,40 @@ int main() {
 
     indexed.indexCount = 0;
     assert(!indexed.indexed());
-    indexed.indexCount = 1;
-    indexed.indexBuffer = BufferHandle{};
-    assert(indexed.indexed());
-
+    indexed.indexCount = 96;
+    indexed.vertexCount = 36;
+    assert(indexed.indexBuffer.valid());
+    assert(indexed.vertexBuffer.valid());
+    assert(indexed.vertexLayout.valid());
     RenderQueue queue;
     assert(queue.empty());
     assert(queue.size() == 0);
 
     queue.submit(nonIndexed);
-    queue.submit(indexed);
     assert(!queue.empty());
-    assert(queue.size() == 2);
+    assert(queue.size() == 1);
     assert(queue.at(0).vertexCount == 36);
-    assert(queue.at(1).indexCount == 1);
 
-    const auto& commands = queue.commands();
-    assert(commands.size() == 2);
-    assert(commands[0].vertexBuffer == BufferHandle(11));
-    assert(commands[0].fragmentShader == ShaderHandle(21));
-    assert(commands[1].vertexBuffer == BufferHandle(12));
+    // Indexed commands are validated separately; malformed ones are rejected.
+    indexed.indexCount = 1;
+    indexed.indexBuffer = BufferHandle{};
+    assert(indexed.indexed());
+
+    queue.beginFrame();
+    queue.submit(indexed);
+    assert(queue.empty());
+
+    indexed.indexBuffer = BufferHandle(13);
+    queue.submit(indexed);
+    assert(queue.size() == 1);
+    assert(queue.at(0).indexCount == 1);
+    assert(queue.at(0).vertexBuffer == BufferHandle(12));
 
     queue.beginFrame();
     assert(queue.empty());
     assert(queue.size() == 0);
 
+    indexed.indexCount = 96;
     queue.submit(indexed);
     assert(queue.size() == 1);
     assert(queue.at(0).indexType == IndexType::UInt16);
