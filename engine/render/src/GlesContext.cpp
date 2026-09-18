@@ -155,7 +155,13 @@ bool GlesContext::makeCurrent() noexcept {
                                    static_cast<EGLSurface>(surface_),
                                    static_cast<EGLSurface>(surface_),
                                    static_cast<EGLContext>(context_)) == EGL_TRUE;
-    if (!ok) logEglError("eglMakeCurrent");
+    if (!ok) {
+        const EGLint error = eglGetError();
+        if (error == EGL_CONTEXT_LOST) contextLost_ = true;
+        __android_log_print(ANDROID_LOG_ERROR, "StormEngine",
+                            "EGL eglMakeCurrent failed: 0x%04x",
+                            static_cast<unsigned int>(error));
+    }
     return ok;
 }
 
