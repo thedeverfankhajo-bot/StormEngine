@@ -79,7 +79,6 @@ bool GlesContext::initializePbuffer(int width, int height) noexcept {
 
     EGLContext context = EGL_NO_CONTEXT;
     if (!createContext(display, config, surface, context)) {
-        eglDestroySurface(display, surface);
         logEglError("createContext");
         eglDestroySurface(display, surface);
         eglTerminate(display);
@@ -99,25 +98,38 @@ bool GlesContext::initializeWindow(void* nativeWindow) noexcept {
 
     auto* window = static_cast<ANativeWindow*>(nativeWindow);
     EGLDisplay display = eglGetDisplay(EGL_DEFAULT_DISPLAY);
-    if (display == EGL_NO_DISPLAY) return false;
+    if (display == EGL_NO_DISPLAY) {
+        logEglError("eglGetDisplay");
+        return false;
+    }
     EGLint major = 0, minor = 0;
-    if (eglInitialize(display, &major, &minor) != EGL_TRUE) return false;
+    if (eglInitialize(display, &major, &minor) != EGL_TRUE) {
+        logEglError("eglInitialize");
+        return false;
+    }
 
     EGLConfig config = nullptr;
     if (!chooseConfig(display, EGL_WINDOW_BIT, config)) {
+        logEglError("eglChooseConfig");
         eglTerminate(display);
         return false;
     }
 
     EGLint nativeFormat = 0;
-    if (eglGetConfigAttrib(display, config, EGL_NATIVE_VISUAL_ID, &nativeFormat) != EGL_TRUE ||
-        nativeFormat == 0 || ANativeWindow_setBuffersGeometry(window, 0, 0, nativeFormat) != 0) {
+    if (eglGetConfigAttrib(display, config, EGL_NATIVE_VISUAL_ID, &nativeFormat) != EGL_TRUE) {
+        logEglError("eglGetConfigAttrib");
+        eglTerminate(display);
+        return false;
+    }
+    if (nativeFormat == 0 || ANativeWindow_setBuffersGeometry(window, 0, 0, nativeFormat) != 0) {
+        logEglError("ANativeWindow_setBuffersGeometry");
         eglTerminate(display);
         return false;
     }
 
     EGLSurface surface = eglCreateWindowSurface(display, config, window, nullptr);
     if (surface == EGL_NO_SURFACE) {
+        logEglError("eglCreateWindowSurface");
         eglTerminate(display);
         return false;
     }
