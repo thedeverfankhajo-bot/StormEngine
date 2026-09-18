@@ -16,6 +16,7 @@ int main() {
     assert(!device.createTexture(TextureDesc{0, 64, 1}).valid());
     assert(!device.createTexture(TextureDesc{64, 64, 0}).valid());
     assert(!device.createTexture(TextureDesc{3, 3, 3}).valid());
+    assert(!device.createTexture(TextureDesc{64, 64, 8}).valid());
     assert(!device.createShader(ShaderDesc{ShaderStage::Vertex}, "").valid());
 
     const auto vertexBuffer = device.createBuffer(BufferDesc{1024, BufferUsage::Static});
@@ -66,6 +67,13 @@ int main() {
     draw.vertexLayout = layout;
 
     assert(!device.submit(draw));
+
+    DrawCommand wrongStage = draw;
+    wrongStage.shader = fragmentShader;
+    wrongStage.fragmentShader = vertexShader;
+    device.beginFrame();
+    assert(!device.submit(wrongStage));
+    device.endFrame();
 
     device.beginFrame();
     assert(device.submittedDrawCount() == 0);
