@@ -12,6 +12,10 @@ permissions:
   security-events: write
   actions: read
 
+concurrency:
+  group: stormengine-codeql-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   analyze:
     name: Analyze C++
@@ -19,20 +23,16 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v7
-
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v4
         with:
           languages: cpp
-
       - name: Configure
-        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug -DSTORM_BUILD_TESTS=ON
-
+        run: cmake --preset host-debug
       - name: Build
-        run: cmake --build build --parallel
-
+        run: cmake --build --preset host-debug
       - name: Perform CodeQL analysis
         uses: github/codeql-action/analyze@v4
         with:
           category: /language:cpp
-          upload: false
+          upload: true
