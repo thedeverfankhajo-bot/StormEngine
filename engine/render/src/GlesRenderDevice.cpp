@@ -62,6 +62,9 @@ constexpr std::uint64_t maxGlSize = static_cast<std::uint64_t>(std::numeric_limi
 constexpr std::uint64_t maxGlCount = static_cast<std::uint64_t>(std::numeric_limits<GLsizei>::max());
 constexpr std::uint64_t maxGlInt = static_cast<std::uint64_t>(std::numeric_limits<GLint>::max());
 
+std::size_t mipByteOffset(const TextureDesc& desc, std::uint32_t mipLevel) noexcept;
+std::size_t textureByteSize(const TextureDesc& desc) noexcept;
+
 bool applyMaterial(const Material& material,
                    GLuint program,
                    std::unordered_map<std::uint64_t, std::unordered_map<std::string, std::int32_t>>& uniformLocations,
