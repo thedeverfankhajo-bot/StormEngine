@@ -410,6 +410,10 @@ bool GlesRenderDevice::submit(const DrawCommand& command) {
     desiredState.depthWriteEnabled = command.depthWriteEnabled;
     desiredState.cullEnabled = command.cullEnabled;
     desiredState.scissorEnabled = command.scissorEnabled;
+    desiredState.scissorX = command.scissorX;
+    desiredState.scissorY = command.scissorY;
+    desiredState.scissorWidth = command.scissorWidth;
+    desiredState.scissorHeight = command.scissorHeight;
 
     if (stateCache_.needsApply(desiredState)) {
         glUseProgram(static_cast<GLuint>(program_));
@@ -421,8 +425,12 @@ bool GlesRenderDevice::submit(const DrawCommand& command) {
         else glDisable(GL_CULL_FACE);
         if (desiredState.blendEnabled) glEnable(GL_BLEND);
         else glDisable(GL_BLEND);
-        if (desiredState.scissorEnabled) glEnable(GL_SCISSOR_TEST);
-        else glDisable(GL_SCISSOR_TEST);
+        if (desiredState.scissorEnabled) {
+            glEnable(GL_SCISSOR_TEST);
+            glScissor(desiredState.scissorX, desiredState.scissorY,
+                      static_cast<GLsizei>(desiredState.scissorWidth),
+                      static_cast<GLsizei>(desiredState.scissorHeight));
+        } else glDisable(GL_SCISSOR_TEST);
         if (desiredState.viewportWidth != 0 && desiredState.viewportHeight != 0)
             glViewport(0, 0, static_cast<GLsizei>(desiredState.viewportWidth),
                        static_cast<GLsizei>(desiredState.viewportHeight));
@@ -431,6 +439,10 @@ bool GlesRenderDevice::submit(const DrawCommand& command) {
 
     if (command.viewportWidth > static_cast<std::uint32_t>(std::numeric_limits<GLsizei>::max()) ||
         command.viewportHeight > static_cast<std::uint32_t>(std::numeric_limits<GLsizei>::max())) return false;
+    if (command.scissorEnabled &&
+        (command.scissorWidth == 0 || command.scissorHeight == 0 ||
+         command.scissorWidth > static_cast<std::uint32_t>(std::numeric_limits<GLsizei>::max()) ||
+         command.scissorHeight > static_cast<std::uint32_t>(std::numeric_limits<GLsizei>::max()))) return false;
 
     if (vao_ == 0) {
         GLuint vao = 0;
