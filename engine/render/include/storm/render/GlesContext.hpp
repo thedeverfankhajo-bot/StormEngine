@@ -11,6 +11,7 @@ public:
     GlesContext& operator=(const GlesContext&) = delete;
 
     bool initializePbuffer(int width = 1, int height = 1) noexcept;
+    bool initializeWindow(void* nativeWindow) noexcept;
     void shutdown() noexcept;
     bool makeCurrent() noexcept;
     bool swap() noexcept;
