@@ -41,3 +41,14 @@ jobs:
         with:
           name: stormengine-linux-debug
           path: artifacts/
+
+  sanitizer:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Configure with sanitizers
+        run: cmake -S . -B build-sanitized -DCMAKE_BUILD_TYPE=Debug -DSTORM_BUILD_TESTS=ON -DSTORM_ENABLE_SANITIZERS=ON
+      - name: Build
+        run: cmake --build build-sanitized --parallel
+      - name: Test
+        run: ctest --test-dir build-sanitized --output-on-failure
