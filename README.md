@@ -179,3 +179,16 @@ Security vulnerabilities must follow SECURITY.md and must not be disclosed throu
 ## License
 
 StormEngine is licensed under the MIT License.
+
+
+## Deep-hardening validation
+
+StormEngine treats resource handles as generational capabilities: destroyed or exhausted handle generations are never reused as valid stale references. The renderer also keeps CPU-side resource state so Android EGL context recreation can rebuild GPU objects without changing public handles.
+
+### Platform boundary
+
+The native portable core builds in Termux with GLES disabled. The Android NDK build enables `STORM_BUILD_GLES`, links EGL/GLESv3, and compiles the Android EGL implementation only in that configuration. This keeps host/Termux builds independent of Android graphics libraries.
+
+### Checkpointed maintenance
+
+Repository maintenance is performed in small sequential commits. Before each write, the current branch head and target-file blob SHA are re-read; after each write, the new commit SHA is verified. CI is allowed to validate each recoverable checkpoint before merge. This avoids treating an interrupted tool call as proof that a mutation completed.

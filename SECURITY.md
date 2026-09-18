@@ -86,3 +86,12 @@ As the engine grows toward a large modular runtime, subsystem boundaries are sec
 - Prefer reproducible builds and maintained/pinned CI actions.
 - Keep dependency and toolchain versions documented and reviewable.
 - Use sanitizer and static-analysis coverage before merging substantial runtime changes.
+
+
+## Resource-lifetime security invariants
+
+Renderer resource handles use generation checks to prevent stale references from mutating a replacement resource. When a generation counter reaches its terminal value, that slot is retired rather than wrapped. Android GLES context loss similarly invalidates old GPU object names; recovery must rebuild GPU state from retained CPU-side descriptions while preserving handle identity.
+
+## Build-boundary security
+
+Android EGL/GLES code is compiled only when `STORM_BUILD_GLES=ON`. Native Termux builds keep this option disabled, avoiding accidental linkage against Android graphics libraries. CI validates the intended host, Android, and Termux boundaries independently.

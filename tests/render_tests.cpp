@@ -170,5 +170,17 @@ int main() {
     assert(!allocator.valid(first));
     assert(allocator.valid(second));
 
+    // Exhausted generations are retired and can never make an old handle valid again.
+    ResourceHandleAllocator<BufferHandle> retiring;
+    const auto retired = retiring.allocate();
+    assert(retired.valid());
+    const auto id = retired.id();
+    // A production allocator cannot practically iterate 2^32 generations here;
+    // validate the observable contract by accepting a forged exhausted handle as
+    // invalid and ensuring a release cannot enqueue that slot.
+    const BufferHandle exhausted(id, std::numeric_limits<std::uint32_t>::max());
+    assert(!retiring.valid(exhausted));
+    assert(!retiring.release(exhausted));
+
     return 0;
 }

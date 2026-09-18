@@ -40,9 +40,11 @@ template <typename Handle>
 class ResourceHandleAllocator final {
 public:
     [[nodiscard]] Handle allocate() {
-        if (!free_.empty()) {
+        while (!free_.empty()) {
             const auto id = free_.back();
             free_.pop_back();
+            if (id == 0 || id > generations_.size() || generations_[id - 1] == Handle::invalidGeneration)
+                continue;
             return Handle(id, generations_[id - 1]);
         }
         if (generations_.size() >= static_cast<std::size_t>(std::numeric_limits<std::uint32_t>::max()))
@@ -55,7 +57,12 @@ public:
         if (!handle.valid() || handle.id() > generations_.size() || generations_[handle.id() - 1] != handle.generation())
             return false;
         auto& generation = generations_[handle.id() - 1];
-        if (generation == std::numeric_limits<std::uint32_t>::max()) return false;
+        if (generation == std::numeric_limits<std::uint32_t>::max()) {
+            // Retire the slot instead of leaving a destroyed handle valid
+            // forever once its generation space is exhausted.
+            generation = Handle::invalidGeneration;
+            return true;
+        }
         ++generation;
         free_.push_back(handle.id());
         return true;
@@ -63,6 +70,7 @@ public:
 
     [[nodiscard]] bool valid(Handle handle) const noexcept {
         return handle.valid() && handle.id() > 0 && handle.id() <= generations_.size() &&
+               generations_[handle.id() - 1] != Handle::invalidGeneration &&
                generations_[handle.id() - 1] == handle.generation();
     }
 

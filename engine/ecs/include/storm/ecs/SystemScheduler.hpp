@@ -80,6 +80,7 @@ public:
 private:
     void rebuildGraphIfNeeded() {
         if (!graphDirty_) return;
+        validOrder_ = true;
         graph_ = SystemDependencyGraph{};
         for (const auto& system : systems_) {
             if (!graph_.addSystem(system->name())) {
