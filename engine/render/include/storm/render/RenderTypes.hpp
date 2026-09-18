@@ -4,6 +4,8 @@
 #include <cstddef>
 #include <cstdint>
 #include <type_traits>
+#include <vector>
+#include <limits>
 
 namespace storm::render {
 
@@ -14,13 +16,17 @@ class ResourceHandle final {
 public:
     using value_type = std::uint32_t;
     static constexpr value_type invalidId = 0;
+    static constexpr value_type invalidGeneration = 0;
     constexpr ResourceHandle() noexcept = default;
-    explicit constexpr ResourceHandle(value_type id) noexcept : id_(id) {}
+    explicit constexpr ResourceHandle(value_type id) noexcept : id_(id), generation_(1) {}
+    constexpr ResourceHandle(value_type id, value_type generation) noexcept : id_(id), generation_(generation) {}
     [[nodiscard]] constexpr value_type id() const noexcept { return id_; }
-    [[nodiscard]] constexpr bool valid() const noexcept { return id_ != invalidId; }
+    [[nodiscard]] constexpr value_type generation() const noexcept { return generation_; }
+    [[nodiscard]] constexpr bool valid() const noexcept { return id_ != invalidId && generation_ != invalidGeneration; }
     friend constexpr bool operator==(ResourceHandle, ResourceHandle) noexcept = default;
 private:
     value_type id_{invalidId};
+    value_type generation_{invalidGeneration};
 };
 
 struct BufferTag; struct TextureTag; struct ShaderTag; struct MaterialTag; struct MeshTag;
@@ -29,6 +35,41 @@ using TextureHandle = ResourceHandle<TextureTag>;
 using ShaderHandle = ResourceHandle<ShaderTag>;
 using MaterialHandle = ResourceHandle<MaterialTag>;
 using MeshHandle = ResourceHandle<MeshTag>;
+
+template <typename Handle>
+class ResourceHandleAllocator final {
+public:
+    [[nodiscard]] Handle allocate() {
+        if (!free_.empty()) {
+            const auto id = free_.back();
+            free_.pop_back();
+            return Handle(id, generations_[id]);
+        }
+        if (generations_.size() >= static_cast<std::size_t>(std::numeric_limits<std::uint32_t>::max()))
+            return {};
+        generations_.push_back(1);
+        return Handle(static_cast<std::uint32_t>(generations_.size()), 1);
+    }
+
+    bool release(Handle handle) noexcept {
+        if (!handle.valid() || handle.id() > generations_.size() || generations_[handle.id() - 1] != handle.generation())
+            return false;
+        auto& generation = generations_[handle.id() - 1];
+        if (generation == std::numeric_limits<std::uint32_t>::max()) return false;
+        ++generation;
+        free_.push_back(handle.id());
+        return true;
+    }
+
+    [[nodiscard]] bool valid(Handle handle) const noexcept {
+        return handle.valid() && handle.id() > 0 && handle.id() <= generations_.size() &&
+               generations_[handle.id() - 1] == handle.generation();
+    }
+
+private:
+    std::vector<std::uint32_t> generations_;
+    std::vector<std::uint32_t> free_;
+};
 
 enum class BufferUsage : std::uint8_t { Static, Dynamic, Stream };
 enum class PrimitiveTopology : std::uint8_t { Points, Lines, Triangles, TriangleStrip };
