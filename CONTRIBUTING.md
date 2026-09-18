@@ -18,6 +18,16 @@ For a substantial new subsystem or public API, open or update an issue before im
 
 On an Android phone running Termux, install `clang`, `cmake`, `ninja` (or `make`), and `git`, then run `./scripts/termux-build.sh`. This validates the native portable engine; it does not replace Android APK validation.
 
+## Termux validation
+
+On Termux, install `clang`, `cmake`, `ninja` (or `make`), and `git`, then run `./scripts/termux-build.sh`. The script configures, builds, runs CTest, and launches the sandbox when available. `CMakePresets.json` also provides `termux-debug` and `termux-release` presets.
+
+This validates the portable native engine; it does not replace Android SDK/NDK APK validation.
+
+## Mobile compatibility
+
+Android changes must state which ABI and device-family validation was performed. The repository tracks Samsung Galaxy, Xiaomi/Redmi/POCO, Google Pixel, OnePlus, and Motorola as representative families. Do not claim a whole family is certified from one model. For iOS/iPadOS, do not claim support until a Metal backend and CI/device validation exist.
+
 ## Host validation
 
 Run:
