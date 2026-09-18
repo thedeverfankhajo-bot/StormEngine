@@ -4,6 +4,8 @@
 #include "RenderStateCache.hpp"
 #include <cstddef>
 #include <cstdint>
+#include <string>
+#include <vector>
 
 #if defined(__ANDROID__)
 #include <unordered_map>
@@ -30,13 +32,26 @@ public:
     void beginFrame() override;
     bool submit(const DrawCommand& command) override;
     void endFrame() override;
+    // Called with no current GL context when the EGL context is lost.
+    // Logical handles and CPU-side resource data remain valid.
+    void invalidateGpuResources() noexcept;
+    // Must be called with a current GLES context to rebuild GPU objects.
+    bool restoreGpuResources() noexcept;
     [[nodiscard]] std::size_t liveBufferCount() const noexcept override;
     [[nodiscard]] std::size_t liveTextureCount() const noexcept override;
     [[nodiscard]] std::size_t liveShaderCount() const noexcept override;
     [[nodiscard]] std::size_t submittedDrawCount() const noexcept override { return submittedDraws_; }
 private:
-    struct BufferRecord { std::uint64_t size{0}; std::uint32_t glId{0}; };
-    struct ShaderRecord { std::uint32_t glId{0}; ShaderStage stage{ShaderStage::Vertex}; };
+    struct BufferRecord {
+        std::uint64_t size{0};
+        std::uint32_t glId{0};
+        std::vector<std::uint8_t> data;
+    };
+    struct ShaderRecord {
+        std::uint32_t glId{0};
+        ShaderStage stage{ShaderStage::Vertex};
+        std::string source;
+    };
     ResourceHandleAllocator<BufferHandle> bufferHandles_;
     ResourceHandleAllocator<TextureHandle> textureHandles_;
     ResourceHandleAllocator<ShaderHandle> shaderHandles_;
