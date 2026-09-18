@@ -50,14 +50,9 @@ public:
     [[nodiscard]] Handle emplace(Args&&... args) {
         if (!free_.empty()) {
             const Index index = free_.back();
-            free_.pop_back();
             Slot& slot = slots_[index];
-            try {
-                slot.value.emplace(std::forward<Args>(args)...);
-            } catch (...) {
-                free_.push_back(index);
-                throw;
-            }
+            slot.value.emplace(std::forward<Args>(args)...);
+            free_.pop_back();
             ++liveCount_;
             return Handle(index, slot.generation);
         }
