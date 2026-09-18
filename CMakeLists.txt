@@ -10,6 +10,10 @@ option(STORM_BUILD_GLES "Build OpenGL ES 3.x backend" OFF)
 option(STORM_ENABLE_WARNINGS "Enable strict compiler warnings" ON)
 option(STORM_ENABLE_SANITIZERS "Enable AddressSanitizer and UndefinedBehaviorSanitizer" OFF)
 
+if(STORM_BUILD_GLES AND NOT ANDROID)
+    message(FATAL_ERROR "STORM_BUILD_GLES requires an Android/NDK build; use STORM_BUILD_GLES=OFF for host or Termux native builds")
+endif()
+
 add_library(storm_core
     engine/core/src/Engine.cpp
     engine/render/src/NullRenderDevice.cpp
@@ -74,6 +78,7 @@ if(STORM_BUILD_TESTS AND NOT ANDROID)
         target_link_libraries(${target} PRIVATE storm_core)
         storm_enable_warnings(${target})
         add_test(NAME ${target} COMMAND ${target})
+        set_tests_properties(${target} PROPERTIES TIMEOUT 30)
     endfunction()
 
     storm_add_test(storm_core_tests tests/core_tests.cpp)

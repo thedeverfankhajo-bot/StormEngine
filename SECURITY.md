@@ -68,6 +68,10 @@ Rendering entry points validate:
 
 CPU-side resource data is retained where required for context recreation. GPU object names are never treated as durable identifiers across context loss.
 
+## CI security and reliability
+
+CI uses least-privilege repository permissions and workflow concurrency to cancel obsolete runs. Build scripts fail closed on unsupported platform/toolchain combinations. Do not execute untrusted pull-request data as shell code; review third-party action updates before adopting them.
+
 ## Development practices
 
 - Validate untrusted input at subsystem boundaries.

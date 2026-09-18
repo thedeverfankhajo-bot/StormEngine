@@ -7,7 +7,7 @@ StormEngine is an active C++20 engine project. Contributions should be focused, 
 ## Requirements
 
 - C++20 compiler.
-- CMake 3.20+ for direct builds; CMake 3.23+ for shared presets.
+- CMake 3.20+ for direct builds and shared presets.
 - Git.
 - Ninja recommended; Make is supported.
 - Android SDK/NDK and Gradle for Android work.
@@ -32,7 +32,9 @@ Release:
 
     STORM_BUILD_TYPE=Release ./scripts/termux-build.sh
 
-GLES is an Android/NDK backend; a generic Termux native build validates the portable core rather than pretending to be an Android cross-build.
+GLES is an Android/NDK backend. Native Termux builds intentionally use `STORM_BUILD_GLES=OFF`; the helper rejects `STORM_BUILD_GLES=ON` instead of producing a misleading host-toolchain failure.
+
+CTest tests have a 30-second per-test timeout.
 
 ## Host validation
 

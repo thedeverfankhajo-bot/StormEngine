@@ -49,6 +49,11 @@ case "$BUILD_TYPE" in
 esac
 case "$BUILD_TESTS" in ON|OFF) ;; *) printf 'STORM_BUILD_TESTS must be ON or OFF\n' >&2; exit 2 ;; esac
 case "$BUILD_GLES" in ON|OFF) ;; *) printf 'STORM_BUILD_GLES must be ON or OFF\n' >&2; exit 2 ;; esac
+if [ "$BUILD_GLES" = "ON" ]; then
+    printf '%s\n' 'STORM_BUILD_GLES=ON is Android/NDK-only and cannot be built by the native Termux toolchain.' >&2
+    printf '%s\n' 'Use an Android Gradle/NDK build for GLES, or leave STORM_BUILD_GLES=OFF for Termux.' >&2
+    exit 2
+fi
 case "$BUILD_SANITIZERS" in ON|OFF) ;; *) printf 'STORM_ENABLE_SANITIZERS must be ON or OFF\n' >&2; exit 2 ;; esac
 case "$JOBS" in ''|*[!0-9]*|0) printf 'STORM_BUILD_JOBS must be a positive integer\n' >&2; exit 2 ;; esac
 case "$RUN_SANDBOX" in ON|OFF) ;; *) printf 'STORM_RUN_SANDBOX must be ON or OFF\n' >&2; exit 2 ;; esac

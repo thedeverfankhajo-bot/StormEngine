@@ -5,6 +5,11 @@
 int main() {
     storm::render::GlesContext context;
 
+    assert(!context.initializePbuffer(0, 1));
+    assert(!context.initializePbuffer(1, 0));
+    assert(!context.initializePbuffer(-1, 1));
+    assert(!context.initializeWindow(nullptr));
+
 #if defined(__ANDROID__)
     assert(context.initializePbuffer(1, 1));
     assert(context.valid());
