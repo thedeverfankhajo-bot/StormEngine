@@ -50,8 +50,10 @@ constexpr std::uint64_t maxGlInt = static_cast<std::uint64_t>(std::numeric_limit
 bool applyMaterial(const Material& material,
                    GLuint program,
                    std::unordered_map<std::uint64_t, std::unordered_map<std::string, std::int32_t>>& uniformLocations,
-                   const std::unordered_map<std::uint32_t, GlesRenderDevice::TextureRecord>& textures) noexcept {
+                   const std::unordered_map<std::uint32_t, GlesRenderDevice::TextureRecord>& textures,
+                   std::int32_t maxTextureUnits) noexcept {
     std::uint32_t textureUnit = 0;
+    const std::uint32_t maxUnits = maxTextureUnits > 0 ? static_cast<std::uint32_t>(maxTextureUnits) : 1u;
     for (const auto& [name, value] : material.parameters()) {
         auto& locations = uniformLocations[static_cast<std::uint64_t>(program)];
         const auto cached = locations.find(name);
@@ -70,11 +72,11 @@ bool applyMaterial(const Material& material,
         } else if (const auto* vec4 = std::get_if<MaterialVec4>(&value)) {
             glUniform4fv(location, 1, vec4->data());
         } else if (const auto* texture = std::get_if<TextureHandle>(&value)) {
-            if (!texture->valid() || textures.find(texture->id()) == textures.end() || textureUnit > 31u) {
+            if (!texture->valid() || textures.find(texture->id()) == textures.end() || textureUnit >= maxUnits) {
                 return false;
             }
             glActiveTexture(GL_TEXTURE0 + textureUnit);
-            glBindTexture(GL_TEXTURE_2D, static_cast<GLuint>(texture->id()));
+            glBindTexture(GL_TEXTURE_2D, static_cast<GLuint>(textures.at(texture->id()).glId));
             glUniform1i(location, static_cast<GLint>(textureUnit));
             ++textureUnit;
         } else {
@@ -94,7 +96,7 @@ GlesRenderDevice::~GlesRenderDevice() {
     }
     for (const auto& [handle, shader] : shaders_) { (void)handle; glDeleteShader(static_cast<GLuint>(shader.glId)); }
     for (const auto& [handle, size] : buffers_) { (void)size; const GLuint id = static_cast<GLuint>(handle); glDeleteBuffers(1, &id); }
-    for (const auto& [handle, record] : textures_) { (void)record; const GLuint id = static_cast<GLuint>(handle); glDeleteTextures(1, &id); }
+    for (const auto& [handle, record] : textures_) { (void)handle; const GLuint id = static_cast<GLuint>(record.glId); if (id != 0) glDeleteTextures(1, &id); }
 }
 
 std::uint32_t GlesRenderDevice::allocateHandle(std::uint32_t& next) {
@@ -142,8 +144,10 @@ TextureHandle GlesRenderDevice::createTexture(const TextureDesc& desc) {
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, static_cast<GLsizei>(desc.width), static_cast<GLsizei>(desc.height), 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
     if (desc.mipLevels > 1) glGenerateMipmap(GL_TEXTURE_2D);
     if (glGetError() != GL_NO_ERROR) { glDeleteTextures(1, &glId); return {}; }
-    textures_.emplace(glId, TextureRecord{desc});
-    return TextureHandle(glId);
+    const auto handle = allocateHandle(nextTextureId_);
+    if (handle == 0) { glDeleteTextures(1, &glId); return {}; }
+    textures_.emplace(handle, TextureRecord{desc, glId});
+    return TextureHandle(handle);
 }
 bool GlesRenderDevice::updateTexture(TextureHandle handle, const void* data, std::size_t size, std::uint32_t mipLevel) {
     if (!handle.valid() || data == nullptr) return false;
@@ -153,7 +157,7 @@ bool GlesRenderDevice::updateTexture(TextureHandle handle, const void* data, std
     const std::uint32_t height = std::max(1u, it->second.desc.height >> std::min(mipLevel, 31u));
     const std::uint64_t expected = static_cast<std::uint64_t>(width) * height * 4u;
     if (expected > std::numeric_limits<std::size_t>::max() || size != static_cast<std::size_t>(expected)) return false;
-    glBindTexture(GL_TEXTURE_2D, static_cast<GLuint>(handle.id()));
+    glBindTexture(GL_TEXTURE_2D, static_cast<GLuint>(it->second.glId));
     glTexSubImage2D(GL_TEXTURE_2D, static_cast<GLint>(mipLevel), 0, 0,
                     static_cast<GLsizei>(width), static_cast<GLsizei>(height), GL_RGBA, GL_UNSIGNED_BYTE, data);
     if (glGetError() != GL_NO_ERROR) return false;
@@ -161,8 +165,11 @@ bool GlesRenderDevice::updateTexture(TextureHandle handle, const void* data, std
 }
 void GlesRenderDevice::destroyTexture(TextureHandle handle) {
     if (!handle.valid()) return;
-    const GLuint id = static_cast<GLuint>(handle.id());
-    if (textures_.erase(handle.id()) != 0) glDeleteTextures(1, &id);
+    const auto it = textures_.find(handle.id());
+    if (it == textures_.end()) return;
+    const GLuint id = static_cast<GLuint>(it->second.glId);
+    textures_.erase(it);
+    if (id != 0) glDeleteTextures(1, &id);
 }
 ShaderHandle GlesRenderDevice::createShader(const ShaderDesc& desc, const std::string& source) {
     if (source.empty()) return {};
@@ -256,6 +263,8 @@ bool GlesRenderDevice::submit(const DrawCommand& command) {
         stateCache_.markApplied(desiredState);
     }
 
+    if (maxTextureUnits_ == 0) glGetIntegerv(GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS, &maxTextureUnits_);
+
     if (vao_ == 0) {
         GLuint vao = 0;
         glGenVertexArrays(1, &vao);
@@ -274,7 +283,7 @@ bool GlesRenderDevice::submit(const DrawCommand& command) {
     }
 
     if (command.materialData != nullptr && !applyMaterial(*command.materialData,
-                                                            static_cast<GLuint>(program_), uniformLocations_, textures_)) return false;
+                                                            static_cast<GLuint>(program_), uniformLocations_, textures_, maxTextureUnits_)) return false;
 
     if (command.indexed()) {
         if (!command.indexBuffer.valid()) return false;

@@ -14,7 +14,7 @@ namespace storm::render {
 
 class GlesRenderDevice final : public RenderDevice {
 public:
-    struct TextureRecord { TextureDesc desc{}; };
+    struct TextureRecord { TextureDesc desc{}; std::uint32_t glId{0}; };
     GlesRenderDevice() = default;
     ~GlesRenderDevice() override;
     GlesRenderDevice(const GlesRenderDevice&) = delete;
@@ -49,6 +49,7 @@ private:
     std::unordered_map<std::uint64_t, std::uint32_t> programs_;
     std::uint32_t program_{0};
     std::uint32_t vao_{0};
+    std::int32_t maxTextureUnits_{0};
     RenderStateCache stateCache_{};
     std::unordered_map<std::uint64_t, std::unordered_map<std::string, std::int32_t>> uniformLocations_;
 #endif
