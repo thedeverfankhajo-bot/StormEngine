@@ -52,7 +52,7 @@ endif()
 
 if(ANDROID)
     add_library(storm_android_smoke SHARED android/app/src/main/cpp/native_smoke.cpp)
-    target_link_libraries(storm_android_smoke PRIVATE storm_core GLESv3 EGL)
+    target_link_libraries(storm_android_smoke PRIVATE storm_core GLESv3 EGL android log)
 endif()
 
 if(NOT ANDROID)

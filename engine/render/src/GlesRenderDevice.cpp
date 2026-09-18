@@ -3,6 +3,8 @@
 #if defined(__ANDROID__)
 #include "storm/render/Material.hpp"
 #include <GLES3/gl3.h>
+#include <android/log.h>
+#include <vector>
 #include <algorithm>
 #include <limits>
 
@@ -40,7 +42,19 @@ GLuint compileShader(GLenum type, const char* source) noexcept {
     glCompileShader(shader);
     GLint compiled = GL_FALSE;
     glGetShaderiv(shader, GL_COMPILE_STATUS, &compiled);
-    if (compiled != GL_TRUE) { glDeleteShader(shader); return 0; }
+    if (compiled != GL_TRUE) {
+        GLint logLength = 0;
+        glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &logLength);
+        if (logLength > 1) {
+            std::vector<char> log(static_cast<std::size_t>(logLength), '\0');
+            GLsizei written = 0;
+            glGetShaderInfoLog(shader, logLength, &written, log.data());
+            __android_log_print(ANDROID_LOG_ERROR, "StormEngine", "GLSL compile failed: %.*s",
+                                 static_cast<int>(written), log.data());
+        }
+        glDeleteShader(shader);
+        return 0;
+    }
     return shader;
 }
 constexpr std::uint64_t maxGlSize = static_cast<std::uint64_t>(std::numeric_limits<GLsizeiptr>::max());
@@ -51,6 +65,7 @@ bool applyMaterial(const Material& material,
                    GLuint program,
                    std::unordered_map<std::uint64_t, std::unordered_map<std::string, std::int32_t>>& uniformLocations,
                    const std::unordered_map<std::uint32_t, GlesRenderDevice::TextureRecord>& textures,
+                   const ResourceHandleAllocator<TextureHandle>& textureHandles,
                    std::int32_t maxTextureUnits) noexcept {
     std::uint32_t textureUnit = 0;
     const std::uint32_t maxUnits = maxTextureUnits > 0 ? static_cast<std::uint32_t>(maxTextureUnits) : 1u;
@@ -71,8 +86,10 @@ bool applyMaterial(const Material& material,
             glUniform3fv(location, 1, vec3->data());
         } else if (const auto* vec4 = std::get_if<MaterialVec4>(&value)) {
             glUniform4fv(location, 1, vec4->data());
+        } else if (const auto* mat4 = std::get_if<MaterialMat4>(&value)) {
+            glUniformMatrix4fv(location, 1, GL_FALSE, mat4->data());
         } else if (const auto* texture = std::get_if<TextureHandle>(&value)) {
-            if (!texture->valid() || textures.find(texture->id()) == textures.end() || textureUnit >= maxUnits) {
+            if (!textureHandles.valid(*texture) || textures.find(texture->id()) == textures.end() || textureUnit >= maxUnits) {
                 return false;
             }
             glActiveTexture(GL_TEXTURE0 + textureUnit);
@@ -250,7 +267,20 @@ bool GlesRenderDevice::submit(const DrawCommand& command) {
         glLinkProgram(program);
         GLint linked = GL_FALSE;
         glGetProgramiv(program, GL_LINK_STATUS, &linked);
-        if (linked != GL_TRUE || glGetError() != GL_NO_ERROR) {
+        if (linked != GL_TRUE) {
+            GLint logLength = 0;
+            glGetProgramiv(program, GL_INFO_LOG_LENGTH, &logLength);
+            if (logLength > 1) {
+                std::vector<char> log(static_cast<std::size_t>(logLength), '\0');
+                GLsizei written = 0;
+                glGetProgramInfoLog(program, logLength, &written, log.data());
+                __android_log_print(ANDROID_LOG_ERROR, "StormEngine", "GLSL link failed: %.*s",
+                                     static_cast<int>(written), log.data());
+            }
+            glDeleteProgram(program);
+            return false;
+        }
+        if (glGetError() != GL_NO_ERROR) {
             glDeleteProgram(program);
             return false;
         }
@@ -277,8 +307,6 @@ bool GlesRenderDevice::submit(const DrawCommand& command) {
         stateCache_.markApplied(desiredState);
     }
 
-    if (maxTextureUnits_ == 0) glGetIntegerv(GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS, &maxTextureUnits_);
-
     if (vao_ == 0) {
         GLuint vao = 0;
         glGenVertexArrays(1, &vao);
@@ -296,8 +324,11 @@ bool GlesRenderDevice::submit(const DrawCommand& command) {
                               reinterpret_cast<const void*>(static_cast<std::uintptr_t>(attribute.offset)));
     }
 
+    if (maxTextureUnits_ == 0) glGetIntegerv(GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS, &maxTextureUnits_);
+    if (maxTextureUnits_ <= 0) return false;
+
     if (command.materialData != nullptr && !applyMaterial(*command.materialData,
-                                                            static_cast<GLuint>(program_), uniformLocations_, textures_, maxTextureUnits_)) return false;
+                                                            static_cast<GLuint>(program_), uniformLocations_, textures_, textureHandles_, maxTextureUnits_)) return false;
 
     if (command.indexed()) {
         if (!bufferHandles_.valid(command.indexBuffer)) return false;
