@@ -45,6 +45,23 @@ public:
         return true;
     }
 
+    bool remove(std::string_view systemName) {
+        const auto it = std::find_if(systems_.begin(), systems_.end(), [systemName](const auto& system) {
+            return system->name() == systemName;
+        });
+        if (it == systems_.end()) return false;
+        systems_.erase(it);
+        explicitDependencies_.erase(
+            std::remove_if(explicitDependencies_.begin(), explicitDependencies_.end(),
+                           [systemName](const auto& pair) {
+                               return pair.first == systemName || pair.second == systemName;
+                           }),
+            explicitDependencies_.end());
+        dirty_ = true;
+        graphDirty_ = true;
+        return true;
+    }
+
     bool empty() const noexcept { return systems_.empty(); }
     std::size_t size() const noexcept { return systems_.size(); }
 

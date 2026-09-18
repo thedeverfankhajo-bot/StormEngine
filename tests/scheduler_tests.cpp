@@ -49,6 +49,23 @@ void testExplicitDependencySurvivesRebuild() {
     assert(a < b);
 }
 
+void testRemoveSystemInvalidatesOrderAndDependencies() {
+    storm::ecs::SystemScheduler scheduler;
+    std::vector<std::string> log;
+    scheduler.add<TestSystem>("input", storm::ecs::SystemPhase::Input, log);
+    scheduler.add<TestSystem>("gameplay", storm::ecs::SystemPhase::Gameplay, log);
+    scheduler.add<TestSystem>("render", storm::ecs::SystemPhase::Render, log);
+    assert(scheduler.dependsOn("render", "gameplay"));
+    assert(scheduler.remove("gameplay"));
+    assert(!scheduler.contains("gameplay"));
+    assert(!scheduler.remove("gameplay"));
+    assert(scheduler.hasValidOrder());
+
+    storm::ecs::Registry registry;
+    scheduler.update(registry, 0.016f);
+    assert((log == std::vector<std::string>{"input", "render"}));
+}
+
 void testUnknownDependencyRejected() {
     storm::ecs::SystemScheduler scheduler;
     std::vector<std::string> log;
@@ -80,6 +97,7 @@ int main() {
     testPhaseOrderingIsRegistrationIndependent();
     testExplicitDependencySurvivesRebuild();
     testUnknownDependencyRejected();
+    testRemoveSystemInvalidatesOrderAndDependencies();
     testDuplicateNamesInvalidateSchedule();
     return 0;
 }
