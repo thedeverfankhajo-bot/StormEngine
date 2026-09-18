@@ -9,6 +9,11 @@ int main() {
     assert(!context.initializePbuffer(1, 0));
     assert(!context.initializePbuffer(-1, 1));
     assert(!context.initializeWindow(nullptr));
+    context.shutdown();
+    assert(!context.valid());
+    assert(!context.contextLost());
+    context.shutdown();
+    assert(!context.valid());
 
 #if defined(__ANDROID__)
     assert(context.initializePbuffer(1, 1));
