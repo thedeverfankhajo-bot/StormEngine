@@ -46,7 +46,7 @@ GLuint compileShader(GLenum type, const char* source) noexcept {
         GLint logLength = 0;
         glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &logLength);
         if (logLength > 1) {
-            std::vector<char> log(static_cast<std::size_t>(logLength), '\\0');
+            std::vector<char> log(static_cast<std::size_t>(logLength), '\0');
             GLsizei written = 0;
             glGetShaderInfoLog(shader, logLength, &written, log.data());
             __android_log_print(ANDROID_LOG_ERROR, "StormEngine", "GLSL compile failed: %.*s",
@@ -271,7 +271,7 @@ bool GlesRenderDevice::submit(const DrawCommand& command) {
             GLint logLength = 0;
             glGetProgramiv(program, GL_INFO_LOG_LENGTH, &logLength);
             if (logLength > 1) {
-                std::vector<char> log(static_cast<std::size_t>(logLength), '\\0');
+                std::vector<char> log(static_cast<std::size_t>(logLength), '\0');
                 GLsizei written = 0;
                 glGetProgramInfoLog(program, logLength, &written, log.data());
                 __android_log_print(ANDROID_LOG_ERROR, "StormEngine", "GLSL link failed: %.*s",
