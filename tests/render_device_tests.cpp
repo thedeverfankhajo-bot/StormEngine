@@ -128,9 +128,9 @@ int main() {
     assert(device.liveTextureCount() == 0);
 
     // Stale renderer handles must never destroy or mutate a replacement resource.
-    const staleBuffer = replacementIndexBuffer;
+    const auto staleBuffer = replacementIndexBuffer;
     device.destroyBuffer(staleBuffer);
-    const replacementBuffer = device.createBuffer(BufferDesc{512, BufferUsage::Static});
+    const auto replacementBuffer = device.createBuffer(BufferDesc{512, BufferUsage::Static});
     assert(replacementBuffer.valid());
     assert(replacementBuffer.id() == staleBuffer.id());
     assert(replacementBuffer.generation() != staleBuffer.generation());
