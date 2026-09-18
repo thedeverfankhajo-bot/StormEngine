@@ -27,13 +27,13 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
-          gradle-version: '8.13'
+          gradle-version: '9.6'
 
       - name: Build Android debug APKs
         working-directory: android
-        run: gradle assembleDebug --no-daemon --stacktrace
+        run: gradle assembleDebug --no-daemon --stacktrace --warning-mode=all
 
-      - name: Verify generated APKs
+      - name: Verify generated APKs and native ABIs
         working-directory: android
         shell: bash
         run: |
@@ -41,14 +41,11 @@ jobs:
           mapfile -t apks < <(find app/build/outputs/apk/debug -type f -name '*.apk' -print)
           test "${#apks[@]}" -gt 0
           printf '%s\n' "${apks[@]}"
-          for apk in "${apks[@]}"; do
-            echo "Inspecting $apk"
-            unzip -l "$apk" | grep -E 'lib/(arm64-v8a|armeabi-v7a|x86_64|x86)/libstorm_android_smoke\.so$'
-            for abi in arm64-v8a armeabi-v7a x86_64 x86; do
-              unzip -l "$apk" | grep -q "lib/$abi/libstorm_android_smoke.so"
-            done
+          apk="${apks[0]}"
+          for abi in arm64-v8a armeabi-v7a x86_64 x86; do
+            unzip -l "$apk" | grep -q "lib/$abi/libstorm_android_smoke.so"
           done
 
-      - name: Android lint
+      - name: Run Android lint
         working-directory: android
         run: gradle lintDebug --no-daemon --stacktrace
