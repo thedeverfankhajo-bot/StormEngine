@@ -123,6 +123,13 @@ struct DrawCommand final {
     std::int32_t baseVertex{0}; IndexType indexType{IndexType::UInt32};
     ShaderHandle shader{}; ShaderHandle fragmentShader{}; MaterialHandle material{};
     const Material* materialData{nullptr}; VertexLayout vertexLayout{};
+    std::uint32_t viewportWidth{0};
+    std::uint32_t viewportHeight{0};
+    bool blendEnabled{false};
+    bool depthTestEnabled{true};
+    bool depthWriteEnabled{true};
+    bool cullEnabled{true};
+    bool scissorEnabled{false};
     [[nodiscard]] constexpr bool indexed() const noexcept { return indexCount > 0; }
 };
 
