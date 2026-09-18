@@ -40,6 +40,10 @@ Useful options:
     STORM_RUN_SANDBOX=OFF ./scripts/termux-build.sh
     STORM_ENABLE_SANITIZERS=ON ./scripts/termux-build.sh
 
+**Termux native builds intentionally keep `STORM_BUILD_GLES=OFF`.** The GLES backend requires Android/NDK; native Termux now rejects GLES mode early instead of producing a misleading host-toolchain error.
+
+Every CTest executable has a 30-second timeout so a hung regression test cannot consume a CI runner indefinitely.
+
 CMake presets:
 
     cmake --list-presets
