@@ -4,6 +4,7 @@
 #include "RenderStateCache.hpp"
 #include <cstddef>
 #include <cstdint>
+#include <vector>
 
 #if defined(__ANDROID__)
 #include <unordered_map>
@@ -14,7 +15,11 @@ namespace storm::render {
 
 class GlesRenderDevice final : public RenderDevice {
 public:
-    struct TextureRecord { TextureDesc desc{}; std::uint32_t glId{0}; };
+    struct TextureRecord {
+        TextureDesc desc{};
+        std::uint32_t glId{0};
+        std::vector<std::byte> cpuData;
+    };
     GlesRenderDevice() = default;
     ~GlesRenderDevice() override;
     GlesRenderDevice(const GlesRenderDevice&) = delete;
@@ -30,18 +35,30 @@ public:
     void beginFrame() override;
     bool submit(const DrawCommand& command) override;
     void endFrame() override;
+    void onContextLost() noexcept override;
+    bool onContextRestored() noexcept override;
     [[nodiscard]] std::size_t liveBufferCount() const noexcept override;
     [[nodiscard]] std::size_t liveTextureCount() const noexcept override;
     [[nodiscard]] std::size_t liveShaderCount() const noexcept override;
     [[nodiscard]] std::size_t submittedDrawCount() const noexcept override { return submittedDraws_; }
 private:
-    struct BufferRecord { std::uint64_t size{0}; std::uint32_t glId{0}; };
-    struct ShaderRecord { std::uint32_t glId{0}; ShaderStage stage{ShaderStage::Vertex}; };
+    struct BufferRecord {
+        std::uint64_t size{0};
+        std::uint32_t glId{0};
+        BufferUsage usage{BufferUsage::Static};
+        std::vector<std::byte> cpuData;
+    };
+    struct ShaderRecord {
+        std::uint32_t glId{0};
+        ShaderStage stage{ShaderStage::Vertex};
+        std::string source;
+    };
     ResourceHandleAllocator<BufferHandle> bufferHandles_;
     ResourceHandleAllocator<TextureHandle> textureHandles_;
     ResourceHandleAllocator<ShaderHandle> shaderHandles_;
     std::size_t submittedDraws_{0};
     bool frameActive_{false};
+    bool gpuResourcesValid_{true};
 #if defined(__ANDROID__)
     std::unordered_map<std::uint32_t, BufferRecord> buffers_;
     std::unordered_map<std::uint32_t, TextureRecord> textures_;
