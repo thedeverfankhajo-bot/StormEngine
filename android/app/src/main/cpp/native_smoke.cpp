@@ -6,6 +6,7 @@
 #include <mutex>
 #include <thread>
 #include <atomic>
+#include <algorithm>
 
 #include "storm/math/Mat4.hpp"
 #include "storm/render/GlesContext.hpp"
