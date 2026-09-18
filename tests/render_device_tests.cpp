@@ -41,6 +41,16 @@ int main() {
     assert(!device.updateBuffer(vertexBuffer, nullptr, sizeof(bytes), 0));
     assert(!device.updateBuffer(BufferHandle{}, bytes, sizeof(bytes), 0));
     assert(!device.updateBuffer(vertexBuffer, bytes, sizeof(bytes), 1024));
+    // A stale handle must not become valid again when its numeric id is reused.
+    const auto staleVertex = vertexBuffer;
+    device.destroyBuffer(staleVertex);
+    const auto replacementVertex = device.createBuffer(BufferDesc{1024, BufferUsage::Static});
+    assert(replacementVertex.valid());
+    assert(replacementVertex.id() == staleVertex.id());
+    assert(replacementVertex.generation() != staleVertex.generation());
+    assert(!device.updateBuffer(staleVertex, bytes, sizeof(bytes), 0));
+    assert(device.updateBuffer(replacementVertex, bytes, sizeof(bytes), 0));
+    device.destroyBuffer(replacementVertex);
 
     std::uint8_t rgba64[64 * 64 * 4]{};
     std::uint8_t rgba32[32 * 32 * 4]{};
