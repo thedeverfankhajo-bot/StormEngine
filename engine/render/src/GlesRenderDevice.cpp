@@ -387,6 +387,8 @@ void GlesRenderDevice::endFrame() { frameActive_ = false; }
 std::size_t GlesRenderDevice::liveBufferCount() const noexcept { return 0; }
 std::size_t GlesRenderDevice::liveTextureCount() const noexcept { return 0; }
 std::size_t GlesRenderDevice::liveShaderCount() const noexcept { return 0; }
+void GlesRenderDevice::invalidateGpuResources() noexcept {}
+bool GlesRenderDevice::restoreGpuResources() noexcept { return false; }
 std::uint32_t GlesRenderDevice::allocateHandle(std::uint32_t& next) { return next++; }
 } // namespace storm::render
 #endif
