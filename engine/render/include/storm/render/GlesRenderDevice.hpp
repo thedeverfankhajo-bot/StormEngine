@@ -37,10 +37,9 @@ public:
 private:
     struct BufferRecord { std::uint64_t size{0}; std::uint32_t glId{0}; };
     struct ShaderRecord { std::uint32_t glId{0}; ShaderStage stage{ShaderStage::Vertex}; };
-    static std::uint32_t allocateHandle(std::uint32_t& next);
-    std::uint32_t nextBufferId_{1};
-    std::uint32_t nextTextureId_{1};
-    std::uint32_t nextShaderId_{1};
+    ResourceHandleAllocator<BufferHandle> bufferHandles_;
+    ResourceHandleAllocator<TextureHandle> textureHandles_;
+    ResourceHandleAllocator<ShaderHandle> shaderHandles_;
     std::size_t submittedDraws_{0};
     bool frameActive_{false};
 #if defined(__ANDROID__)
