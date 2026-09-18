@@ -10,6 +10,10 @@ option(STORM_BUILD_GLES "Build OpenGL ES 3.x backend" OFF)
 option(STORM_ENABLE_WARNINGS "Enable strict compiler warnings" ON)
 option(STORM_ENABLE_SANITIZERS "Enable AddressSanitizer and UndefinedBehaviorSanitizer" OFF)
 
+if(STORM_BUILD_GLES AND NOT ANDROID)
+    message(FATAL_ERROR "STORM_BUILD_GLES requires an Android/NDK toolchain; use the native Termux presets with STORM_BUILD_GLES=OFF")
+endif()
+
 add_library(storm_core
     engine/core/src/Engine.cpp
     engine/render/src/NullRenderDevice.cpp
@@ -18,9 +22,7 @@ add_library(storm_core
 
 if(STORM_BUILD_GLES)
     target_sources(storm_core PRIVATE engine/render/src/GlesRenderDevice.cpp)
-    if(ANDROID)
-        target_link_libraries(storm_core PRIVATE GLESv3 EGL)
-    endif()
+    target_link_libraries(storm_core PRIVATE GLESv3 EGL)
 endif()
 
 target_include_directories(storm_core PUBLIC
@@ -52,7 +54,7 @@ endif()
 
 if(ANDROID)
     add_library(storm_android_smoke SHARED android/app/src/main/cpp/native_smoke.cpp)
-    target_link_libraries(storm_android_smoke PRIVATE storm_core GLESv3 EGL android log)
+    target_link_libraries(storm_android_smoke PRIVATE storm_core android log)
 endif()
 
 if(NOT ANDROID)
