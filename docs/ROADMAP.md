@@ -30,6 +30,7 @@ This roadmap is milestone-based, not a promise of release dates. A milestone is 
 ## M2 — Platform shell and first visible 2D slice
 
 - [x] Add a platform-neutral, fixed-capacity digital input-state primitive with per-frame edge tracking, bounds checks and focus-loss release behavior.
+- [x] Add a fixed-capacity platform-event FIFO with payload validation, explicit overflow/rejection counts and input-state integration tests.
 - Choose window/input/platform dependencies after license and maintenance review.
 - Add a desktop window, input events and a minimal render-device interface.
 - Render a simple 2D scene with a camera, transform and texture/sprite.

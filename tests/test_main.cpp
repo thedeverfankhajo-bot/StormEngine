@@ -10,6 +10,7 @@
 #include "storm/core/version.hpp"
 #include "storm/math/vector.hpp"
 #include "storm/platform/input_state.hpp"
+#include "storm/platform/event_queue.hpp"
 #include "storm/scene/dimension.hpp"
 #include "storm/scene/scene.hpp"
 #include "storm/scene/transform.hpp"
@@ -951,6 +952,130 @@ void test_input_state_releases_controls_on_focus_loss() {
     STORM_CHECK(!input.pointer_button_was_released(0U));
 }
 
+void test_platform_event_queue_fifo_overflow_and_wraparound() {
+    using namespace storm::platform;
+    using Queue = PlatformEventQueue<3U>;
+
+    Queue queue;
+    STORM_CHECK(Queue::capacity == 3U);
+    STORM_CHECK(queue.max_size() == 3U);
+    STORM_CHECK(queue.empty());
+    STORM_CHECK(!queue.pop().has_value());
+
+    STORM_CHECK(queue.push(QuitRequestedEvent{}));
+    STORM_CHECK(queue.push(KeyStateChangedEvent{42U, true}));
+    STORM_CHECK(queue.push(WindowResizedEvent{1280U, 720U}));
+    STORM_CHECK(queue.size() == 3U);
+
+    // The newest event is rejected when full; previously accepted events are never overwritten.
+    STORM_CHECK(!queue.push(PointerMovedEvent{12.0, 8.0}));
+    STORM_CHECK(queue.dropped_count() == 1U);
+    STORM_CHECK(queue.rejected_count() == 0U);
+    STORM_CHECK(queue.size() == 3U);
+
+    const auto quit = queue.pop();
+    STORM_CHECK(quit.has_value());
+    if (quit.has_value()) {
+        STORM_CHECK(std::holds_alternative<QuitRequestedEvent>(*quit));
+    }
+
+    const auto key = queue.pop();
+    STORM_CHECK(key.has_value());
+    if (key.has_value()) {
+        const auto* value = std::get_if<KeyStateChangedEvent>(&*key);
+        STORM_CHECK(value != nullptr);
+        if (value != nullptr) {
+            STORM_CHECK(value->key_code == 42U);
+            STORM_CHECK(value->is_down);
+        }
+    }
+
+    // Reuse the wrapped slot after popping and preserve FIFO order across the ring boundary.
+    STORM_CHECK(queue.push(PointerMovedEvent{12.0, 8.0}));
+    STORM_CHECK(queue.size() == 2U);
+    const auto resized = queue.pop();
+    STORM_CHECK(resized.has_value());
+    if (resized.has_value()) {
+        const auto* value = std::get_if<WindowResizedEvent>(&*resized);
+        STORM_CHECK(value != nullptr);
+        if (value != nullptr) {
+            STORM_CHECK(value->width == 1280U);
+            STORM_CHECK(value->height == 720U);
+        }
+    }
+
+    const auto moved = queue.pop();
+    STORM_CHECK(moved.has_value());
+    if (moved.has_value()) {
+        const auto* value = std::get_if<PointerMovedEvent>(&*moved);
+        STORM_CHECK(value != nullptr);
+        if (value != nullptr) {
+            STORM_CHECK(value->x == 12.0);
+            STORM_CHECK(value->y == 8.0);
+        }
+    }
+    STORM_CHECK(queue.empty());
+    STORM_CHECK(!queue.pop().has_value());
+    STORM_CHECK(queue.dropped_count() == 1U);
+}
+
+void test_platform_event_queue_rejects_invalid_payloads() {
+    using namespace storm::platform;
+    PlatformEventQueue<4U> queue;
+
+    STORM_CHECK(!queue.push(KeyStateChangedEvent{256U, true}));
+    STORM_CHECK(!queue.push(PointerButtonStateChangedEvent{8U, true}));
+    STORM_CHECK(!queue.push(PointerMovedEvent{std::numeric_limits<double>::quiet_NaN(), 0.0}));
+    STORM_CHECK(!queue.push(PointerWheelScrolledEvent{
+        0.0, std::numeric_limits<double>::infinity()}));
+    STORM_CHECK(queue.empty());
+    STORM_CHECK(queue.size() == 0U);
+    STORM_CHECK(queue.rejected_count() == 4U);
+    STORM_CHECK(queue.dropped_count() == 0U);
+
+    // Zero-sized surfaces are a valid minimized-window state, not a malformed event.
+    STORM_CHECK(queue.push(WindowResizedEvent{0U, 0U}));
+    STORM_CHECK(queue.push(WindowFocusChangedEvent{false}));
+    STORM_CHECK(queue.size() == 2U);
+
+    queue.clear();
+    STORM_CHECK(queue.empty());
+    STORM_CHECK(queue.size() == 0U);
+    STORM_CHECK(queue.rejected_count() == 0U);
+    STORM_CHECK(queue.dropped_count() == 0U);
+}
+
+void test_platform_event_queue_integrates_with_input_state() {
+    using namespace storm::platform;
+    PlatformEventQueue<8U> queue;
+    InputState input;
+
+    STORM_CHECK(queue.push(KeyStateChangedEvent{8U, true}));
+    STORM_CHECK(queue.push(PointerButtonStateChangedEvent{2U, true}));
+    STORM_CHECK(queue.push(WindowFocusChangedEvent{false}));
+
+    while (const auto event = queue.pop()) {
+        if (const auto* key = std::get_if<KeyStateChangedEvent>(&*event)) {
+            STORM_CHECK(input.set_key_down(key->key_code, key->is_down));
+        } else if (const auto* button =
+                       std::get_if<PointerButtonStateChangedEvent>(&*event)) {
+            STORM_CHECK(input.set_pointer_button_down(button->button, button->is_down));
+        } else if (const auto* focus = std::get_if<WindowFocusChangedEvent>(&*event)) {
+            if (!focus->focused) {
+                input.release_all();
+            }
+        }
+    }
+
+    STORM_CHECK(queue.empty());
+    STORM_CHECK(!input.key_is_down(8U));
+    STORM_CHECK(input.key_was_pressed(8U));
+    STORM_CHECK(input.key_was_released(8U));
+    STORM_CHECK(!input.pointer_button_is_down(2U));
+    STORM_CHECK(input.pointer_button_was_pressed(2U));
+    STORM_CHECK(input.pointer_button_was_released(2U));
+}
+
 } // namespace
 
 int main() {
@@ -977,6 +1102,9 @@ int main() {
     test_input_state_frame_edges();
     test_input_state_rejects_out_of_range_slots_and_resets();
     test_input_state_releases_controls_on_focus_loss();
+    test_platform_event_queue_fifo_overflow_and_wraparound();
+    test_platform_event_queue_rejects_invalid_payloads();
+    test_platform_event_queue_integrates_with_input_state();
 
     if (failures != 0) {
         std::cerr << failures << " test assertion(s) failed.\n";
