@@ -17,7 +17,7 @@ The long-term goal is one coherent runtime and toolchain for 1D, 2D, and 3D expe
 
 **Stage:** portable core / initial in-memory 1D, 2D and 3D scene model.
 
-The repository contains version metadata, 1D/2D/3D math primitives, a dimension-aware in-memory Scene/Entity/Transform model, a bounded fixed-step clock, a shared status/error model, a validated runtime lifecycle state machine, UUID-compatible 128-bit stable identifiers with OS-backed version-4 generation, parsing/formatting and an in-memory duplicate-detecting registry, validated in-memory runtime configuration, dependency-free severity-filtered logging dispatch and a bounded no-heap diagnostics ring buffer, a fixed-capacity, platform-neutral digital input-state primitive with per-frame press/release edges and focus-loss release handling, a validated fixed-capacity FIFO platform-event queue with explicit overflow and rejection counters, a test executable, CMake build/install configuration, multi-platform CI, security guidance, and an architecture roadmap. The scene model validates finite dimension-matched transforms, bounds and validates entity names, supports safe renaming and deterministic stable-ID-ordered visitation, owns entity storage, and uses OS-generated stable identifiers. It is currently in-memory only and does not serialize scenes. These components are foundational building blocks, not claims of feature parity with mature engines. The input-state primitive is adapter-fed: native window/device polling, keyboard mapping and platform event production are not implemented yet.
+The repository contains version metadata, 1D/2D/3D math primitives, a dimension-aware in-memory Scene/Entity/Transform model, a bounded fixed-step clock, a shared status/error model, a validated runtime lifecycle state machine, UUID-compatible 128-bit stable identifiers with OS-backed version-4 generation, parsing/formatting and an in-memory duplicate-detecting registry, validated in-memory runtime configuration, dependency-free severity-filtered logging dispatch and a bounded no-heap diagnostics ring buffer, a fixed-capacity, platform-neutral digital input-state primitive with per-frame press/release edges and focus-loss release handling, a validated fixed-capacity FIFO platform-event queue with explicit overflow and rejection counters, an optional SDL3 desktop bootstrap demo, a test executable, CMake build/install configuration, multi-platform CI, security guidance, and an architecture roadmap. The scene model validates finite dimension-matched transforms, bounds and validates entity names, supports safe renaming and deterministic stable-ID-ordered visitation, owns entity storage, and uses OS-generated stable identifiers. It is currently in-memory only and does not serialize scenes. These components are foundational building blocks, not claims of feature parity with mature engines. The input-state primitive is adapter-fed: native window/device polling, keyboard mapping and platform event production are not implemented yet.
 
 See:
 - [Architecture](docs/ARCHITECTURE.md)
@@ -42,6 +42,19 @@ For Visual Studio multi-configuration generators, build and test with the desire
 cmake --build build --config Debug --parallel
 ctest --test-dir build -C Debug --output-on-failure
 ```
+
+## Optional SDL3 desktop prototype
+
+To build the first interactive desktop slice, opt in to the SDL3-backed demo:
+
+\`\`\`sh
+cmake -S . -B build-sdl3 -DSTORM_BUILD_TESTS=ON -DSTORM_BUILD_SDL3_DEMO=ON -DCMAKE_BUILD_TYPE=Debug
+cmake --build build-sdl3 --target storm_sdl3_demo --config Debug --parallel 2
+\`\`\`
+
+Run \`build-sdl3/storm_sdl3_demo\` on Linux/macOS, or \`build-sdl3/Debug/storm_sdl3_demo.exe\` for Visual Studio. Move the colored rectangle with WASD or the arrow keys, click to reposition it, and use the mouse wheel to resize it. Escape or the window close button exits.
+
+The optional target downloads the pinned SDL3 3.4.18 release archive and verifies its SHA-256. The normal core build remains dependency-free when \`STORM_BUILD_SDL3_DEMO=OFF\`. This is a desktop bootstrap sample using SDL's simple 2D renderer; it is not yet StormEngine's production Render Hardware Interface, texture/sprite asset pipeline, editor, or Android APK. See [Building](docs/BUILDING.md), [Architecture](docs/ARCHITECTURE.md), and [third-party notices](THIRD_PARTY_NOTICES.md).
 
 ## Android direction
 

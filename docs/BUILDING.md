@@ -48,6 +48,21 @@ Set `CMAKE_PREFIX_PATH` to the installation prefix when configuring the downstre
 
 The secure ID generator uses operating-system cryptographic random sources, without third-party runtime packages: [Windows BCryptGenRandom](https://learn.microsoft.com/en-us/windows/win32/api/bcrypt/nf-bcrypt-bcryptgenrandom), [Apple SecRandomCopyBytes](https://developer.apple.com/documentation/security/secrandomcopybytes%28_%3A_%3A_%3A%29?language=objc), and Linux/Android's `/dev/urandom` kernel interface ([manual](https://man7.org/linux/man-pages/man4/urandom.4.html)). A source failure is reported rather than falling back to a weak pseudo-random generator.
 
+## Optional SDL3 desktop 2D prototype
+
+The core library remains dependency-free by default. The opt-in \`STORM_BUILD_SDL3_DEMO=ON\` target fetches the official SDL3 3.4.18 source archive at configure time, verifies its SHA-256, builds SDL statically, and compiles \`storm_sdl3_demo\`. The desktop CI matrix enables this option so Windows, macOS and Linux compile the pinned integration.
+
+\`\`\`sh
+cmake -S . -B build-sdl3 -DSTORM_BUILD_TESTS=ON -DSTORM_BUILD_SDL3_DEMO=ON -DCMAKE_BUILD_TYPE=Debug
+cmake --build build-sdl3 --target storm_sdl3_demo --config Debug --parallel 2
+\`\`\`
+
+Run \`build-sdl3/storm_sdl3_demo\` on Linux/macOS, or \`build-sdl3/Debug/storm_sdl3_demo.exe\` for a Visual Studio build. The sample opens a resizable native window, routes SDL events through the bounded StormEngine platform-event queue, updates \`InputState\`, advances movement using \`FixedStepClock\`, and draws a colored rectangle using SDL's simple 2D renderer. Move it with WASD/arrows, click to reposition it, use the mouse wheel to resize, and press Escape to exit.
+
+This prototype is desktop-only; configuring it with the Android toolchain is rejected rather than implying that a desktop executable is an APK. SDL's official Android guide requires application/Activity glue and packaging in addition to compiling the native library. A real Android app and device lifecycle smoke tests remain future work. The demo renderer is intentionally temporary and does not define the engine's eventual RHI or 3D backend. The CI build is compile-tested; an interactive GUI smoke test on actual desktops is still required.
+
+Dependency version, provenance and license are recorded in [the SDL3 bootstrap decision](decisions/0001-sdl3-desktop-bootstrap.md) and [third-party notices](../THIRD_PARTY_NOTICES.md).
+
 ## Android NDK cross-compilation
 
 The core is currently a native library; this does **not** create a complete Android application or APK. Install Android Studio/SDK and an NDK version supported by your Android Gradle Plugin/toolchain, then set ANDROID_NDK_HOME to that NDK directory.
@@ -70,7 +85,7 @@ before intentionally changing the pinned toolchain version.
 
 ## Current scope and limitations
 
-The first milestone verifies only the core library and unit tests. There is no Android activity, APK, window/surface abstraction, renderer, editor or asset pipeline yet. A successful cross-compile alone is not evidence that the engine is ready for Android gameplay.
+The first milestone verifies the core library and unit tests. An optional SDL3 desktop prototype now opens a window and draws a moving rectangle, but there is no Android activity/APK, production RHI, editor or asset pipeline yet. A successful cross-compile alone is not evidence that the engine is ready for Android gameplay.
 
 ## Troubleshooting
 

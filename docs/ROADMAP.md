@@ -31,7 +31,8 @@ This roadmap is milestone-based, not a promise of release dates. A milestone is 
 
 - [x] Add a platform-neutral, fixed-capacity digital input-state primitive with per-frame edge tracking, bounds checks and focus-loss release behavior.
 - [x] Add a fixed-capacity platform-event FIFO with payload validation, explicit overflow/rejection counts and input-state integration tests.
-- Choose window/input/platform dependencies after license and maintenance review.
+- Prototype an opt-in SDL3 desktop window/input loop and visible 2D rectangle; CI compile-tests the example, but a manual interactive GUI smoke test is still required.
+- Choose production window/input/platform dependencies after license and maintenance review; the prototype choice is not a frozen engine ABI.
 - Add a desktop window, input events and a minimal render-device interface.
 - Render a simple 2D scene with a camera, transform and texture/sprite.
 - Add a documented example project and an automated smoke test where practical.

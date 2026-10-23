@@ -15,7 +15,7 @@ The planned dependency direction is from higher-level modules toward narrow lowe
 | Module | Responsibility | Current state |
 | --- | --- | --- |
 | Core | Versioning, status/error conventions, math, deterministic timing, lifecycle and low-level utilities | Version metadata, dimension-aware math, fixed-step clock, RuntimeConfig, Status, RuntimeLifecycle, stable IDs and bounded diagnostics |
-| Platform | Windowing, input, monotonic clocks, filesystems, threads and OS integration | Adapter-fed input state and bounded platform-event queue implemented; native window/event backends planned |
+| Platform | Windowing, input, monotonic clocks, filesystems, threads and OS integration | Adapter-fed input state/event queue plus an optional SDL3 desktop bootstrap; full platform runtime still planned |
 | Render | Render-device abstraction, resource lifetime, command submission and capabilities | Planned; no graphics API dependency yet |
 | Scene | Worlds/scenes, entities, transforms, lifecycle and serialization | Initial in-memory Scene/Entity/Transform API; versioned serialization is not implemented |
 | Assets | Importers, validation, metadata, cache and cooked asset packages | Planned |
@@ -41,9 +41,9 @@ The primitive validates slot bounds, does not poll OS devices, and does not defi
 
 ## Bounded platform event queue
 
-\`storm/platform/event_queue.hpp\` defines engine-owned event values for quit requests, focus changes, digital key/button changes, pointer motion/wheel input and window resizing. \`PlatformEventQueue<Capacity>\` is a fixed-capacity FIFO; it does not allocate, overwrite already accepted events, and counts rejected malformed payloads separately from valid events rejected because the queue is full. Counters saturate instead of wrapping. Key slots, pointer-button slots and finite floating-point coordinates are validated before events enter the queue. Zero-sized surfaces are accepted to represent minimized windows.
+`storm/platform/event_queue.hpp` defines engine-owned event values for quit requests, focus changes, digital key/button changes, pointer motion/wheel input and window resizing. `PlatformEventQueue<Capacity>` is a fixed-capacity FIFO; it does not allocate, overwrite already accepted events, and counts rejected malformed payloads separately from valid events rejected because the queue is full. Counters saturate instead of wrapping. Key slots, pointer-button slots and finite floating-point coordinates are validated before events enter the queue. Zero-sized surfaces are accepted to represent minimized windows.
 
-The queue and \`InputState\` are single-owner-thread building blocks, not a cross-thread synchronization mechanism and not a native OS event pump. A future platform adapter must define key-code mapping and coordinate units, check push failures, and release held input on focus loss even if an overflow prevents the focus event from being queued. Window identifiers and multi-window routing remain future contracts.
+The queue and `InputState` are single-owner-thread building blocks, not a cross-thread synchronization mechanism and not a native OS event pump. A future platform adapter must define key-code mapping and coordinate units, check push failures, and release held input on focus loss even if an overflow prevents the focus event from being queued. Window identifiers and multi-window routing remain future contracts.
 
 ## Errors and runtime lifecycle
 
@@ -83,9 +83,15 @@ The initial FixedStepClock accepts caller-supplied frame deltas rather than read
 
 This is a timing primitive, not a complete runtime loop. The platform layer will later provide monotonic time and lifecycle-aware pause/resume handling. Simulation determinism still depends on gameplay, physics, scheduling, and floating-point behavior; a fixed step alone does not guarantee deterministic replay or networking.
 
+## Desktop platform bootstrap
+
+The optional \`STORM_BUILD_SDL3_DEMO\` target uses SDL3 3.4.18 for a desktop window, keyboard/mouse event pumping and a minimal interactive 2D sample. The adapter maps SDL physical scancodes below 256 directly to provisional input slots for this prototype; this is not yet a stable named cross-platform key mapping. It routes events through \`PlatformEventQueue\`, consumes focus/resize/input events on one owner thread, releases held inputs after focus loss or queue overflow, and advances movement through the existing fixed-step clock.
+
+This dependency is opt-in for ordinary developers and pinned by an official source-archive SHA-256; desktop CI opts in to build it on Linux, macOS and Windows. The SDL renderer is used only to prove window/event/frame integration. The engine-facing render-device abstraction, GPU-resource lifetime model, texture/sprite asset pipeline and 3D RHI remain unimplemented. Android application glue, APK packaging and device lifecycle tests are separate work; building the SDL source alone would not establish Android app support.
+
 ## Rendering strategy
 
-Rendering must sit behind a Render Hardware Interface (RHI), separating engine-facing operations from specific APIs. Candidate backends include Vulkan and compatibility-oriented options where platform coverage warrants them. No backend is selected as a hard dependency in this bootstrap.
+Production rendering must sit behind a Render Hardware Interface (RHI), separating engine-facing operations from specific APIs. Candidate backends include Vulkan and compatibility-oriented options where platform coverage warrants them. The SDL renderer used by the desktop demo is not that RHI and is not a production-backend selection.
 
 Before committing to a renderer, build a small proof of concept covering device selection, swapchain/surface behavior, resource lifetimes, shader compilation, mobile thermal/battery behavior, driver variation, and CI validation. A backend is not "Android supported" merely because it compiles for Android.
 
