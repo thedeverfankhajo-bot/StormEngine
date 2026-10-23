@@ -9,6 +9,7 @@
 #include "storm/core/status.hpp"
 #include "storm/core/version.hpp"
 #include "storm/math/matrix4.hpp"
+#include "storm/math/quaternion.hpp"
 #include "storm/math/vector.hpp"
 #include "storm/platform/input_state.hpp"
 #include "storm/platform/key_code.hpp"
@@ -834,6 +835,118 @@ void test_vector_normalization_and_validation() {
                      std::numeric_limits<float>::quiet_NaN()).has_value()));
     STORM_CHECK((!Vec2{std::numeric_limits<float>::infinity(), 1.0F}.is_finite()));
     STORM_CHECK((Vec2{1.0F, 1.0F}.is_finite()));
+}
+
+void test_quaternion_rotation_and_validation() {
+    using storm::math::Quaternion;
+    using storm::math::Vec3;
+
+    constexpr float half_pi = 1.57079632679489661923F;
+    constexpr double tolerance = 1.0e-5;
+
+    const Quaternion identity;
+    STORM_CHECK(identity.is_finite());
+    STORM_CHECK(nearly_equal(identity.length_squared(), 1.0, tolerance));
+    const auto normalized_identity = identity.normalized();
+    STORM_CHECK(normalized_identity.has_value());
+    if (normalized_identity.has_value()) {
+        STORM_CHECK(*normalized_identity == identity);
+    }
+    const auto identity_rotation = identity.rotate_vector(Vec3{1.0F, -2.0F, 3.0F});
+    STORM_CHECK(identity_rotation.has_value());
+    if (identity_rotation.has_value()) {
+        STORM_CHECK((*identity_rotation == Vec3{1.0F, -2.0F, 3.0F}));
+    }
+
+    const auto z_rotation = Quaternion::from_axis_angle(Vec3{0.0F, 0.0F, 4.0F}, half_pi);
+    STORM_CHECK(z_rotation.has_value());
+    if (!z_rotation.has_value()) {
+        return;
+    }
+    STORM_CHECK(z_rotation->is_finite());
+    STORM_CHECK(nearly_equal(z_rotation->length_squared(), 1.0, tolerance));
+
+    const auto rotated = z_rotation->rotate_vector(Vec3{1.0F, 0.0F, 0.0F});
+    STORM_CHECK(rotated.has_value());
+    if (rotated.has_value()) {
+        STORM_CHECK(nearly_equal((*rotated)[0U], 0.0, tolerance));
+        STORM_CHECK(nearly_equal((*rotated)[1U], 1.0, tolerance));
+        STORM_CHECK(nearly_equal((*rotated)[2U], 0.0, tolerance));
+    }
+
+    const auto rotation_matrix = z_rotation->to_matrix();
+    STORM_CHECK(rotation_matrix.has_value());
+    if (rotation_matrix.has_value()) {
+        const auto matrix_rotated = rotation_matrix->transform_point(Vec3{1.0F, 0.0F, 0.0F});
+        STORM_CHECK(matrix_rotated.has_value());
+        if (matrix_rotated.has_value() && rotated.has_value()) {
+            for (std::size_t index = 0U; index < 3U; ++index) {
+                STORM_CHECK(nearly_equal((*matrix_rotated)[index], (*rotated)[index], tolerance));
+            }
+        }
+        STORM_CHECK(nearly_equal((*rotation_matrix)(3U, 3U), 1.0, tolerance));
+    }
+
+    const auto conjugate_rotation = z_rotation->conjugated().rotate_vector(Vec3{1.0F, 0.0F, 0.0F});
+    STORM_CHECK(conjugate_rotation.has_value());
+    if (conjugate_rotation.has_value()) {
+        STORM_CHECK(nearly_equal((*conjugate_rotation)[0U], 0.0, tolerance));
+        STORM_CHECK(nearly_equal((*conjugate_rotation)[1U], -1.0, tolerance));
+    }
+
+    const auto x_rotation = Quaternion::from_axis_angle(Vec3{1.0F, 0.0F, 0.0F}, half_pi);
+    STORM_CHECK(x_rotation.has_value());
+    if (x_rotation.has_value()) {
+        const Quaternion rotate_x_then_z = *z_rotation * *x_rotation;
+        const auto composed = rotate_x_then_z.rotate_vector(Vec3{0.0F, 1.0F, 0.0F});
+        STORM_CHECK(composed.has_value());
+        if (composed.has_value()) {
+            STORM_CHECK(nearly_equal((*composed)[0U], 0.0, tolerance));
+            STORM_CHECK(nearly_equal((*composed)[1U], 0.0, tolerance));
+            STORM_CHECK(nearly_equal((*composed)[2U], 1.0, tolerance));
+        }
+
+        const Quaternion rotate_z_then_x = *x_rotation * *z_rotation;
+        const auto reverse_composed = rotate_z_then_x.rotate_vector(Vec3{0.0F, 1.0F, 0.0F});
+        STORM_CHECK(reverse_composed.has_value());
+        if (reverse_composed.has_value()) {
+            STORM_CHECK(nearly_equal((*reverse_composed)[0U], -1.0, tolerance));
+            STORM_CHECK(nearly_equal((*reverse_composed)[1U], 0.0, tolerance));
+            STORM_CHECK(nearly_equal((*reverse_composed)[2U], 0.0, tolerance));
+        }
+    }
+
+    const Quaternion scaled{z_rotation->w() * 7.0F, z_rotation->x() * 7.0F,
+                            z_rotation->y() * 7.0F, z_rotation->z() * 7.0F};
+    const auto scaled_rotation = scaled.rotate_vector(Vec3{1.0F, 0.0F, 0.0F});
+    STORM_CHECK(scaled_rotation.has_value());
+    if (scaled_rotation.has_value() && rotated.has_value()) {
+        for (std::size_t index = 0U; index < 3U; ++index) {
+            STORM_CHECK(nearly_equal((*scaled_rotation)[index], (*rotated)[index], tolerance));
+        }
+    }
+    STORM_CHECK(scaled.to_matrix().has_value());
+
+    const float nan = std::numeric_limits<float>::quiet_NaN();
+    const float infinity = std::numeric_limits<float>::infinity();
+    const Quaternion zero{0.0F, 0.0F, 0.0F, 0.0F};
+    STORM_CHECK(!zero.normalized().has_value());
+    STORM_CHECK(!zero.rotate_vector(Vec3{1.0F, 0.0F, 0.0F}).has_value());
+    STORM_CHECK(!zero.to_matrix().has_value());
+    STORM_CHECK(!Quaternion{nan, 0.0F, 0.0F, 0.0F}.normalized().has_value());
+    STORM_CHECK(!Quaternion{infinity, 0.0F, 0.0F, 0.0F}.to_matrix().has_value());
+    STORM_CHECK(!Quaternion{infinity, 0.0F, 0.0F, 0.0F}
+                     .rotate_vector(Vec3{1.0F, 0.0F, 0.0F}).has_value());
+    STORM_CHECK(!identity.normalized(-1.0F).has_value());
+    STORM_CHECK(!identity.normalized(nan).has_value());
+    STORM_CHECK(!Quaternion::from_axis_angle(Vec3{}, half_pi).has_value());
+    STORM_CHECK(!Quaternion::from_axis_angle(Vec3{nan, 0.0F, 1.0F}, half_pi).has_value());
+    STORM_CHECK(!Quaternion::from_axis_angle(Vec3{0.0F, 0.0F, 1.0F}, infinity).has_value());
+    STORM_CHECK(!Quaternion::from_axis_angle(Vec3{0.0F, 0.0F, 1.0F}, half_pi, -1.0F).has_value());
+    STORM_CHECK(!z_rotation->rotate_vector(Vec3{nan, 0.0F, 0.0F}).has_value());
+
+    const float largest = std::numeric_limits<float>::max();
+    STORM_CHECK(!Quaternion{largest, largest, largest, largest}.normalized().has_value());
 }
 
 void test_matrix4_transform_conventions() {
@@ -2441,6 +2554,7 @@ int main() {
     test_runtime_lifecycle_failure_and_recovery();
     test_vector_arithmetic();
     test_vector_normalization_and_validation();
+    test_quaternion_rotation_and_validation();
     test_matrix4_transform_conventions();
     test_camera2d_world_pixel_mapping_and_validation();
     test_software_canvas2d_rasterization_and_bounds();
