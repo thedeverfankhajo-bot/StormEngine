@@ -10,6 +10,11 @@ on:
 permissions:
   contents: read
 
+# Supersede older main/branch CI runs when a newer commit arrives.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build-and-test:
     name: Build and test (${{ matrix.os }})
