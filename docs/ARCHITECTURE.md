@@ -16,7 +16,7 @@ The planned dependency direction is from higher-level modules toward narrow lowe
 | --- | --- | --- |
 | Core | Versioning, status/error conventions, math, deterministic timing, lifecycle and low-level utilities | Version metadata, dimension-aware vectors and tested Matrix4 transforms, fixed-step clock, RuntimeConfig, Status, RuntimeLifecycle, stable IDs and bounded diagnostics |
 | Platform | Windowing, input, monotonic clocks, filesystems, threads and OS integration | Adapter-fed input state/event queue plus an optional SDL3 desktop bootstrap; full platform runtime still planned |
-| Render | Render-device abstraction, resource lifetime, command submission and capabilities | CPU reference `SoftwareCanvas2D` plus an orthographic `Camera2D` for validated world/pixel transforms; production RHI still planned |
+| Render | Render-device abstraction, resource lifetime, command submission and capabilities | CPU reference `SoftwareCanvas2D`, orthographic `Camera2D`, and `SceneRenderer2D` bridge for 2D entity transforms; production RHI/material pipeline still planned |
 | Scene / Project | Worlds/scenes, entities, transforms, lifecycle, logical paths and serialization | In-memory Scene/Entity/Transform, bounded version-1 SceneCodec, atomic SceneFile storage, and syntax-validated ProjectPath; hierarchy, components and OS-level project-root confinement remain future work |
 | Assets | Importers, validation, metadata, cache and cooked asset packages | Planned |
 | Physics | 2D/3D simulation interfaces, collision queries and fixed-step integration | Planned |
@@ -119,7 +119,9 @@ These conventions are specified in [ADR 0002](decisions/0002-coordinate-system-a
 
 `storm/render/software_canvas2d.hpp` defines an engine-owned RGBA8 framebuffer and deterministic CPU rectangle rasterizer. Rectangles are transformed by a `Matrix4`, clipped to bounded canvas dimensions, sampled at pixel centers, and composited with straight-alpha blending. The framebuffer is limited to 8,192 pixels per axis and 16,777,216 pixels (64 MiB RGBA8). Failed resize preserves the old frame. This is a single-owner-thread correctness baseline, not a SIMD-optimized production renderer.
 
-The SDL3 sample now uses StormEngine's camera and framebuffer while SDL handles window/input events and streaming-texture presentation. Pixel tests run headlessly without SDL or a GPU. The canvas and camera are not a production RHI, sprite/asset pipeline or 3D renderer.
+`storm/render/scene_renderer2d.hpp` bridges the existing in-memory scene model to that canvas. It accepts only `Dimension::Two`, requires a valid camera whose viewport matches a non-empty canvas, preflights each entity's transformed unit quad before clearing the existing framebuffer, then composes `camera.world_to_pixel_matrix() * entity.transform().to_matrix()` and rasterizes the quad. Entity scale controls its placeholder size; caller-supplied clear/entity colors configure the reference output. No scene format changes or dependencies are introduced. Every current scene entity is treated as drawable because no renderable component/material system exists yet; future sprite/material work must replace this placeholder contract explicitly. Transform validation and pixel output are tested headlessly.
+
+The SDL3 sample now creates a real 2D `Scene` and player `Entity`, updates its `Transform2D`, then calls `SceneRenderer2D`; SDL handles window/input events and streaming-texture presentation only. Pixel tests run headlessly without SDL or a GPU. The canvas/camera/scene bridge are reference rendering primitives, not a production RHI, sprite/asset pipeline or 3D renderer.
 
 ## Scene, entities and transforms
 

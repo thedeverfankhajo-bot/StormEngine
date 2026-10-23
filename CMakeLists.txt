@@ -40,6 +40,7 @@ add_library(storm_core STATIC
     src/scene/scene_file.cpp
     src/render/software_canvas2d.cpp
     src/render/camera2d.cpp
+    src/render/scene_renderer2d.cpp
 )
 add_library(Storm::Core ALIAS storm_core)
 

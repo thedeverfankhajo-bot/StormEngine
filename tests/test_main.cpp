@@ -16,6 +16,7 @@
 #include "storm/project/project_path.hpp"
 #include "storm/render/camera2d.hpp"
 #include "storm/render/software_canvas2d.hpp"
+#include "storm/render/scene_renderer2d.hpp"
 #include "storm/scene/dimension.hpp"
 #include "storm/scene/scene.hpp"
 #include "storm/scene/scene_codec.hpp"
@@ -1176,6 +1177,86 @@ void test_software_canvas2d_rasterization_and_bounds() {
     STORM_CHECK(canvas.pixels().empty());
 }
 
+void test_scene_renderer2d_renders_entities_and_preserves_frame_on_invalid_input() {
+    using storm::core::ErrorCode;
+    using storm::core::StableId;
+    using storm::math::Vec2;
+    using storm::render::Camera2D;
+    using storm::render::Rgba8;
+    using storm::render::SceneRenderer2D;
+    using storm::render::SoftwareCanvas2D;
+    using storm::scene::Dimension;
+    using storm::scene::Scene;
+    using storm::scene::Transform;
+    using storm::scene::Transform2D;
+
+    constexpr Rgba8 background{10U, 20U, 30U, 255U};
+    constexpr Rgba8 entity_color{72U, 194U, 164U, 255U};
+
+    Scene scene{Dimension::Two};
+    StableId first_id;
+    StableId second_id;
+    STORM_CHECK(scene.create_entity("Upper left", first_id).ok());
+    STORM_CHECK(scene.create_entity("Lower right", second_id).ok());
+    auto* first = scene.find_entity(first_id);
+    auto* second = scene.find_entity(second_id);
+    STORM_CHECK(first != nullptr);
+    STORM_CHECK(second != nullptr);
+    if (first == nullptr || second == nullptr) {
+        return;
+    }
+
+    Transform2D first_transform;
+    first_transform.position = Vec2{-2.0F, 1.0F};
+    STORM_CHECK(first->set_transform(Transform{first_transform}).ok());
+
+    Transform2D second_transform;
+    second_transform.position = Vec2{2.0F, -1.0F};
+    second_transform.scale = Vec2{0.5F, 2.0F};
+    STORM_CHECK(second->set_transform(Transform{second_transform}).ok());
+
+    SoftwareCanvas2D canvas;
+    STORM_CHECK(canvas.resize(80U, 60U).ok());
+
+    Camera2D camera;
+    camera.view_height = 6.0F;
+    camera.viewport_width = 80U;
+    camera.viewport_height = 60U;
+    STORM_CHECK(camera.is_valid());
+
+    STORM_CHECK(SceneRenderer2D::render(scene, camera, canvas, background, entity_color).ok());
+    STORM_CHECK(canvas.pixels()[15U * 80U + 25U] == entity_color);
+    STORM_CHECK(canvas.pixels()[25U * 80U + 62U] == entity_color);
+    STORM_CHECK(canvas.pixels()[5U * 80U + 5U] == background);
+    STORM_CHECK(canvas.pixels()[55U * 80U + 75U] == background);
+
+    // Configuration errors are detected before the prior framebuffer is cleared.
+    Camera2D mismatched_camera = camera;
+    mismatched_camera.viewport_width = 79U;
+    STORM_CHECK(SceneRenderer2D::render(
+                    scene, mismatched_camera, canvas, Rgba8{0U, 0U, 0U, 255U}, entity_color)
+                    .code() == ErrorCode::InvalidArgument);
+    STORM_CHECK(canvas.pixels()[15U * 80U + 25U] == entity_color);
+    STORM_CHECK(canvas.pixels()[5U * 80U + 5U] == background);
+
+    Scene scene_3d{Dimension::Three};
+    STORM_CHECK(SceneRenderer2D::render(
+                    scene_3d, camera, canvas, Rgba8{0U, 0U, 0U, 255U}, entity_color)
+                    .code() == ErrorCode::Unsupported);
+    STORM_CHECK(canvas.pixels()[15U * 80U + 25U] == entity_color);
+
+    // Finite local values can still overflow when combined with the camera's pixel scale.
+    Transform2D overflowing_transform;
+    overflowing_transform.position =
+        Vec2{std::numeric_limits<float>::max(), 0.0F};
+    STORM_CHECK(first->set_transform(Transform{overflowing_transform}).ok());
+    STORM_CHECK(SceneRenderer2D::render(
+                    scene, camera, canvas, Rgba8{0U, 0U, 0U, 255U}, entity_color)
+                    .code() == ErrorCode::InvalidArgument);
+    STORM_CHECK(canvas.pixels()[15U * 80U + 25U] == entity_color);
+    STORM_CHECK(canvas.pixels()[5U * 80U + 5U] == background);
+}
+
 void test_dimensions() {
     using storm::scene::Dimension;
     using storm::scene::component_count;
@@ -2029,6 +2110,7 @@ int main() {
     test_matrix4_transform_conventions();
     test_camera2d_world_pixel_mapping_and_validation();
     test_software_canvas2d_rasterization_and_bounds();
+    test_scene_renderer2d_renders_entities_and_preserves_frame_on_invalid_input();
     test_dimensions();
     test_fixed_step_clock_basic_timing();
     test_fixed_step_clock_rounding_and_catch_up();

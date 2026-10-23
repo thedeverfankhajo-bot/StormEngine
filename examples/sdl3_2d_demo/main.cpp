@@ -1,8 +1,10 @@
 #include "storm/core/fixed_step_clock.hpp"
-#include "storm/math/matrix4.hpp"
 #include "storm/math/vector.hpp"
 #include "storm/render/camera2d.hpp"
 #include "storm/render/software_canvas2d.hpp"
+#include "storm/render/scene_renderer2d.hpp"
+#include "storm/scene/scene.hpp"
+#include "storm/scene/transform.hpp"
 #include "storm/platform/event_queue.hpp"
 #include "storm/platform/input_state.hpp"
 #include "storm/platform/key_code.hpp"
@@ -20,15 +22,18 @@
 namespace {
 
 using storm::core::FixedStepClock;
-using storm::math::Matrix4;
 using storm::math::Vec2;
-using storm::math::Vec3;
 using storm::platform::InputState;
 using storm::platform::PlatformEvent;
 using storm::platform::PlatformEventQueue;
 using storm::render::Camera2D;
 using storm::render::Rgba8;
 using storm::render::SoftwareCanvas2D;
+using storm::render::SceneRenderer2D;
+using storm::scene::Dimension;
+using storm::scene::Scene;
+using storm::scene::Transform;
+using storm::scene::Transform2D;
 
 constexpr int window_initial_width = 960;
 constexpr int window_initial_height = 540;
@@ -87,9 +92,8 @@ void print_sdl_error(const char* operation);
 }
 
 [[nodiscard]] bool render_frame(SDL_Renderer* renderer, SDL_Texture* texture,
-                                SoftwareCanvas2D& canvas, int width, int height,
-                                const Camera2D& camera, const Vec2& player_position,
-                                float player_size) {
+                                SoftwareCanvas2D& canvas, const Camera2D& camera,
+                                const Scene& scene, int width, int height) {
     if (width <= 0 || height <= 0) {
         return true;
     }
@@ -100,22 +104,10 @@ void print_sdl_error(const char* operation);
         return false;
     }
 
-    const auto world_to_pixel = camera.world_to_pixel_matrix();
-    if (!world_to_pixel.has_value()) {
-        std::cerr << "2D camera parameters are invalid or unrepresentable\n";
-        return false;
-    }
-
-    canvas.clear(background_color);
-    const Vec2 player_origin =
-        player_position - Vec2{player_size * 0.5F, player_size * 0.5F};
-    const Matrix4 player_transform =
-        *world_to_pixel * Matrix4::translation(
-                              Vec3{player_origin[0U], player_origin[1U], 0.0F});
     const auto draw_status =
-        canvas.draw_rect(player_transform, Vec2{player_size, player_size}, player_color);
+        SceneRenderer2D::render(scene, camera, canvas, background_color, player_color);
     if (!draw_status.ok()) {
-        std::cerr << "software rectangle draw failed: " << draw_status.message() << '\n';
+        std::cerr << "2D scene render failed: " << draw_status.message() << '\n';
         return false;
     }
 
@@ -239,6 +231,20 @@ void print_sdl_error(const char* operation) {
 int main(int argc, char* argv[]) {
     (void)argc;
     (void)argv;
+
+    Scene scene{Dimension::Two};
+    storm::core::StableId player_id;
+    const auto entity_status = scene.create_entity("Player", player_id);
+    if (!entity_status.ok()) {
+        std::cerr << "could not create the demo player entity: "
+                  << entity_status.message() << '\n';
+        return 1;
+    }
+    auto* player_entity = scene.find_entity(player_id);
+    if (player_entity == nullptr) {
+        std::cerr << "created demo player entity could not be found\n";
+        return 1;
+    }
 
     if (!SDL_Init(SDL_INIT_VIDEO)) {
         print_sdl_error("SDL_Init");
@@ -503,9 +509,19 @@ int main(int argc, char* argv[]) {
                            camera.center[1U] + allowed_y);
         }
 
+        const Transform2D player_transform{
+            player_position, 0.0F, Vec2{player_size, player_size}};
+        const auto transform_status = player_entity->set_transform(Transform{player_transform});
+        if (!transform_status.ok()) {
+            std::cerr << "could not update player transform: "
+                      << transform_status.message() << '\n';
+            exit_code = 1;
+            break;
+        }
+
         if (!ensure_software_surface(renderer, canvas, texture, window_width, window_height) ||
-            !render_frame(renderer, texture, canvas, window_width, window_height,
-                          camera, player_position, player_size)) {
+            !render_frame(renderer, texture, canvas, camera, scene,
+                          window_width, window_height)) {
             print_sdl_error("render frame");
             exit_code = 1;
             break;
