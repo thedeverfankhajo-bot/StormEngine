@@ -31,13 +31,13 @@ void test_vector_arithmetic() {
     using storm::math::Vec2;
     using storm::math::Vec3;
 
-    STORM_CHECK((Vec1{2.0F} + Vec1{3.0F}) == Vec1{5.0F});
-    STORM_CHECK((Vec2{1.0F, 2.0F} + Vec2{3.0F, 4.0F}) == Vec2{4.0F, 6.0F});
-    STORM_CHECK((Vec3{3.0F, 4.0F, 5.0F} - Vec3{1.0F, 2.0F, 3.0F}) ==
-                Vec3{2.0F, 2.0F, 2.0F});
-    STORM_CHECK((Vec2{3.0F, 4.0F}.dot(Vec2{3.0F, 4.0F})) == 25.0F);
-    STORM_CHECK((Vec3{1.0F, 2.0F, 3.0F} * 2.0F) == Vec3{2.0F, 4.0F, 6.0F});
-    STORM_CHECK((2.0F * Vec2{2.0F, 5.0F}) == Vec2{4.0F, 10.0F});
+    STORM_CHECK(((Vec1{2.0F} + Vec1{3.0F}) == Vec1{5.0F}));
+    STORM_CHECK(((Vec2{1.0F, 2.0F} + Vec2{3.0F, 4.0F}) == Vec2{4.0F, 6.0F}));
+    STORM_CHECK(((Vec3{3.0F, 4.0F, 5.0F} - Vec3{1.0F, 2.0F, 3.0F}) ==
+                 Vec3{2.0F, 2.0F, 2.0F}));
+    STORM_CHECK((Vec2{3.0F, 4.0F}.dot(Vec2{3.0F, 4.0F}) == 25.0F));
+    STORM_CHECK(((Vec3{1.0F, 2.0F, 3.0F} * 2.0F) == Vec3{2.0F, 4.0F, 6.0F}));
+    STORM_CHECK(((2.0F * Vec2{2.0F, 5.0F}) == Vec2{4.0F, 10.0F}));
 
     auto accumulated = Vec2{1.0F, 2.0F};
     accumulated += Vec2{2.0F, 3.0F};
