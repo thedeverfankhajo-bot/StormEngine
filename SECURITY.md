@@ -12,6 +12,20 @@ Please do not publish exploit details, weaponized files or unreleased vulnerabil
 
 A useful report includes the affected commit, platform/compiler, reproducible steps, security impact and a minimal proof of concept that does not expose unrelated data.
 
+## Automated supply-chain maintenance
+
+Dependabot version updates are configured weekly for GitHub Actions references in
+`.github/dependabot.yml`. Review these pull requests like code changes: preserve immutable
+action SHA pins, verify the upstream release/version comment, and keep workflow permissions
+minimal.
+
+This configuration does **not** enable Dependabot alerts, the dependency graph, or automatic
+security-update pull requests by itself. Those controls are managed separately in repository or
+organization security settings. Verify their status in GitHub before advertising security
+monitoring as fully enabled. As package-manager manifests or third-party runtime dependencies
+are introduced, add only the relevant ecosystem configurations and review their lockfiles,
+licenses, transitive dependencies, and update policy.
+
 ## Security engineering principles
 
 - Treat scenes, project files, imported media and downloaded packages as untrusted input.
