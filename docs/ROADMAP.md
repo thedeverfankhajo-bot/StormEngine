@@ -1,0 +1,84 @@
+# Roadmap
+
+This roadmap is milestone-based, not a promise of release dates. A milestone is complete when its acceptance criteria are demonstrated in code and tests.
+
+## M0 — Repository foundation
+
+- Establish the C++20/CMake project, portable core library and test harness.
+- Add baseline CI for Linux, macOS and Windows.
+- Write architecture, build, security and contribution guidance.
+- Capture the explicit rule that every change begins with a repository-wide review.
+
+**Acceptance:** a clean configure/build/test succeeds on all three CI operating systems; no third-party runtime dependency is required.
+
+## M1 — Deterministic runtime kernel
+
+- Add diagnostics/logging, error representation, configuration and lifecycle.
+- Define time sources, frame/tick contracts and a fixed-step clock.
+- Define stable identifiers and ownership/lifetime conventions.
+- Add sanitizer jobs and component-level tests.
+
+**Acceptance:** deterministic unit tests for runtime lifecycle and timing; useful failures and no silent invalid state transitions.
+
+## M2 — Platform shell and first visible 2D slice
+
+- Choose window/input/platform dependencies after license and maintenance review.
+- Add a desktop window, input events and a minimal render-device interface.
+- Render a simple 2D scene with a camera, transform and texture/sprite.
+- Add a documented example project and an automated smoke test where practical.
+
+**Acceptance:** an executable starts, presents a frame, handles close/input events and reports unsupported platform features clearly.
+
+## M3 — Asset and scene pipeline
+
+- Define scene/entity contracts and versioned serialization.
+- Build import, validation, metadata, cache and cooked-asset steps.
+- Add content hashes, import diagnostics and malformed-input tests.
+- Establish the coordinate system and project settings contract.
+
+**Acceptance:** a sample scene can be imported, validated, saved, reopened and built headlessly with stable identifiers.
+
+## M4 — 3D rendering and simulation
+
+- Evaluate renderer backends with a vertical-slice prototype.
+- Add meshes, materials, camera, lighting and shader compilation.
+- Define physics integration and fixed-step behavior based on measured needs.
+- Add render and simulation benchmarks before optimization work.
+
+**Acceptance:** a tested 3D sample on the declared hardware matrix, with documented API/resource lifetimes and measurable performance baselines.
+
+## M5 — Android native runtime
+
+- Cross-compile core and selected runtime modules using the Android NDK.
+- Integrate native lifecycle, surface, input, files and package build.
+- Test arm64-v8a first, then decide additional ABIs based on support goals.
+- Run device smoke tests, thermal/performance checks and lifecycle interruption tests.
+
+**Acceptance:** a packaged test application launches on real devices, survives pause/resume and surface recreation, and documents API/device requirements.
+
+## M6 — Editor and production workflow
+
+- Select an editor UI framework based on portability, accessibility, licensing and maintenance.
+- Build project browser, scene hierarchy, inspector, asset import feedback and viewport.
+- Add undo/redo, crash-safe saving and build/export orchestration.
+- Keep editor-only dependencies out of exported runtime builds.
+
+**Acceptance:** a developer can create, edit, save, reopen and package a small sample without manually editing engine internals.
+
+## M7 — Scripting, audio and broader production tools
+
+- Select a scripting/runtime strategy with explicit trust and sandbox boundaries.
+- Add audio, profiling, debug drawing, asset diagnostics and crash reporting policy.
+- Add plugin boundaries only after defining ABI/versioning and trust constraints.
+
+**Acceptance:** representative sample games exercise the workflows; performance and failure modes are documented.
+
+## M8 — Commercial release readiness
+
+- Decide and publish the project license and third-party notice process.
+- Add versioned releases, supported-platform matrix, release checksums and provenance.
+- Establish upgrade/migration policy for projects and asset formats.
+- Document packaging, platform signing, privacy/data handling, support and vulnerability disclosure.
+- Benchmark against declared workloads rather than unsupported competitor claims.
+
+**Acceptance:** a clean machine can follow the documented process to build, test, package and verify a sample project for every platform advertised as supported.
