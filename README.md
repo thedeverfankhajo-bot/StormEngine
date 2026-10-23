@@ -66,4 +66,6 @@ Read [CONTRIBUTING.md](CONTRIBUTING.md) before making changes. Meaningful change
 
 ## Licensing
 
-A project license has **not** been selected yet. Until a license is added, do not assume this public repository grants permission to reuse, distribute, or commercialize its code. The licensing model must be chosen explicitly before external reuse or commercial distribution.
+StormEngine's original project code and documentation are licensed under the Apache License 2.0 (SPDX: `Apache-2.0`); see [`LICENSE`](LICENSE). The license permits commercial use, modification, distribution and sublicensing subject to its terms, including preserving required notices and providing a copy of the license. It includes a contributor patent license; it does not grant trademark rights or warranties.
+
+Third-party components remain under their own licenses. The optional SDL3 desktop prototype is separately covered by SDL's zlib license, recorded in [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md). Review dependency licenses before distributing a product.
