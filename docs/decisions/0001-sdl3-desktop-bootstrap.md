@@ -3,9 +3,9 @@
 - **Status:** Accepted for the opt-in desktop prototype only
 - **Date:** 2026-10-23
 - **Upstream:** [libsdl-org/SDL](https://github.com/libsdl-org/SDL)
-- **Selected release:** SDL 3.4.18, tag \`release-3.4.18\`
-- **Tag commit:** \`829a65d769d935c4852f8159e964312c0957260a\`
-- **Archive SHA-256:** \`9c75cf16330322c217dedd2e0609f1124f1b54b8633e763467b4684d0f4334a3\`
+- **Selected release:** SDL 3.4.18, tag `release-3.4.18`
+- **Tag commit:** `829a65d769d935c4852f8159e964312c0957260a`
+- **Archive SHA-256:** `9c75cf16330322c217dedd2e0609f1124f1b54b8633e763467b4684d0f4334a3`
 
 ## Context
 
@@ -13,7 +13,7 @@ StormEngine has an OS-independent bounded input state and FIFO event contract, b
 
 ## Decision
 
-Use the official SDL3 3.4.18 source archive for an **optional desktop bootstrap demo**. CMake FetchContent downloads the release archive only when \`STORM_BUILD_SDL3_DEMO=ON\`; its SHA-256 is checked. SDL is built as a static dependency with its tests, examples and install actions disabled. The ordinary core build remains dependency-free by default, while desktop CI explicitly enables this option to compile the integration across Linux, macOS and Windows.
+Use the official SDL3 3.4.18 source archive for an **optional desktop bootstrap demo**. CMake FetchContent downloads the release archive only when `STORM_BUILD_SDL3_DEMO=ON`; its SHA-256 is checked. SDL is built as a static dependency with its tests, examples and install actions disabled. The ordinary core build remains dependency-free by default, while desktop CI explicitly enables this option to compile the integration across Linux, macOS and Windows.
 
 SDL is distributed under its permissive zlib license. The full upstream notice and provenance are recorded in [THIRD_PARTY_NOTICES.md](../../THIRD_PARTY_NOTICES.md).
 

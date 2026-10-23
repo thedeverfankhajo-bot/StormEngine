@@ -50,14 +50,14 @@ The secure ID generator uses operating-system cryptographic random sources, with
 
 ## Optional SDL3 desktop 2D prototype
 
-The core library remains dependency-free by default. The opt-in \`STORM_BUILD_SDL3_DEMO=ON\` target fetches the official SDL3 3.4.18 source archive at configure time, verifies its SHA-256, builds SDL statically, and compiles \`storm_sdl3_demo\`. The desktop CI matrix enables this option so Windows, macOS and Linux compile the pinned integration.
+The core library remains dependency-free by default. The opt-in `STORM_BUILD_SDL3_DEMO=ON` target fetches the official SDL3 3.4.18 source archive at configure time, verifies its SHA-256, builds SDL statically, and compiles `storm_sdl3_demo`. The desktop CI matrix enables this option so Windows, macOS and Linux compile the pinned integration.
 
-\`\`\`sh
+```sh
 cmake -S . -B build-sdl3 -DSTORM_BUILD_TESTS=ON -DSTORM_BUILD_SDL3_DEMO=ON -DCMAKE_BUILD_TYPE=Debug
 cmake --build build-sdl3 --target storm_sdl3_demo --config Debug --parallel 2
-\`\`\`
+```
 
-Run \`build-sdl3/storm_sdl3_demo\` on Linux/macOS, or \`build-sdl3/Debug/storm_sdl3_demo.exe\` for a Visual Studio build. The sample opens a resizable native window, routes SDL events through the bounded StormEngine platform-event queue, updates \`InputState\`, advances movement using \`FixedStepClock\`, and draws a colored rectangle using SDL's simple 2D renderer. Move it with WASD/arrows, click to reposition it, use the mouse wheel to resize, and press Escape to exit.
+Run `build-sdl3/storm_sdl3_demo` on Linux/macOS, or `build-sdl3/Debug/storm_sdl3_demo.exe` for a Visual Studio build. The sample opens a resizable native window, routes SDL events through the bounded StormEngine platform-event queue, updates `InputState`, advances movement using `FixedStepClock`, and draws a colored rectangle using SDL's simple 2D renderer. Move it with WASD/arrows, click to reposition it, use the mouse wheel to resize, and press Escape to exit.
 
 This prototype is desktop-only; configuring it with the Android toolchain is rejected rather than implying that a desktop executable is an APK. SDL's official Android guide requires application/Activity glue and packaging in addition to compiling the native library. A real Android app and device lifecycle smoke tests remain future work. The demo renderer is intentionally temporary and does not define the engine's eventual RHI or 3D backend. The CI build is compile-tested; an interactive GUI smoke test on actual desktops is still required.
 

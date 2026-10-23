@@ -1,16 +1,16 @@
 # Third-party notices
 
-StormEngine's own project license remains undecided. The following notice applies to the optional SDL3 desktop prototype when \`STORM_BUILD_SDL3_DEMO=ON\`. This notice does not grant a license to StormEngine's own code.
+StormEngine's own project license remains undecided. The following notice applies to the optional SDL3 desktop prototype when `STORM_BUILD_SDL3_DEMO=ON`. This notice does not grant a license to StormEngine's own code.
 
 ## SDL — Simple DirectMedia Layer
 
 - **Version:** 3.4.18
 - **Upstream project:** https://github.com/libsdl-org/SDL
-- **Release tag:** \`release-3.4.18\`
-- **Tag commit:** \`829a65d769d935c4852f8159e964312c0957260a\`
+- **Release tag:** `release-3.4.18`
+- **Tag commit:** `829a65d769d935c4852f8159e964312c0957260a`
 - **Source archive:** https://github.com/libsdl-org/SDL/releases/download/release-3.4.18/SDL3-3.4.18.tar.gz
-- **SHA-256:** \`9c75cf16330322c217dedd2e0609f1124f1b54b8633e763467b4684d0f4334a3\`
-- **License:** zlib (per upstream \`LICENSE.txt\`)
+- **SHA-256:** `9c75cf16330322c217dedd2e0609f1124f1b54b8633e763467b4684d0f4334a3`
+- **License:** zlib (per upstream `LICENSE.txt`)
 - **Use in StormEngine:** optional static dependency for the first desktop window/input/2D bootstrap demo; not used by the core build unless the option is enabled.
 
 ### Upstream license text
