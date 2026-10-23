@@ -4,7 +4,7 @@
   const translations = {
     en: {
       skip:"Skip to content", "brand-tag":"Independent game technology", "nav-label":"Primary navigation",
-      "nav-architecture":"Architecture", "nav-roadmap":"Roadmap", "nav-docs":"Docs", "nav-source":"Source ↗",
+      "nav-architecture":"Architecture", "nav-roadmap":"Roadmap", "nav-docs":"Docs", "nav-source":"Source ↗", "move-up":"Move up", "move-left":"Move left", "move-down":"Move down", "move-right":"Move right",
       "hero-eyebrow":"EARLY STAGE · BUILT IN THE OPEN", "hero-title-a":"One engine.", "hero-title-b":"Every dimension.",
       "hero-lede":"A native, modular foundation for 1D, 2D and 3D worlds. Built with portability, clear module boundaries and tested behavior at the center.",
       "hero-cta":"Explore the architecture ↘", "repo-cta":"View repository ↗",
@@ -77,7 +77,7 @@
     },
     fa: {
       skip:"رفتن به محتوای اصلی", "brand-tag":"فناوری مستقل بازی", "nav-label":"پیمایش اصلی",
-      "nav-architecture":"معماری", "nav-roadmap":"نقشهٔ راه", "nav-docs":"مستندات", "nav-source":"کد منبع ↗",
+      "nav-architecture":"معماری", "nav-roadmap":"نقشهٔ راه", "nav-docs":"مستندات", "nav-source":"کد منبع ↗", "move-up":"حرکت به بالا", "move-left":"حرکت به چپ", "move-down":"حرکت به پایین", "move-right":"حرکت به راست",
       "hero-eyebrow":"مرحلهٔ اولیه · توسعهٔ شفاف", "hero-title-a":"یک موتور.", "hero-title-b":"تمام بُعدها.",
       "hero-lede":"پایه‌ای بومی و ماژولار برای جهان‌های یک‌بعدی، دوبعدی و سه‌بعدی؛ با تمرکز بر قابلیت حمل، مرزبندی روشن ماژول‌ها و رفتار آزموده‌شده.",
       "hero-cta":"مرور معماری ↘", "repo-cta":"مشاهدهٔ مخزن ↗",
