@@ -14,7 +14,7 @@ The planned dependency direction is from higher-level modules toward narrow lowe
 
 | Module | Responsibility | Current state |
 | --- | --- | --- |
-| Core | Versioning, base types, math, diagnostics and low-level utilities | Initial version and dimension-aware math only |
+| Core | Versioning, base types, math, deterministic timing and low-level utilities | Version metadata, dimension-aware math and fixed-step clock |
 | Platform | Windowing, input, clocks, filesystems, threads and OS integration | Planned |
 | Render | Render-device abstraction, resource lifetime, command submission and capabilities | Planned; no graphics API dependency yet |
 | Scene | Worlds/scenes, entities, transforms, lifecycle and serialization | Planned |
@@ -33,6 +33,12 @@ The planned dependency direction is from higher-level modules toward narrow lowe
 - Keep compiler flags target-scoped. Never force optimization flags globally; build configurations should own optimization policy.
 - Do not introduce templates, SIMD specializations, allocators, a custom ECS, or a custom container library without a measured reason.
 
+## Deterministic timing
+
+The initial `FixedStepClock` accepts caller-supplied frame deltas rather than reading a platform clock. It bounds each accepted frame delta, caps the number of simulation steps requested per frame, reports discarded time explicitly, and exposes a fractional accumulator for render interpolation. Invalid (negative or non-finite) deltas are rejected without mutating state. Reconfiguration is validated and resets the accumulator so time from a previous simulation step does not leak into the new configuration.
+
+This is a timing primitive, not a complete runtime loop. The platform layer will later provide monotonic time and lifecycle-aware pause/resume handling. Simulation determinism still depends on gameplay, physics, scheduling, and floating-point behavior; a fixed step alone does not guarantee deterministic replay or networking.
+
 ## Rendering strategy
 
 Rendering must sit behind a Render Hardware Interface (RHI), separating engine-facing operations from specific APIs. Candidate backends include Vulkan and compatibility-oriented options where platform coverage warrants them. No backend is selected as a hard dependency in this bootstrap.
@@ -43,7 +49,7 @@ Before committing to a renderer, build a small proof of concept covering device 
 
 - One scene model should express a 1D, 2D, or 3D project through explicit dimension settings.
 - Transform conventions, coordinate handedness, units, angles, matrix layout, and serialization rules must be documented before renderer/physics integration.
-- Simulation timing should be separate from rendering frequency. Fixed-step simulation and interpolation will be evaluated to improve stability and reproducibility.
+- Simulation timing should be separate from rendering frequency. Fixed-step simulation and interpolation are available as a core primitive; integration into an actual runtime loop remains future work.
 - The ECS versus scene-graph/entity API must be decided with representative workloads and editor requirements, not fashion alone.
 - Scene and asset formats must be versioned, validated, and have migration policies before they become long-term user data.
 

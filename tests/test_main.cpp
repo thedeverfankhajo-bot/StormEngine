@@ -1,3 +1,4 @@
+#include "storm/core/fixed_step_clock.hpp"
 #include "storm/core/version.hpp"
 #include "storm/math/vector.hpp"
 #include "storm/scene/dimension.hpp"
@@ -19,6 +20,10 @@ void check(bool condition, std::string_view expression, int line) {
 }
 
 #define STORM_CHECK(expression) check(static_cast<bool>(expression), #expression, __LINE__)
+
+[[nodiscard]] bool nearly_equal(double left, double right, double tolerance = 1.0e-9) {
+    return std::abs(left - right) <= tolerance;
+}
 
 void test_version() {
     STORM_CHECK(storm::version() == storm::kVersion);
@@ -86,6 +91,109 @@ void test_dimensions() {
     STORM_CHECK(dimension_name(static_cast<Dimension>(99)) == "Unknown");
 }
 
+void test_fixed_step_clock_basic_timing() {
+    using storm::core::FixedStepClock;
+
+    FixedStepClock clock;
+    const auto first = clock.advance(1.0 / 60.0);
+    STORM_CHECK(first.accepted);
+    STORM_CHECK(first.steps == 1U);
+    STORM_CHECK(nearly_equal(first.simulated_seconds, 1.0 / 60.0));
+    STORM_CHECK(nearly_equal(first.interpolation_alpha, 0.0));
+
+    const auto half_frame = clock.advance(1.0 / 120.0);
+    STORM_CHECK(half_frame.accepted);
+    STORM_CHECK(half_frame.steps == 0U);
+    STORM_CHECK(nearly_equal(half_frame.interpolation_alpha, 0.5));
+
+    const auto accumulated = clock.advance(1.0 / 120.0);
+    STORM_CHECK(accumulated.steps == 1U);
+    STORM_CHECK(nearly_equal(accumulated.interpolation_alpha, 0.0));
+}
+
+void test_fixed_step_clock_rounding_and_catch_up() {
+    using storm::core::FixedStepClock;
+    using storm::core::FixedStepClockConfig;
+
+    FixedStepClock clock;
+    STORM_CHECK((clock.configure(FixedStepClockConfig{0.1, 0.5, 8U})));
+
+    const auto three_ticks = clock.advance(0.3);
+    STORM_CHECK(three_ticks.accepted);
+    STORM_CHECK(three_ticks.steps == 3U);
+    STORM_CHECK(nearly_equal(three_ticks.simulated_seconds, 0.3));
+    STORM_CHECK(nearly_equal(three_ticks.discarded_seconds, 0.0));
+    STORM_CHECK(nearly_equal(three_ticks.interpolation_alpha, 0.0));
+
+    STORM_CHECK((clock.configure(FixedStepClockConfig{0.1, 0.25, 8U})));
+    const auto clamped = clock.advance(1.0);
+    STORM_CHECK(clamped.accepted);
+    STORM_CHECK(clamped.steps == 2U);
+    STORM_CHECK(nearly_equal(clamped.simulated_seconds, 0.2));
+    STORM_CHECK(nearly_equal(clamped.discarded_seconds, 0.75));
+    STORM_CHECK(nearly_equal(clamped.interpolation_alpha, 0.5));
+}
+
+void test_fixed_step_clock_step_budget() {
+    using storm::core::FixedStepClock;
+    using storm::core::FixedStepClockConfig;
+
+    FixedStepClock clock;
+    STORM_CHECK((clock.configure(FixedStepClockConfig{0.1, 0.8, 2U})));
+
+    const auto bounded = clock.advance(0.65);
+    STORM_CHECK(bounded.accepted);
+    STORM_CHECK(bounded.steps == 2U);
+    STORM_CHECK(nearly_equal(bounded.simulated_seconds, 0.2));
+    STORM_CHECK(nearly_equal(bounded.discarded_seconds, 0.4));
+    STORM_CHECK(nearly_equal(bounded.interpolation_alpha, 0.5));
+    STORM_CHECK(clock.accumulator_seconds() >= 0.0);
+    STORM_CHECK(clock.accumulator_seconds() < clock.config().fixed_delta_seconds);
+}
+
+void test_fixed_step_clock_rejects_invalid_time_and_configuration() {
+    using storm::core::FixedStepClock;
+    using storm::core::FixedStepClockConfig;
+
+    FixedStepClock clock;
+    STORM_CHECK((clock.configure(FixedStepClockConfig{0.1, 0.5, 8U})));
+    const auto partial = clock.advance(0.05);
+    STORM_CHECK(partial.accepted);
+    const double saved_accumulator = clock.accumulator_seconds();
+    const auto saved_config = clock.config();
+
+    const auto negative = clock.advance(-1.0);
+    const auto nan = clock.advance(std::numeric_limits<double>::quiet_NaN());
+    const auto infinity = clock.advance(std::numeric_limits<double>::infinity());
+    STORM_CHECK(!negative.accepted);
+    STORM_CHECK(!nan.accepted);
+    STORM_CHECK(!infinity.accepted);
+    STORM_CHECK(nearly_equal(clock.accumulator_seconds(), saved_accumulator));
+    STORM_CHECK(nearly_equal(negative.interpolation_alpha, 0.5));
+
+    STORM_CHECK((!clock.configure(FixedStepClockConfig{0.0, 0.5, 8U})));
+    STORM_CHECK((!clock.configure(FixedStepClockConfig{0.1, 0.05, 8U})));
+    STORM_CHECK((!clock.configure(FixedStepClockConfig{0.1, 0.5, 0U})));
+    STORM_CHECK((!clock.configure(FixedStepClockConfig{0.1, 0.5, 1025U})));
+    STORM_CHECK((!clock.configure(FixedStepClockConfig{
+                     std::numeric_limits<double>::quiet_NaN(), 0.5, 8U})));
+    STORM_CHECK((!clock.configure(FixedStepClockConfig{0.1, 61.0, 8U})));
+
+    STORM_CHECK(clock.config().fixed_delta_seconds == saved_config.fixed_delta_seconds);
+    STORM_CHECK(clock.config().max_frame_delta_seconds == saved_config.max_frame_delta_seconds);
+    STORM_CHECK(clock.config().max_steps_per_frame == saved_config.max_steps_per_frame);
+    STORM_CHECK(nearly_equal(clock.accumulator_seconds(), saved_accumulator));
+
+    STORM_CHECK((clock.configure(FixedStepClockConfig{0.2, 0.4, 4U})));
+    STORM_CHECK(nearly_equal(clock.accumulator_seconds(), 0.0));
+    const auto zero = clock.advance(0.0);
+    STORM_CHECK(zero.accepted);
+    STORM_CHECK(zero.steps == 0U);
+    STORM_CHECK(nearly_equal(zero.interpolation_alpha, 0.0));
+    clock.reset();
+    STORM_CHECK(nearly_equal(clock.accumulator_seconds(), 0.0));
+}
+
 } // namespace
 
 int main() {
@@ -93,6 +201,10 @@ int main() {
     test_vector_arithmetic();
     test_vector_normalization_and_validation();
     test_dimensions();
+    test_fixed_step_clock_basic_timing();
+    test_fixed_step_clock_rounding_and_catch_up();
+    test_fixed_step_clock_step_budget();
+    test_fixed_step_clock_rejects_invalid_time_and_configuration();
 
     if (failures != 0) {
         std::cerr << failures << " test assertion(s) failed.\n";

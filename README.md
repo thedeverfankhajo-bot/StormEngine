@@ -2,7 +2,7 @@
 
 **StormEngine is an independent, modular game-engine project built from the ground up.**
 
-The long-term goal is one coherent runtime and toolchain for 1D, 2D, and 3D experiences, with desktop development first and Android as a first-class target. The project is in its foundational stage: this repository does not yet provide a production game engine, renderer, editor, physics system, or platform runtime.
+The long-term goal is one coherent runtime and toolchain for 1D, 2D, and 3D experiences, with desktop development first and Android as a first-class target. The project remains at an early foundational stage and does not yet provide a production renderer, editor, physics engine, asset pipeline, or complete platform runtime.
 
 ## Project principles
 
@@ -15,9 +15,9 @@ The long-term goal is one coherent runtime and toolchain for 1D, 2D, and 3D expe
 
 ## Current status
 
-**Stage:** repository bootstrap / foundational core.
+**Stage:** portable core / deterministic runtime primitives.
 
-The initial implementation contains version metadata, small 1D/2D/3D math primitives, a dimension type, a dependency-free test executable, CMake build configuration, and a multi-platform CI workflow. These are foundations, not claims of feature parity with mature engines.
+The repository contains version metadata, 1D/2D/3D math primitives, scene dimension metadata, a bounded fixed-step clock, a dependency-free test executable, CMake build/install configuration, multi-platform CI, security guidance, and an architecture roadmap. These components are foundational building blocks, not claims of feature parity with mature engines.
 
 See:
 - [Architecture](docs/ARCHITECTURE.md)

@@ -13,12 +13,12 @@ This roadmap is milestone-based, not a promise of release dates. A milestone is 
 
 ## M1 — Deterministic runtime kernel
 
+- [x] Define an initial fixed-step clock with frame-delta limits, a bounded per-frame step budget, interpolation alpha, and explicit dropped-time reporting.
 - Add diagnostics/logging, error representation, configuration and lifecycle.
-- Define time sources, frame/tick contracts and a fixed-step clock.
 - Define stable identifiers and ownership/lifetime conventions.
 - Add sanitizer jobs and component-level tests.
 
-**Acceptance:** deterministic unit tests for runtime lifecycle and timing; useful failures and no silent invalid state transitions.
+**Acceptance for the fixed-step clock:** deterministic unit tests cover normal accumulation, floating-point boundary behavior, frame-delta clamping, step-budget exhaustion, invalid input, and safe reconfiguration. The remaining runtime-kernel work is still in progress.
 
 ## M2 — Platform shell and first visible 2D slice
 
