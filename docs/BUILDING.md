@@ -50,7 +50,7 @@ The secure ID generator uses operating-system cryptographic random sources, with
 
 ## Optional SDL3 desktop 2D prototype
 
-The core library remains dependency-free by default. The opt-in `STORM_BUILD_SDL3_DEMO=ON` target fetches the official SDL3 3.4.18 source archive at configure time, verifies its SHA-256, builds SDL statically, and compiles `storm_sdl3_demo`. The desktop CI matrix enables this option so Windows, macOS and Linux compile the pinned integration.
+The core library remains dependency-free by default. The opt-in `STORM_BUILD_SDL3_DEMO=ON` target fetches the official SDL3 3.4.18 source archive at configure time, verifies its SHA-256, builds SDL statically, and compiles `storm_sdl3_demo`. The desktop CI matrix enables this option so Windows, macOS and Linux compile the pinned integration. On Linux, SDL's X11/Wayland development packages are required to compile its desktop video backend; the CI workflow installs the upstream-recommended dependencies. See [SDL's Linux build requirements](https://github.com/libsdl-org/SDL/blob/release-3.4.18/docs/README-linux.md#build-dependencies).
 
 ```sh
 cmake -S . -B build-sdl3 -DSTORM_BUILD_TESTS=ON -DSTORM_BUILD_SDL3_DEMO=ON -DCMAKE_BUILD_TYPE=Debug
