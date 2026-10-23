@@ -15,7 +15,7 @@ The planned dependency direction is from higher-level modules toward narrow lowe
 | Module | Responsibility | Current state |
 | --- | --- | --- |
 | Core | Versioning, status/error conventions, math, deterministic timing, lifecycle and low-level utilities | Version metadata, dimension-aware math, fixed-step clock, RuntimeConfig, Status, RuntimeLifecycle, stable IDs and bounded diagnostics |
-| Platform | Windowing, input, monotonic clocks, filesystems, threads and OS integration | Planned |
+| Platform | Windowing, input, monotonic clocks, filesystems, threads and OS integration | Adapter-fed digital input state implemented; native window/event backends planned |
 | Render | Render-device abstraction, resource lifetime, command submission and capabilities | Planned; no graphics API dependency yet |
 | Scene | Worlds/scenes, entities, transforms, lifecycle and serialization | Initial in-memory Scene/Entity/Transform API; versioned serialization is not implemented |
 | Assets | Importers, validation, metadata, cache and cooked asset packages | Planned |
@@ -32,6 +32,12 @@ The planned dependency direction is from higher-level modules toward narrow lowe
 - Keep public headers small and stable. Compile implementation details in library targets where practical.
 - Keep compiler flags target-scoped. Never force optimization flags globally; build configurations should own optimization policy.
 - Do not introduce templates, SIMD specializations, allocators, a custom ECS, or a custom container library without a measured reason.
+
+## Platform-neutral digital input state
+
+`storm/platform/input_state.hpp` provides a fixed-capacity, allocation-free state snapshot for 256 adapter-fed key slots and 8 pointer-button slots. Adapters update held state as native events arrive; `begin_frame()` clears edge flags while preserving held controls. Press and release edges are both retained if both transitions happen within one frame. `release_all()` publishes release edges for all held controls so a focus loss or device detach cannot leave a key stuck; `reset()` clears all state without publishing edges.
+
+The primitive validates slot bounds, does not poll OS devices, and does not define a cross-platform key-code mapping or deliver events. Those contracts belong to the chosen platform adapter and must be documented before a native backend is selected. Like the initial runtime kernel, it is single-owner-thread only and provides no synchronization for concurrent event producers.
 
 ## Errors and runtime lifecycle
 

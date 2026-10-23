@@ -9,6 +9,7 @@
 #include "storm/core/status.hpp"
 #include "storm/core/version.hpp"
 #include "storm/math/vector.hpp"
+#include "storm/platform/input_state.hpp"
 #include "storm/scene/dimension.hpp"
 #include "storm/scene/scene.hpp"
 #include "storm/scene/transform.hpp"
@@ -844,6 +845,112 @@ void test_fixed_step_clock_rejects_invalid_time_and_configuration() {
     STORM_CHECK(nearly_equal(clock.accumulator_seconds(), 0.0));
 }
 
+void test_input_state_frame_edges() {
+    using storm::platform::InputState;
+
+    InputState input;
+    STORM_CHECK(InputState::key_code_count == 256U);
+    STORM_CHECK(InputState::pointer_button_count == 8U);
+    STORM_CHECK(!input.key_is_down(4U));
+    STORM_CHECK(!input.key_was_pressed(4U));
+    STORM_CHECK(!input.key_was_released(4U));
+
+    STORM_CHECK(input.set_key_down(4U, true));
+    STORM_CHECK(input.key_is_down(4U));
+    STORM_CHECK(input.key_was_pressed(4U));
+    STORM_CHECK(!input.key_was_released(4U));
+
+    // A repeated native key-down (for example, keyboard repeat) must not create a new edge.
+    STORM_CHECK(input.set_key_down(4U, true));
+    STORM_CHECK(input.key_was_pressed(4U));
+
+    input.begin_frame();
+    STORM_CHECK(input.key_is_down(4U));
+    STORM_CHECK(!input.key_was_pressed(4U));
+    STORM_CHECK(!input.key_was_released(4U));
+
+    STORM_CHECK(input.set_key_down(4U, false));
+    STORM_CHECK(!input.key_is_down(4U));
+    STORM_CHECK(input.key_was_released(4U));
+    STORM_CHECK(input.set_key_down(4U, true));
+    STORM_CHECK(input.key_is_down(4U));
+    // Both edges are retained when a control is pressed and released in the same frame.
+    STORM_CHECK(input.key_was_pressed(4U));
+    STORM_CHECK(input.key_was_released(4U));
+
+    STORM_CHECK(input.set_pointer_button_down(0U, true));
+    STORM_CHECK(input.pointer_button_is_down(0U));
+    STORM_CHECK(input.pointer_button_was_pressed(0U));
+    STORM_CHECK(input.set_pointer_button_down(0U, false));
+    STORM_CHECK(!input.pointer_button_is_down(0U));
+    STORM_CHECK(input.pointer_button_was_released(0U));
+
+    input.begin_frame();
+    STORM_CHECK(!input.key_was_pressed(4U));
+    STORM_CHECK(!input.key_was_released(4U));
+    STORM_CHECK(!input.pointer_button_was_pressed(0U));
+    STORM_CHECK(!input.pointer_button_was_released(0U));
+    STORM_CHECK(input.key_is_down(4U));
+}
+
+void test_input_state_rejects_out_of_range_slots_and_resets() {
+    using storm::platform::InputState;
+
+    InputState input;
+    STORM_CHECK(input.set_key_down(255U, true));
+    STORM_CHECK(input.key_is_down(255U));
+    STORM_CHECK(!input.set_key_down(256U, true));
+    STORM_CHECK(!input.set_key_down(static_cast<std::size_t>(-1), true));
+    STORM_CHECK(!input.key_is_down(256U));
+    STORM_CHECK(!input.key_was_pressed(256U));
+
+    STORM_CHECK(input.set_pointer_button_down(7U, true));
+    STORM_CHECK(input.pointer_button_is_down(7U));
+    STORM_CHECK(!input.set_pointer_button_down(8U, true));
+    STORM_CHECK(!input.pointer_button_is_down(8U));
+    STORM_CHECK(!input.pointer_button_was_pressed(8U));
+
+    input.reset();
+    STORM_CHECK(!input.key_is_down(255U));
+    STORM_CHECK(!input.key_was_pressed(255U));
+    STORM_CHECK(!input.key_was_released(255U));
+    STORM_CHECK(!input.pointer_button_is_down(7U));
+    STORM_CHECK(!input.pointer_button_was_pressed(7U));
+    STORM_CHECK(!input.pointer_button_was_released(7U));
+}
+
+void test_input_state_releases_controls_on_focus_loss() {
+    using storm::platform::InputState;
+
+    InputState input;
+    STORM_CHECK(input.set_key_down(8U, true));
+    STORM_CHECK(input.set_key_down(240U, true));
+    STORM_CHECK(input.set_pointer_button_down(0U, true));
+    STORM_CHECK(input.set_pointer_button_down(6U, true));
+
+    input.begin_frame();
+    input.release_all();
+
+    STORM_CHECK(!input.key_is_down(8U));
+    STORM_CHECK(!input.key_is_down(240U));
+    STORM_CHECK(input.key_was_released(8U));
+    STORM_CHECK(input.key_was_released(240U));
+    STORM_CHECK(!input.key_was_pressed(8U));
+    STORM_CHECK(!input.pointer_button_is_down(0U));
+    STORM_CHECK(!input.pointer_button_is_down(6U));
+    STORM_CHECK(input.pointer_button_was_released(0U));
+    STORM_CHECK(input.pointer_button_was_released(6U));
+
+    // Releasing twice is harmless and does not invent additional held-state transitions.
+    input.release_all();
+    STORM_CHECK(input.key_was_released(8U));
+    STORM_CHECK(input.pointer_button_was_released(0U));
+
+    input.begin_frame();
+    STORM_CHECK(!input.key_was_released(8U));
+    STORM_CHECK(!input.pointer_button_was_released(0U));
+}
+
 } // namespace
 
 int main() {
@@ -867,6 +974,9 @@ int main() {
     test_fixed_step_clock_rounding_and_catch_up();
     test_fixed_step_clock_step_budget();
     test_fixed_step_clock_rejects_invalid_time_and_configuration();
+    test_input_state_frame_edges();
+    test_input_state_rejects_out_of_range_slots_and_resets();
+    test_input_state_releases_controls_on_focus_loss();
 
     if (failures != 0) {
         std::cerr << failures << " test assertion(s) failed.\n";
