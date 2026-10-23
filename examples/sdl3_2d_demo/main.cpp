@@ -1,4 +1,7 @@
 #include "storm/core/fixed_step_clock.hpp"
+#include "storm/math/matrix4.hpp"
+#include "storm/math/vector.hpp"
+#include "storm/render/software_canvas2d.hpp"
 #include "storm/platform/event_queue.hpp"
 #include "storm/platform/input_state.hpp"
 #include "storm/platform/key_code.hpp"
@@ -14,9 +17,14 @@
 namespace {
 
 using storm::core::FixedStepClock;
+using storm::math::Matrix4;
+using storm::math::Vec2;
+using storm::math::Vec3;
 using storm::platform::InputState;
 using storm::platform::PlatformEvent;
 using storm::platform::PlatformEventQueue;
+using storm::render::Rgba8;
+using storm::render::SoftwareCanvas2D;
 
 constexpr int window_initial_width = 960;
 constexpr int window_initial_height = 540;
@@ -25,25 +33,86 @@ constexpr float player_minimum_size = 20.0F;
 constexpr float player_maximum_size = 112.0F;
 constexpr float player_speed_units_per_second = 260.0F;
 constexpr double nanoseconds_per_second = 1'000'000'000.0;
+constexpr Rgba8 background_color{13U, 19U, 34U, 255U};
+constexpr Rgba8 player_color{72U, 194U, 164U, 255U};
 
 [[nodiscard]] bool enqueue(PlatformEventQueue<>& queue,
                            const PlatformEvent& event) noexcept {
     return queue.push(event);
 }
 
-[[nodiscard]] bool render_frame(SDL_Renderer* renderer, int width, int height,
-                                float player_x, float player_y, float player_size) noexcept {
-    if (!SDL_SetRenderDrawColor(renderer, 13U, 19U, 34U, 255U) ||
-        !SDL_RenderClear(renderer)) {
+void print_sdl_error(const char* operation);
+
+[[nodiscard]] bool ensure_software_surface(SDL_Renderer* renderer,
+                                            SoftwareCanvas2D& canvas,
+                                            SDL_Texture*& texture,
+                                            int width,
+                                            int height) {
+    if (width < 0 || height < 0) {
         return false;
     }
 
-    if (width > 0 && height > 0) {
-        const SDL_FRect player{player_x, player_y, player_size, player_size};
-        if (!SDL_SetRenderDrawColor(renderer, 72U, 194U, 164U, 255U) ||
-            !SDL_RenderFillRect(renderer, &player)) {
+    const auto canvas_width = static_cast<std::uint32_t>(width);
+    const auto canvas_height = static_cast<std::uint32_t>(height);
+    if (canvas.width() != canvas_width || canvas.height() != canvas_height) {
+        const auto resized = canvas.resize(canvas_width, canvas_height);
+        if (!resized.ok()) {
+            std::cerr << "software canvas resize failed: " << resized.message() << '\n';
             return false;
         }
+        if (texture != nullptr) {
+            SDL_DestroyTexture(texture);
+            texture = nullptr;
+        }
+    }
+
+    // A minimized window may temporarily have a zero-sized surface.
+    if (canvas_width == 0U || canvas_height == 0U) {
+        return true;
+    }
+    if (texture == nullptr) {
+        texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA32,
+                                    SDL_TEXTUREACCESS_STREAMING, width, height);
+        if (texture == nullptr) {
+            print_sdl_error("SDL_CreateTexture");
+            return false;
+        }
+    }
+    return true;
+}
+
+[[nodiscard]] bool render_frame(SDL_Renderer* renderer, SDL_Texture* texture,
+                                SoftwareCanvas2D& canvas, int width, int height,
+                                float player_x, float player_y, float player_size) {
+    if (width <= 0 || height <= 0) {
+        return true;
+    }
+    if (texture == nullptr || canvas.width() != static_cast<std::uint32_t>(width) ||
+        canvas.height() != static_cast<std::uint32_t>(height)) {
+        return false;
+    }
+
+    canvas.clear(background_color);
+    const Matrix4 player_transform = Matrix4::translation(Vec3{player_x, player_y, 0.0F});
+    const auto draw_status =
+        canvas.draw_rect(player_transform, Vec2{player_size, player_size}, player_color);
+    if (!draw_status.ok()) {
+        std::cerr << "software rectangle draw failed: " << draw_status.message() << '\n';
+        return false;
+    }
+
+    const int pitch = static_cast<int>(
+        static_cast<std::size_t>(canvas.width()) * sizeof(Rgba8));
+    if (!SDL_UpdateTexture(texture, nullptr, canvas.pixels().data(), pitch)) {
+        return false;
+    }
+    const SDL_FRect destination{0.0F, 0.0F, static_cast<float>(width),
+                                static_cast<float>(height)};
+    if (!SDL_SetRenderDrawColor(renderer, background_color.r, background_color.g,
+                                background_color.b, background_color.a) ||
+        !SDL_RenderClear(renderer) ||
+        !SDL_RenderTexture(renderer, texture, nullptr, &destination)) {
+        return false;
     }
 
     return SDL_RenderPresent(renderer);
@@ -171,6 +240,8 @@ int main(int argc, char* argv[]) {
     InputState input;
     PlatformEventQueue<> event_queue;
     FixedStepClock simulation_clock;
+    SoftwareCanvas2D canvas;
+    SDL_Texture* texture = nullptr;
 
     float player_size = player_initial_size;
     float player_x = (static_cast<float>(window_width) - player_size) * 0.5F;
@@ -359,7 +430,8 @@ int main(int argc, char* argv[]) {
             player_y = std::clamp(player_y, 0.0F, max_y);
         }
 
-        if (!render_frame(renderer, window_width, window_height,
+        if (!ensure_software_surface(renderer, canvas, texture, window_width, window_height) ||
+            !render_frame(renderer, texture, canvas, window_width, window_height,
                           player_x, player_y, player_size)) {
             print_sdl_error("render frame");
             exit_code = 1;
@@ -369,6 +441,9 @@ int main(int argc, char* argv[]) {
         SDL_Delay(1U);
     }
 
+    if (texture != nullptr) {
+        SDL_DestroyTexture(texture);
+    }
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
     SDL_Quit();

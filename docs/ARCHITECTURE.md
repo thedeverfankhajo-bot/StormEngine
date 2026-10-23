@@ -113,6 +113,12 @@ These conventions are specified in [ADR 0002](decisions/0002-coordinate-system-a
 - The ECS versus scene-graph/entity API must be decided with representative workloads and editor requirements, not fashion alone.
 - Scene and asset formats must be versioned, validated, and have migration policies before they become long-term user data.
 
+## Rendering and software reference canvas
+
+`storm/render/software_canvas2d.hpp` defines an engine-owned RGBA8 framebuffer and deterministic CPU rectangle rasterizer. Rectangles are transformed by a `Matrix4`, clipped to bounded canvas dimensions, sampled at pixel centers, and composited with straight-alpha blending. The framebuffer is limited to 8,192 pixels per axis and 16,777,216 pixels (64 MiB RGBA8). Failed resize preserves the old frame. This is a single-owner-thread correctness baseline, not a SIMD-optimized production renderer.
+
+The SDL3 sample now uses SDL for window/input events and texture presentation only: StormEngine creates the rectangle pixels and SDL uploads the framebuffer through a streaming texture. Pixel tests run headlessly without SDL or a GPU. The canvas is not a production RHI, sprite/asset pipeline or 3D renderer.
+
 ## Scene, entities and transforms
 
 The initial `Scene` owns its `Entity` objects in an ordered map keyed by secure UUIDv4 `StableId` values. Creation is synchronous, reports failures using the shared `Status` vocabulary, and changes the caller's output ID only when insertion succeeds. Scene entity count and entity-name length are bounded; empty names and embedded NUL bytes are rejected. Map lookup is logarithmic, and pointers returned by `find_entity()` are non-owning and must not outlive the scene or the referenced entity.

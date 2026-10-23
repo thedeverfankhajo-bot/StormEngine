@@ -20,7 +20,7 @@ SDL is distributed under its permissive zlib license. The full upstream notice a
 ## Scope and non-goals
 
 - This selects SDL3 only for the first desktop window/event prototype; it is not a permanent engine-wide platform ABI.
-- The sample maps a limited subset of SDL physical scancodes to provisional input slots and renders a moving colored rectangle with SDL's convenience renderer.
+- The sample maps a limited subset of SDL physical scancodes to provisional input slots. StormEngine's bounded CPU `SoftwareCanvas2D` rasterizes the moving rectangle; SDL updates a streaming texture and presents the framebuffer.
 - The sample renderer is **not** the production Render Hardware Interface (RHI), a sprite/texture asset pipeline or a selected 3D renderer.
 - This does not produce an Android APK. SDL Activity/JNI integration, app packaging and real-device lifecycle tests remain separate work.
 - The normal core library, headers, installed package and Android core cross-build do not require SDL3 while the option is off.
