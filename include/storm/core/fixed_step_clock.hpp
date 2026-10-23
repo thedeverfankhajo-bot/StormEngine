@@ -42,6 +42,22 @@ public:
         return config_;
     }
 
+    [[nodiscard]] static bool is_valid_config(const FixedStepClockConfig& config) noexcept {
+        constexpr double minimum_fixed_delta = 1.0e-9;
+        constexpr double maximum_fixed_delta = 1.0;
+        constexpr double maximum_frame_delta = 60.0;
+        constexpr std::uint32_t maximum_steps_per_frame = 1024U;
+
+        return std::isfinite(config.fixed_delta_seconds) &&
+               std::isfinite(config.max_frame_delta_seconds) &&
+               config.fixed_delta_seconds >= minimum_fixed_delta &&
+               config.fixed_delta_seconds <= maximum_fixed_delta &&
+               config.max_frame_delta_seconds >= config.fixed_delta_seconds &&
+               config.max_frame_delta_seconds <= maximum_frame_delta &&
+               config.max_steps_per_frame >= 1U &&
+               config.max_steps_per_frame <= maximum_steps_per_frame;
+    }
+
     [[nodiscard]] double accumulator_seconds() const noexcept {
         return accumulator_seconds_;
     }
@@ -98,22 +114,6 @@ public:
     }
 
 private:
-    [[nodiscard]] static bool is_valid_config(const FixedStepClockConfig& config) noexcept {
-        constexpr double minimum_fixed_delta = 1.0e-9;
-        constexpr double maximum_fixed_delta = 1.0;
-        constexpr double maximum_frame_delta = 60.0;
-        constexpr std::uint32_t maximum_steps_per_frame = 1024U;
-
-        return std::isfinite(config.fixed_delta_seconds) &&
-               std::isfinite(config.max_frame_delta_seconds) &&
-               config.fixed_delta_seconds >= minimum_fixed_delta &&
-               config.fixed_delta_seconds <= maximum_fixed_delta &&
-               config.max_frame_delta_seconds >= config.fixed_delta_seconds &&
-               config.max_frame_delta_seconds <= maximum_frame_delta &&
-               config.max_steps_per_frame >= 1U &&
-               config.max_steps_per_frame <= maximum_steps_per_frame;
-    }
-
     [[nodiscard]] double interpolation_alpha() const noexcept {
         const double alpha = accumulator_seconds_ / config_.fixed_delta_seconds;
         return std::clamp(alpha, 0.0, std::nextafter(1.0, 0.0));

@@ -1,6 +1,7 @@
 #include "storm/core/fixed_step_clock.hpp"
 #include "storm/core/logging.hpp"
 #include "storm/core/runtime_lifecycle.hpp"
+#include "storm/core/runtime_config.hpp"
 #include "storm/core/status.hpp"
 #include "storm/core/stable_id.hpp"
 #include "storm/core/version.hpp"
@@ -150,6 +151,44 @@ void test_stable_id_validation_and_round_trip() {
     STORM_CHECK(!StableId::parse("f81d4fae-7dec-11d0-a765-00a0c91e6bfz").has_value());
     STORM_CHECK(!StableId::parse("f81d4fae_7dec-11d0-a765-00a0c91e6bf6").has_value());
     STORM_CHECK(!StableId::parse("00000000-0000-0000-0000-000000000000").has_value());
+}
+
+
+void test_runtime_config_validation() {
+    using storm::core::ErrorCode;
+    using storm::core::LogLevel;
+    using storm::core::RuntimeConfig;
+
+    RuntimeConfig config;
+    STORM_CHECK(config.validate().ok());
+    STORM_CHECK(config.minimum_log_level == LogLevel::Info);
+    STORM_CHECK(config.simulation.max_steps_per_frame == 8U);
+
+    config.minimum_log_level = LogLevel::Off;
+    STORM_CHECK(config.validate().ok());
+
+    config.minimum_log_level = static_cast<LogLevel>(255);
+    const auto invalid_log_level = config.validate();
+    STORM_CHECK(!invalid_log_level.ok());
+    STORM_CHECK(invalid_log_level.code() == ErrorCode::InvalidArgument);
+
+    config.minimum_log_level = LogLevel::Warning;
+    config.simulation.fixed_delta_seconds = 0.0;
+    const auto invalid_fixed_delta = config.validate();
+    STORM_CHECK(!invalid_fixed_delta.ok());
+    STORM_CHECK(invalid_fixed_delta.code() == ErrorCode::InvalidArgument);
+
+    config.simulation.fixed_delta_seconds = 1.0 / 60.0;
+    config.simulation.max_frame_delta_seconds = 0.001;
+    STORM_CHECK(config.validate().code() == ErrorCode::InvalidArgument);
+
+    config.simulation.max_frame_delta_seconds = 0.25;
+    config.simulation.max_steps_per_frame = 0U;
+    STORM_CHECK(config.validate().code() == ErrorCode::InvalidArgument);
+
+    config.simulation.max_steps_per_frame = 8U;
+    config.minimum_log_level = LogLevel::Debug;
+    STORM_CHECK(config.validate().ok());
 }
 
 void test_version() {
@@ -453,6 +492,7 @@ int main() {
     test_version();
     test_status_values();
     test_stable_id_validation_and_round_trip();
+    test_runtime_config_validation();
     test_logging_dispatch_and_filtering();
     test_runtime_lifecycle_normal_path();
     test_runtime_lifecycle_invalid_transitions();

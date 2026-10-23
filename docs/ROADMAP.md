@@ -17,7 +17,8 @@ This roadmap is milestone-based, not a promise of release dates. A milestone is 
 - [x] Add a shared status/error convention and a validated runtime lifecycle state machine.
 - [x] Add dependency-free core log-level filtering and synchronous dispatch to a caller-provided sink.
 - [x] Add a 128-bit stable identifier value type with canonical UUID parsing/formatting and malformed/Nil ID rejection.
-- Add ID generation policy, duplicate detection, diagnostic aggregation, runtime configuration and ownership conventions.
+- [x] Add a validated in-memory runtime configuration for fixed-step timing and log severity.
+- Add ID generation policy, duplicate detection, diagnostic aggregation and resource ownership conventions.
 - [x] Add a Linux AddressSanitizer/UndefinedBehaviorSanitizer CI job and instrument the core tests.
 - Continue expanding component-level tests and add diagnostic aggregation, runtime configuration and ID-generation policy.
 
