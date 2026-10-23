@@ -343,7 +343,9 @@ int main(int argc, char* argv[]) {
                     (void)enqueue(
                         event_queue,
                         PlatformEvent{storm::platform::PointerButtonStateChangedEvent{
-                            static_cast<std::uint16_t>(native_event.button.button), is_down}});
+                            static_cast<std::uint16_t>(native_event.button.button), is_down,
+                            true, static_cast<double>(native_event.button.x),
+                            static_cast<double>(native_event.button.y)}});
                 }
                 break;
 
@@ -363,7 +365,9 @@ int main(int argc, char* argv[]) {
                         event_queue,
                         PlatformEvent{storm::platform::PointerWheelScrolledEvent{
                             static_cast<double>(native_event.wheel.x),
-                            static_cast<double>(native_event.wheel.y)}});
+                            static_cast<double>(native_event.wheel.y), true,
+                            static_cast<double>(native_event.wheel.mouse_x),
+                            static_cast<double>(native_event.wheel.mouse_y)}});
                 }
                 break;
 
@@ -398,6 +402,10 @@ int main(int argc, char* argv[]) {
             } else if (const auto* button =
                            std::get_if<storm::platform::PointerButtonStateChangedEvent>(&*event)) {
                 (void)input.set_pointer_button_down(button->button, button->is_down);
+                if (button->has_position) {
+                    cursor_x = static_cast<float>(button->x);
+                    cursor_y = static_cast<float>(button->y);
+                }
                 if (button->is_down && button->button == SDL_BUTTON_LEFT) {
                     const auto clicked_world = camera.pixel_to_world(Vec2{cursor_x, cursor_y});
                     if (clicked_world.has_value()) {
@@ -410,10 +418,19 @@ int main(int argc, char* argv[]) {
                 cursor_y = static_cast<float>(pointer->y);
             } else if (const auto* wheel =
                            std::get_if<storm::platform::PointerWheelScrolledEvent>(&*event)) {
+                if (wheel->has_position) {
+                    cursor_x = static_cast<float>(wheel->x);
+                    cursor_y = static_cast<float>(wheel->y);
+                }
+
+                float target_zoom = camera.zoom;
                 if (wheel->delta_y > 0.0) {
-                    camera.zoom = std::min(camera.zoom * 1.1F, camera_maximum_zoom);
+                    target_zoom = std::min(camera.zoom * 1.1F, camera_maximum_zoom);
                 } else if (wheel->delta_y < 0.0) {
-                    camera.zoom = std::max(camera.zoom / 1.1F, camera_minimum_zoom);
+                    target_zoom = std::max(camera.zoom / 1.1F, camera_minimum_zoom);
+                }
+                if (target_zoom != camera.zoom) {
+                    (void)camera.set_zoom_at_pixel(target_zoom, Vec2{cursor_x, cursor_y});
                 }
             } else if (const auto* resized =
                            std::get_if<storm::platform::WindowResizedEvent>(&*event)) {

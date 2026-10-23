@@ -15,6 +15,7 @@ The CPU reference canvas can rasterize transformed rectangles, but the caller mu
 3. The pixel scale is `viewport_height * zoom / view_height`, so the vertical world span defines scale and the viewport aspect ratio determines the horizontal span. Zoom above 1 moves the camera closer. The view transform rotates world displacement by the negative camera angle, then flips the Y axis for pixels.
 4. `world_to_pixel_matrix()` returns a column-vector `Matrix4` suitable for composition with local object transforms. Point-conversion methods return no value for invalid input/configuration or results that cannot be represented as finite floats. A zero viewport is invalid, including during minimization.
 5. Camera mapping does not round or clip coordinates; rasterization and viewport clipping remain the canvas's responsibility. The API performs no allocation, I/O, platform calls, or synchronization.
+6. `set_zoom_at_pixel()` changes zoom while shifting the camera center so the world point beneath the supplied pixel remains stable. Invalid requests or an unrepresentable adjusted center fail without partially changing the camera; application/editor code owns its permitted zoom range.
 
 ## Consequences and deferred work
 

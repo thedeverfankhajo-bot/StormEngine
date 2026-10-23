@@ -30,6 +30,9 @@ struct KeyStateChangedEvent final {
 struct PointerButtonStateChangedEvent final {
     std::uint16_t button{};
     bool is_down{};
+    bool has_position{};
+    double x{};
+    double y{};
 };
 
 // Pointer coordinates are in the platform adapter's documented window-coordinate space.
@@ -41,6 +44,9 @@ struct PointerMovedEvent final {
 struct PointerWheelScrolledEvent final {
     double delta_x{};
     double delta_y{};
+    bool has_position{};
+    double x{};
+    double y{};
 };
 
 // A zero width or height is valid when a window is minimized or its surface is unavailable.
@@ -67,11 +73,15 @@ static_assert(std::is_nothrow_copy_assignable_v<PlatformEvent>);
                 return is_valid_key_code(payload.key);
             } else if constexpr (std::is_same_v<Event, PointerButtonStateChangedEvent>) {
                 return static_cast<std::size_t>(payload.button) <
-                       InputState::pointer_button_count;
+                           InputState::pointer_button_count &&
+                       (!payload.has_position ||
+                        (std::isfinite(payload.x) && std::isfinite(payload.y)));
             } else if constexpr (std::is_same_v<Event, PointerMovedEvent>) {
                 return std::isfinite(payload.x) && std::isfinite(payload.y);
             } else if constexpr (std::is_same_v<Event, PointerWheelScrolledEvent>) {
-                return std::isfinite(payload.delta_x) && std::isfinite(payload.delta_y);
+                return std::isfinite(payload.delta_x) && std::isfinite(payload.delta_y) &&
+                       (!payload.has_position ||
+                        (std::isfinite(payload.x) && std::isfinite(payload.y)));
             } else {
                 return true;
             }

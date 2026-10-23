@@ -1025,6 +1025,36 @@ void test_camera2d_world_pixel_mapping_and_validation() {
         }
     }
 
+    const Vec2 zoom_anchor_pixel{660.0F, 120.0F};
+    const auto zoom_anchor_before = camera.pixel_to_world(zoom_anchor_pixel);
+    STORM_CHECK(zoom_anchor_before.has_value());
+    const Vec2 center_before_zoom = camera.center;
+    const float zoom_before = camera.zoom;
+    STORM_CHECK(camera.set_zoom_at_pixel(1.25F, zoom_anchor_pixel));
+    STORM_CHECK(camera.zoom == 1.25F);
+    const auto zoom_anchor_after = camera.pixel_to_world(zoom_anchor_pixel);
+    STORM_CHECK(zoom_anchor_after.has_value());
+    if (zoom_anchor_before.has_value() && zoom_anchor_after.has_value()) {
+        STORM_CHECK(close((*zoom_anchor_after)[0U], (*zoom_anchor_before)[0U]));
+        STORM_CHECK(close((*zoom_anchor_after)[1U], (*zoom_anchor_before)[1U]));
+        const auto anchor_reprojected = camera.world_to_pixel(*zoom_anchor_before);
+        STORM_CHECK(anchor_reprojected.has_value());
+        if (anchor_reprojected.has_value()) {
+            STORM_CHECK(close((*anchor_reprojected)[0U], zoom_anchor_pixel[0U]));
+            STORM_CHECK(close((*anchor_reprojected)[1U], zoom_anchor_pixel[1U]));
+        }
+    }
+
+    const Vec2 center_before_invalid_zoom = camera.center;
+    const float zoom_before_invalid_zoom = camera.zoom;
+    STORM_CHECK(!camera.set_zoom_at_pixel(0.0F, zoom_anchor_pixel));
+    STORM_CHECK(!camera.set_zoom_at_pixel(
+        2.0F, Vec2{std::numeric_limits<float>::quiet_NaN(), 0.0F}));
+    STORM_CHECK(camera.center == center_before_invalid_zoom);
+    STORM_CHECK(camera.zoom == zoom_before_invalid_zoom);
+    STORM_CHECK(zoom_before != camera.zoom);
+    STORM_CHECK(center_before_zoom != camera.center);
+
     Camera2D invalid = camera;
     invalid.viewport_width = 0U;
     STORM_CHECK(!invalid.is_valid());
@@ -1452,9 +1482,13 @@ void test_platform_event_queue_rejects_invalid_payloads() {
     STORM_CHECK(!queue.push(PointerMovedEvent{std::numeric_limits<double>::quiet_NaN(), 0.0}));
     STORM_CHECK(!queue.push(PointerWheelScrolledEvent{
         0.0, std::numeric_limits<double>::infinity()}));
+    STORM_CHECK(!queue.push(PointerButtonStateChangedEvent{
+        1U, true, true, std::numeric_limits<double>::quiet_NaN(), 4.0}));
+    STORM_CHECK(!queue.push(PointerWheelScrolledEvent{
+        0.0, 1.0, true, 2.0, std::numeric_limits<double>::infinity()}));
     STORM_CHECK(queue.empty());
     STORM_CHECK(queue.size() == 0U);
-    STORM_CHECK(queue.rejected_count() == 4U);
+    STORM_CHECK(queue.rejected_count() == 6U);
     STORM_CHECK(queue.dropped_count() == 0U);
 
     // Zero-sized surfaces are a valid minimized-window state, not a malformed event.
@@ -1467,6 +1501,33 @@ void test_platform_event_queue_rejects_invalid_payloads() {
     STORM_CHECK(queue.size() == 0U);
     STORM_CHECK(queue.rejected_count() == 0U);
     STORM_CHECK(queue.dropped_count() == 0U);
+
+    STORM_CHECK(queue.push(PointerButtonStateChangedEvent{1U, true, true, 44.5, 12.25}));
+    STORM_CHECK(queue.push(PointerWheelScrolledEvent{0.5, -1.0, true, 35.0, 80.0}));
+    const auto positioned_button = queue.pop();
+    STORM_CHECK(positioned_button.has_value());
+    if (positioned_button.has_value()) {
+        const auto* payload = std::get_if<PointerButtonStateChangedEvent>(&*positioned_button);
+        STORM_CHECK(payload != nullptr);
+        if (payload != nullptr) {
+            STORM_CHECK(payload->has_position);
+            STORM_CHECK(payload->x == 44.5);
+            STORM_CHECK(payload->y == 12.25);
+        }
+    }
+    const auto positioned_wheel = queue.pop();
+    STORM_CHECK(positioned_wheel.has_value());
+    if (positioned_wheel.has_value()) {
+        const auto* payload = std::get_if<PointerWheelScrolledEvent>(&*positioned_wheel);
+        STORM_CHECK(payload != nullptr);
+        if (payload != nullptr) {
+            STORM_CHECK(payload->has_position);
+            STORM_CHECK(payload->x == 35.0);
+            STORM_CHECK(payload->y == 80.0);
+            STORM_CHECK(payload->delta_x == 0.5);
+            STORM_CHECK(payload->delta_y == -1.0);
+        }
+    }
 }
 
 void test_platform_event_queue_integrates_with_input_state() {

@@ -105,4 +105,32 @@ std::optional<math::Vec2> Camera2D::pixel_to_world(
     return math::Vec2{x, y};
 }
 
+bool Camera2D::set_zoom_at_pixel(float new_zoom,
+                                 const math::Vec2& pixel_position) noexcept {
+    if (!is_valid() || !std::isfinite(new_zoom) || new_zoom <= 0.0F ||
+        !pixel_position.is_finite()) {
+        return false;
+    }
+
+    const auto anchored_world = pixel_to_world(pixel_position);
+    if (!anchored_world.has_value()) {
+        return false;
+    }
+
+    Camera2D candidate = *this;
+    candidate.zoom = new_zoom;
+    const auto shifted_world = candidate.pixel_to_world(pixel_position);
+    if (!shifted_world.has_value()) {
+        return false;
+    }
+
+    candidate.center += *anchored_world - *shifted_world;
+    if (!candidate.is_valid()) {
+        return false;
+    }
+
+    *this = candidate;
+    return true;
+}
+
 } // namespace storm::render

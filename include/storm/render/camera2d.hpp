@@ -34,6 +34,12 @@ public:
         const math::Vec2& world_position) const noexcept;
     [[nodiscard]] std::optional<math::Vec2> pixel_to_world(
         const math::Vec2& pixel_position) const noexcept;
+
+    // Changes zoom while preserving the world point under a viewport pixel. Returns false for an
+    // invalid camera, zoom, pixel, or unrepresentable adjusted center; failure leaves the camera
+    // unchanged. The caller remains responsible for choosing its permitted zoom range.
+    [[nodiscard]] bool set_zoom_at_pixel(float new_zoom,
+                                         const math::Vec2& pixel_position) noexcept;
 };
 
 } // namespace storm::render
