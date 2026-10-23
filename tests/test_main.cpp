@@ -12,6 +12,7 @@
 #include "storm/platform/input_state.hpp"
 #include "storm/platform/key_code.hpp"
 #include "storm/platform/event_queue.hpp"
+#include "storm/project/project_path.hpp"
 #include "storm/scene/dimension.hpp"
 #include "storm/scene/scene.hpp"
 #include "storm/scene/scene_codec.hpp"
@@ -1443,6 +1444,90 @@ void test_scene_file_atomic_save_and_bounded_load() {
     STORM_CHECK(!SceneFile::load({}, missing_destination).ok());
 }
 
+
+void test_project_path_canonicalization_and_portable_validation() {
+    using storm::core::ErrorCode;
+    using storm::project::ProjectPath;
+
+    ProjectPath path;
+    STORM_CHECK(!path.is_valid());
+    STORM_CHECK(ProjectPath::parse("levels/intro.stsc", path).ok());
+    STORM_CHECK(path.is_valid());
+    STORM_CHECK(path.value() == "levels/intro.stsc");
+
+    const std::string_view utf8_path{"levels/\xC3\xA9.sprite"};
+    STORM_CHECK(ProjectPath::parse(utf8_path, path).ok());
+    STORM_CHECK(path.value() == utf8_path);
+
+    // Valid-looking path spelling is preserved exactly; no case or Unicode normalization occurs.
+    STORM_CHECK(ProjectPath::parse("Assets/Hero.PNG", path).ok());
+    STORM_CHECK(path.value() == "Assets/Hero.PNG");
+
+    constexpr std::array invalid_paths{
+        std::string_view{""},
+        std::string_view{"/absolute/file"},
+        std::string_view{"../outside"},
+        std::string_view{"levels/../../outside"},
+        std::string_view{"levels//empty"},
+        std::string_view{"levels/"},
+        std::string_view{"."},
+        std::string_view{".."},
+        std::string_view{"C:/project/level.stsc"},
+        std::string_view{"//server/share/file"},
+        std::string_view{"levels\\intro.stsc"},
+        std::string_view{"levels/CON.txt"},
+        std::string_view{"levels/nul"},
+        std::string_view{"levels/COM1.asset"},
+        std::string_view{"levels/lpt9.bin"},
+        std::string_view{"levels/CONIN$"},
+        std::string_view{"levels/COM\xC2\xB9.asset"},
+        std::string_view{"levels/name:stream"},
+        std::string_view{"levels/name?.asset"},
+        std::string_view{"levels/name*.asset"},
+        std::string_view{"levels/trailing."},
+        std::string_view{"levels/trailing "},
+        std::string_view{"levels/control\x01name"},
+        std::string_view{"levels/\xC3\x28"},
+        std::string_view{"levels/\xED\xA0\x80"},
+        std::string_view{"levels/\xF4\x90\x80\x80"}
+    };
+    for (const std::string_view invalid : invalid_paths) {
+        const auto status = ProjectPath::parse(invalid, path);
+        STORM_CHECK(!status.ok());
+        STORM_CHECK(status.code() == ErrorCode::InvalidArgument);
+        STORM_CHECK(path.value() == "Assets/Hero.PNG");
+    }
+
+    std::string long_segment(ProjectPath::maximum_segment_bytes + 1U, 'x');
+    STORM_CHECK(ProjectPath::parse(long_segment, path).code() == ErrorCode::ResourceExhausted);
+    STORM_CHECK(path.value() == "Assets/Hero.PNG");
+
+    std::string long_path;
+    for (std::size_t index = 0U; index < 6U; ++index) {
+        if (index > 0U) {
+            long_path.push_back('/');
+        }
+        long_path.append(200U, 'a');
+    }
+    STORM_CHECK(long_path.size() > ProjectPath::maximum_path_bytes);
+    STORM_CHECK(ProjectPath::parse(long_path, path).code() == ErrorCode::ResourceExhausted);
+    STORM_CHECK(path.value() == "Assets/Hero.PNG");
+
+    std::string too_many_segments;
+    for (std::size_t index = 0U; index < ProjectPath::maximum_segments + 1U; ++index) {
+        if (index > 0U) {
+            too_many_segments.push_back('/');
+        }
+        too_many_segments.push_back('x');
+    }
+    STORM_CHECK(ProjectPath::parse(too_many_segments, path).code() == ErrorCode::ResourceExhausted);
+    STORM_CHECK(path.value() == "Assets/Hero.PNG");
+
+    constexpr std::string_view embedded_nul{"levels/\0name.stsc", 16U};
+    STORM_CHECK(ProjectPath::parse(embedded_nul, path).code() == ErrorCode::InvalidArgument);
+    STORM_CHECK(path.value() == "Assets/Hero.PNG");
+}
+
 } // namespace
 
 int main() {
@@ -1457,6 +1542,7 @@ int main() {
     test_scene_codec_round_trip_all_dimensions_and_determinism();
     test_scene_codec_rejects_malformed_data_transactionally();
     test_scene_file_atomic_save_and_bounded_load();
+    test_project_path_canonicalization_and_portable_validation();
     test_runtime_config_validation();
     test_logging_dispatch_and_filtering();
     test_runtime_lifecycle_normal_path();

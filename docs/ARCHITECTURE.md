@@ -17,7 +17,7 @@ The planned dependency direction is from higher-level modules toward narrow lowe
 | Core | Versioning, status/error conventions, math, deterministic timing, lifecycle and low-level utilities | Version metadata, dimension-aware math, fixed-step clock, RuntimeConfig, Status, RuntimeLifecycle, stable IDs and bounded diagnostics |
 | Platform | Windowing, input, monotonic clocks, filesystems, threads and OS integration | Adapter-fed input state/event queue plus an optional SDL3 desktop bootstrap; full platform runtime still planned |
 | Render | Render-device abstraction, resource lifetime, command submission and capabilities | Planned; no graphics API dependency yet |
-| Scene | Worlds/scenes, entities, transforms, lifecycle and serialization | In-memory Scene/Entity/Transform, bounded version-1 SceneCodec, and SceneFile with bounded reads and atomic replacement; hierarchy, components and migration remain future work |
+| Scene / Project | Worlds/scenes, entities, transforms, lifecycle, logical paths and serialization | In-memory Scene/Entity/Transform, bounded version-1 SceneCodec, atomic SceneFile storage, and syntax-validated ProjectPath; hierarchy, components and OS-level project-root confinement remain future work |
 | Assets | Importers, validation, metadata, cache and cooked asset packages | Planned |
 | Physics | 2D/3D simulation interfaces, collision queries and fixed-step integration | Planned |
 | Audio | Device abstraction, spatial audio and asset streaming | Planned |
@@ -136,3 +136,10 @@ Before a public release, require at least: license and third-party notices; docu
 ## Decisions intentionally deferred
 
 The following choices should be recorded as Architecture Decision Records before adoption: renderer backend and shader toolchain, windowing/input library, physics engine, audio backend, scripting language/runtime, editor UI framework, ECS/scene model, asset container, plugin ABI and project license.
+
+
+## Project-relative logical paths
+
+\`storm/project/project_path.hpp\` defines the version-1 \`ProjectPath\` value. It rejects absolute/traversal spellings, ambiguous backslashes and colons, Windows-invalid/reserved names, malformed UTF-8, overlong segments and excessive segment counts. It preserves accepted spelling byte-for-byte so logical path comparison is deterministic.
+
+\`ProjectPath\` is deliberately not the filesystem sandbox: it does not resolve symlinks or open files. \`SceneFile\` still accepts \`std::filesystem::path\`; code receiving untrusted project metadata must not treat \`ProjectPath\` syntax validation alone as authorization to access a disk location. A future root-confined service must anchor operations to an opened root directory/handle and test symlink, reparse-point, mount and race cases on supported operating systems.
