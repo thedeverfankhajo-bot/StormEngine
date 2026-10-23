@@ -30,7 +30,7 @@ public:
     [[nodiscard]] Status register_id(const StableId& id) {
         if (!id.is_valid()) {
             return Status::failure(
-            ErrorCode::InvalidArgument, "cannot register an invalid stable ID");
+                ErrorCode::InvalidArgument, "cannot register an invalid stable ID");
         }
 
         const bool inserted = ids_.insert(id).second;
