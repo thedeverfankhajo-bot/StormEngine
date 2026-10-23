@@ -38,6 +38,7 @@ This roadmap is milestone-based, not a promise of release dates. A milestone is 
 - Choose production window/input/platform dependencies after license and maintenance review; the prototype choice is not a frozen engine ABI.
 - Add a desktop window, input events and a minimal render-device interface.
 - [x] Connect 2D Scene/Entity/Transform to Camera2D and SoftwareCanvas2D through a headless-testable SceneRenderer2D; unit-quad placeholders are temporary until renderable components/materials exist.
+- [x] Define a versioned, bounded `Renderable2D` quad data contract (local size, RGBA tint and visibility) with scene format v1-to-v2 migration; texture/sprite/material resources remain future work.
 - Render a simple 2D scene with a texture/sprite and a versioned renderable/material contract.
 - Add a documented example project and an automated smoke test where practical.
 
@@ -50,7 +51,7 @@ This roadmap is milestone-based, not a promise of release dates. A milestone is 
 - [x] Add a version-1 binary scene codec with stable-ID preservation, deterministic record order, bounded input/output, strict malformed-data validation, and transactional loading.
 - [x] Add native bounded scene-file loading and same-directory atomic replacement with flush/error handling; the project-root sandbox and crash-recovery journal remain future work.
 - [x] Define a portable UTF-8 `ProjectPath` value with lexical traversal/portable-name rejection and explicit failure atomicity; it is not yet an OS-level sandbox.
-- Define the multi-version scene migration policy and migration tests before introducing a newer format version.
+- [x] Define the multi-version scene migration policy and migration tests before introducing a newer format version.
 - Build import, validation, metadata, cache and cooked-asset steps.
 - Add content hashes, import diagnostics and malformed-input tests.
 - [x] Record the initial world-coordinate and matrix conventions; add tested 4×4 affine matrix operations. The project settings contract remains future work.
