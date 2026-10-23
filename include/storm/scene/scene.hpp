@@ -40,8 +40,8 @@ public:
             std::string replacement{name.data(), name.size()};
             name_.swap(replacement);
         } catch (const std::bad_alloc&) {
-            return core::Status::failure(
-                core::ErrorCode::ResourceExhausted, "entity name allocation failed");
+            // Keep this error path allocation-free; ErrorCode remains available if text is empty.
+            return core::Status::failure(core::ErrorCode::ResourceExhausted, std::string{});
         }
         return core::Status::success();
     }
@@ -157,8 +157,8 @@ public:
                     core::ErrorCode::AlreadyExists, "generated entity ID already exists in scene");
             }
         } catch (const std::bad_alloc&) {
-            return core::Status::failure(
-                core::ErrorCode::ResourceExhausted, "scene could not allocate entity storage");
+            // Keep this error path allocation-free; ErrorCode remains available if text is empty.
+            return core::Status::failure(core::ErrorCode::ResourceExhausted, std::string{});
         }
 
         output = id;
