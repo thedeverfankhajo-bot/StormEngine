@@ -14,7 +14,7 @@ The planned dependency direction is from higher-level modules toward narrow lowe
 
 | Module | Responsibility | Current state |
 | --- | --- | --- |
-| Core | Versioning, status/error conventions, math, deterministic timing, lifecycle and low-level utilities | Version metadata, dimension-aware math, fixed-step clock, Status, RuntimeLifecycle and logging dispatch |
+| Core | Versioning, status/error conventions, math, deterministic timing, lifecycle and low-level utilities | Version metadata, dimension-aware math, fixed-step clock, Status, RuntimeLifecycle, stable ID values and logging dispatch |
 | Platform | Windowing, input, monotonic clocks, filesystems, threads and OS integration | Planned |
 | Render | Render-device abstraction, resource lifetime, command submission and capabilities | Planned; no graphics API dependency yet |
 | Scene | Worlds/scenes, entities, transforms, lifecycle and serialization | Planned |
@@ -46,6 +46,12 @@ The initial state machine is single-owner-thread only and is not a synchronizati
 The core `Logger` applies a minimum severity filter and forwards records to a caller-provided sink. It performs no I/O, formatting, or process-global configuration. The default instance has no sink, so logging is silent until a host explicitly supplies one.
 
 A log record carries non-owning string views. They are valid only during the synchronous sink call; a sink that retains a message must copy it. The caller owns the sink context and must keep it alive while the logger uses it. Sinks must not throw. The logger is not thread-safe, so concurrent producers must serialize access externally until a dedicated diagnostics queue is designed.
+
+## Stable identifiers
+
+`StableId` stores 128 identifier bits in byte order matching the canonical UUID text representation and supports the RFC 9562 hex-and-dash format. Parsing accepts upper- or lowercase hexadecimal but rejects malformed separators and the all-zero Nil UUID, which this API reserves to mean "no ID". The default-constructed value is invalid.
+
+This value type does not generate IDs. The generation policy must be selected separately and must not rely on timestamps or weak pseudo-random sources. When generated IDs need unpredictability, use an appropriate platform cryptographic random source; see [RFC 9562, Section 6.9](https://www.rfc-editor.org/rfc/rfc9562.html#section-6.9). Persistence, duplicate detection and scene/asset ownership remain responsibilities of the future project and asset layers.
 
 ## Deterministic timing
 

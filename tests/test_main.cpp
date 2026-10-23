@@ -2,10 +2,12 @@
 #include "storm/core/logging.hpp"
 #include "storm/core/runtime_lifecycle.hpp"
 #include "storm/core/status.hpp"
+#include "storm/core/stable_id.hpp"
 #include "storm/core/version.hpp"
 #include "storm/math/vector.hpp"
 #include "storm/scene/dimension.hpp"
 
+#include <array>
 #include <cmath>
 #include <iostream>
 #include <limits>
@@ -98,6 +100,56 @@ void test_logging_dispatch_and_filtering() {
     Logger sinkless_logger;
     STORM_CHECK(!sinkless_logger.is_enabled(LogLevel::Error));
     sinkless_logger.write(LogLevel::Error, "core", "no output sink");
+}
+
+
+void test_stable_id_validation_and_round_trip() {
+    using storm::core::StableId;
+
+    constexpr std::string_view canonical = "f81d4fae-7dec-11d0-a765-00a0c91e6bf6";
+    const auto parsed = StableId::parse(canonical);
+    STORM_CHECK(parsed.has_value());
+    if (!parsed.has_value()) {
+        return;
+    }
+
+    STORM_CHECK(parsed->is_valid());
+    STORM_CHECK(static_cast<bool>(*parsed));
+    STORM_CHECK(parsed->to_string() == canonical);
+
+    const auto uppercase = StableId::parse("F81D4FAE-7DEC-11D0-A765-00A0C91E6BF6");
+    STORM_CHECK(uppercase.has_value());
+    if (uppercase.has_value()) {
+        STORM_CHECK(*uppercase == *parsed);
+        STORM_CHECK(uppercase->to_string() == canonical);
+    }
+
+    const auto different = StableId::parse("f81d4fae-7dec-11d0-a765-00a0c91e6bf7");
+    STORM_CHECK(different.has_value());
+    if (different.has_value()) {
+        STORM_CHECK(*different != *parsed);
+    }
+
+    const auto from_bytes = StableId::from_bytes(parsed->bytes());
+    STORM_CHECK(from_bytes.has_value());
+    if (from_bytes.has_value()) {
+        STORM_CHECK(*from_bytes == *parsed);
+        STORM_CHECK(from_bytes->bytes()[0] == 0xF8U);
+        STORM_CHECK(from_bytes->bytes()[15] == 0xF6U);
+    }
+
+    const StableId invalid;
+    STORM_CHECK(!invalid.is_valid());
+    STORM_CHECK(!static_cast<bool>(invalid));
+    STORM_CHECK(invalid.to_string().empty());
+    STORM_CHECK(!StableId::from_bytes(StableId::Bytes{}).has_value());
+
+    STORM_CHECK(!StableId::parse("").has_value());
+    STORM_CHECK(!StableId::parse("f81d4fae7dec-11d0-a765-00a0c91e6bf6").has_value());
+    STORM_CHECK(!StableId::parse("f81d4fae-7dec-11d0-a765-00a0c91e6bf").has_value());
+    STORM_CHECK(!StableId::parse("f81d4fae-7dec-11d0-a765-00a0c91e6bfz").has_value());
+    STORM_CHECK(!StableId::parse("f81d4fae_7dec-11d0-a765-00a0c91e6bf6").has_value());
+    STORM_CHECK(!StableId::parse("00000000-0000-0000-0000-000000000000").has_value());
 }
 
 void test_version() {
@@ -400,6 +452,7 @@ void test_fixed_step_clock_rejects_invalid_time_and_configuration() {
 int main() {
     test_version();
     test_status_values();
+    test_stable_id_validation_and_round_trip();
     test_logging_dispatch_and_filtering();
     test_runtime_lifecycle_normal_path();
     test_runtime_lifecycle_invalid_transitions();
