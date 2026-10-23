@@ -21,6 +21,7 @@
 #include "storm/scene/scene.hpp"
 #include "storm/scene/scene_codec.hpp"
 #include "storm/scene/scene_file.hpp"
+#include "storm/scene/renderable2d.hpp"
 #include "storm/scene/transform.hpp"
 
 #include <array>
@@ -1186,6 +1187,7 @@ void test_scene_renderer2d_renders_entities_and_preserves_frame_on_invalid_input
     using storm::render::SceneRenderer2D;
     using storm::render::SoftwareCanvas2D;
     using storm::scene::Dimension;
+    using storm::scene::Renderable2D;
     using storm::scene::Scene;
     using storm::scene::Transform;
     using storm::scene::Transform2D;
@@ -1205,6 +1207,18 @@ void test_scene_renderer2d_renders_entities_and_preserves_frame_on_invalid_input
     if (first == nullptr || second == nullptr) {
         return;
     }
+    STORM_CHECK(first->set_renderable2d(Renderable2D{}).ok());
+    STORM_CHECK(second->set_renderable2d(Renderable2D{}).ok());
+
+    StableId logic_id;
+    STORM_CHECK(scene.create_entity("Logic only", logic_id).ok());
+    auto* logic_entity = scene.find_entity(logic_id);
+    STORM_CHECK(logic_entity != nullptr);
+    if (logic_entity == nullptr) {
+        return;
+    }
+    Transform2D logic_transform;
+    STORM_CHECK(logic_entity->set_transform(Transform{logic_transform}).ok());
 
     Transform2D first_transform;
     first_transform.position = Vec2{-2.0F, 1.0F};
@@ -1229,6 +1243,8 @@ void test_scene_renderer2d_renders_entities_and_preserves_frame_on_invalid_input
     STORM_CHECK(canvas.pixels()[25U * 80U + 62U] == entity_color);
     STORM_CHECK(canvas.pixels()[5U * 80U + 5U] == background);
     STORM_CHECK(canvas.pixels()[55U * 80U + 75U] == background);
+    // Logic-only entities do not implicitly become visible geometry.
+    STORM_CHECK(canvas.pixels()[30U * 80U + 40U] == background);
 
     // Configuration errors are detected before the prior framebuffer is cleared.
     Camera2D mismatched_camera = camera;
@@ -1675,6 +1691,7 @@ void test_named_key_codes_are_stable_and_validated() {
 void test_scene_codec_round_trip_all_dimensions_and_determinism() {
     using storm::core::StableId;
     using storm::scene::Dimension;
+    using storm::scene::Renderable2D;
     using storm::scene::Scene;
     using storm::scene::SceneCodec;
     using storm::scene::Transform;
@@ -1698,6 +1715,11 @@ void test_scene_codec_round_trip_all_dimensions_and_determinism() {
         } else if (dimension == Dimension::Two) {
             STORM_CHECK(entity->set_transform(Transform{Transform2D{
                 storm::math::Vec2{3.0F, -4.0F}, 0.75F, storm::math::Vec2{2.0F, 0.5F}}}).ok());
+            Renderable2D renderable;
+            renderable.size = storm::math::Vec2{1.25F, 2.5F};
+            renderable.tint_rgba = {17U, 34U, 51U, 68U};
+            renderable.visible = false;
+            STORM_CHECK(entity->set_renderable2d(renderable).ok());
         } else {
             STORM_CHECK(entity->set_transform(Transform{Transform3D{
                 storm::math::Vec3{1.0F, 2.0F, 3.0F}, storm::math::Vec3{0.1F, 0.2F, 0.3F},
@@ -1724,6 +1746,7 @@ void test_scene_codec_round_trip_all_dimensions_and_determinism() {
         STORM_CHECK(loaded->transform().dimension() == dimension);
 
         if (dimension == Dimension::One) {
+            STORM_CHECK(loaded->renderable2d() == nullptr);
             const auto* value = std::get_if<Transform1D>(&loaded->transform().data());
             STORM_CHECK(value != nullptr);
             if (value != nullptr) {
@@ -1738,7 +1761,15 @@ void test_scene_codec_round_trip_all_dimensions_and_determinism() {
                 STORM_CHECK(value->rotation_radians == 0.75F);
                 STORM_CHECK((value->scale == storm::math::Vec2{2.0F, 0.5F}));
             }
+            const auto* renderable = loaded->renderable2d();
+            STORM_CHECK(renderable != nullptr);
+            if (renderable != nullptr) {
+                STORM_CHECK((renderable->size == storm::math::Vec2{1.25F, 2.5F}));
+                STORM_CHECK((renderable->tint_rgba == std::array<std::uint8_t, 4U>{17U, 34U, 51U, 68U}));
+                STORM_CHECK(!renderable->visible);
+            }
         } else {
+            STORM_CHECK(loaded->renderable2d() == nullptr);
             const auto* value = std::get_if<Transform3D>(&loaded->transform().data());
             STORM_CHECK(value != nullptr);
             if (value != nullptr) {
@@ -1747,6 +1778,53 @@ void test_scene_codec_round_trip_all_dimensions_and_determinism() {
                 STORM_CHECK((value->scale == storm::math::Vec3{1.0F, 2.0F, 3.0F}));
             }
         }
+    }
+}
+
+void test_scene_codec_migrates_v1_2d_scenes_to_explicit_renderables() {
+    using storm::core::StableId;
+    using storm::scene::Dimension;
+    using storm::scene::Renderable2D;
+    using storm::scene::Scene;
+    using storm::scene::SceneCodec;
+
+    Scene source{Dimension::Two};
+    StableId id;
+    STORM_CHECK(source.create_entity("Legacy player", id).ok());
+    std::vector<std::byte> current_bytes;
+    STORM_CHECK(SceneCodec::serialize(source, current_bytes).ok());
+    if (current_bytes.size() < 4U) {
+        return;
+    }
+
+    // One entity without components has only the v2 four-byte component mask after its transform.
+    auto version_one_bytes = current_bytes;
+    version_one_bytes.resize(version_one_bytes.size() - sizeof(std::uint32_t));
+    version_one_bytes[4U] = std::byte{0x01U};
+    version_one_bytes[5U] = std::byte{0x00U};
+
+    Scene migrated{Dimension::Two};
+    STORM_CHECK(SceneCodec::deserialize(version_one_bytes, migrated).ok());
+    STORM_CHECK(migrated.entity_count() == 1U);
+    const auto* entity = migrated.find_entity(id);
+    STORM_CHECK(entity != nullptr);
+    if (entity == nullptr) {
+        return;
+    }
+    const Renderable2D* renderable = entity->renderable2d();
+    STORM_CHECK(renderable != nullptr);
+    if (renderable != nullptr) {
+        STORM_CHECK((renderable->size == storm::math::Vec2{1.0F, 1.0F}));
+        STORM_CHECK((renderable->tint_rgba == std::array<std::uint8_t, 4U>{255U, 255U, 255U, 255U}));
+        STORM_CHECK(renderable->visible);
+    }
+
+    std::vector<std::byte> upgraded_bytes;
+    STORM_CHECK(SceneCodec::serialize(migrated, upgraded_bytes).ok());
+    STORM_CHECK(upgraded_bytes.size() >= 6U);
+    if (upgraded_bytes.size() >= 6U) {
+        STORM_CHECK(upgraded_bytes[4U] == std::byte{0x02U});
+        STORM_CHECK(upgraded_bytes[5U] == std::byte{0x00U});
     }
 }
 
@@ -1784,7 +1862,7 @@ void test_scene_codec_rejects_malformed_data_transactionally() {
     rejects_without_mutation(bad_magic);
 
     auto unsupported_version = valid;
-    unsupported_version[4] = std::byte{0x02U};
+    unsupported_version[4] = std::byte{0x03U};
     unsupported_version[5] = std::byte{0x00U};
     const auto version_status = [&unsupported_version]() {
         Scene destination{Dimension::Two, 4U};
@@ -1799,6 +1877,16 @@ void test_scene_codec_rejects_malformed_data_transactionally() {
     auto invalid_flags = valid;
     invalid_flags[7] = std::byte{0x01U};
     rejects_without_mutation(invalid_flags);
+
+    const std::size_t first_transform_for_components =
+        12U + 16U + 2U + static_cast<std::size_t>(std::to_integer<unsigned int>(valid[28])) +
+        (5U * sizeof(std::uint32_t));
+    auto unknown_component = valid;
+    unknown_component[first_transform_for_components] = std::byte{0x02U};
+    Scene unknown_component_destination{Dimension::Two, 4U};
+    STORM_CHECK(SceneCodec::deserialize(unknown_component, unknown_component_destination).code() ==
+                ErrorCode::Unsupported);
+    STORM_CHECK(unknown_component_destination.entity_count() == 0U);
 
     auto excessive_count = valid;
     excessive_count[8] = std::byte{0xffU};
@@ -1835,7 +1923,8 @@ void test_scene_codec_rejects_malformed_data_transactionally() {
     rejects_without_mutation(non_finite_transform);
 
     const std::size_t second_record =
-        12U + 16U + 2U + first_name_length + (5U * sizeof(std::uint32_t));
+        12U + 16U + 2U + first_name_length + (5U * sizeof(std::uint32_t)) +
+        sizeof(std::uint32_t);
     auto duplicate_id = valid;
     for (std::size_t index = 0U; index < StableId::byte_count; ++index) {
         duplicate_id[second_record + index] = duplicate_id[12U + index];
@@ -2097,6 +2186,7 @@ int main() {
     test_dimension_aware_transforms();
     test_scene_entity_lifecycle_and_validation();
     test_scene_codec_round_trip_all_dimensions_and_determinism();
+    test_scene_codec_migrates_v1_2d_scenes_to_explicit_renderables();
     test_scene_codec_rejects_malformed_data_transactionally();
     test_scene_file_atomic_save_and_bounded_load();
     test_project_path_canonicalization_and_portable_validation();

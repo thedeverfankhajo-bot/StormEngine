@@ -32,6 +32,7 @@ using storm::render::SoftwareCanvas2D;
 using storm::render::SceneRenderer2D;
 using storm::scene::Dimension;
 using storm::scene::Scene;
+using storm::scene::Renderable2D;
 using storm::scene::Transform;
 using storm::scene::Transform2D;
 
@@ -243,6 +244,12 @@ int main(int argc, char* argv[]) {
     auto* player_entity = scene.find_entity(player_id);
     if (player_entity == nullptr) {
         std::cerr << "created demo player entity could not be found\n";
+        return 1;
+    }
+    const auto renderable_status = player_entity->set_renderable2d(Renderable2D{});
+    if (!renderable_status.ok()) {
+        std::cerr << "could not attach the demo player's Renderable2D component: "
+                  << renderable_status.message() << '\n';
         return 1;
     }
 

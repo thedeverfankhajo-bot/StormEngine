@@ -7,9 +7,9 @@
 
 namespace storm::render {
 
-// Connects the dimension-aware Scene/Entity/Transform model to the CPU reference renderer.
-// Until renderable components/materials exist, each 2D entity is drawn as a local unit quad,
-// with its Transform2D controlling world position, rotation and size.
+// Connects 2D Scene/Entity/Transform and explicit Renderable2D data to the CPU reference renderer.
+// Logic-only entities and invisible renderables are skipped. Texture/material resources are not
+// implemented yet; visible renderables are drawn as tinted local quads.
 class SceneRenderer2D final {
 public:
     [[nodiscard]] static core::Status render(

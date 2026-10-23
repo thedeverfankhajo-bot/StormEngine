@@ -4,11 +4,13 @@
 #include "storm/core/stable_id_generator.hpp"
 #include "storm/core/status.hpp"
 #include "storm/scene/dimension.hpp"
+#include "storm/scene/renderable2d.hpp"
 #include "storm/scene/transform.hpp"
 
 #include <cstddef>
 #include <map>
 #include <new>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -51,6 +53,25 @@ public:
         return transform_;
     }
 
+    // Entities are logic-only by default. This pointer is non-owning.
+    [[nodiscard]] const Renderable2D* renderable2d() const noexcept {
+        return renderable2d_.has_value() ? &*renderable2d_ : nullptr;
+    }
+
+    [[nodiscard]] core::Status set_renderable2d(const Renderable2D& renderable) {
+        if (transform_.dimension() != Dimension::Two || !renderable.is_valid()) {
+            return core::Status::failure(
+                core::ErrorCode::InvalidArgument,
+                "Renderable2D requires a 2D entity and finite positive dimensions");
+        }
+        renderable2d_ = renderable;
+        return core::Status::success();
+    }
+
+    void clear_renderable2d() noexcept {
+        renderable2d_.reset();
+    }
+
     // Rejects non-finite values and transforms from a different scene dimension.
     // The existing transform is left untouched if validation fails.
     [[nodiscard]] core::Status set_transform(const Transform& transform) {
@@ -82,6 +103,7 @@ private:
     core::StableId id_{};
     std::string name_{};
     Transform transform_{};
+    std::optional<Renderable2D> renderable2d_{};
 };
 
 // Owns its entities and their names/transforms. Entity IDs are OS-random UUIDv4 values.

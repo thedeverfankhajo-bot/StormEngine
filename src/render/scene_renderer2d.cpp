@@ -2,6 +2,7 @@
 
 #include <array>
 #include <cstddef>
+#include <cstdint>
 
 namespace storm::render {
 namespace {
@@ -18,18 +19,19 @@ struct DrawContext final {
     bool succeeded{true};
 };
 
-[[nodiscard]] bool has_finite_quad(const math::Matrix4& transform) noexcept {
-    if (!transform.is_finite()) {
+[[nodiscard]] bool has_finite_quad(const math::Matrix4& transform,
+                                   const math::Vec2& size) noexcept {
+    if (!transform.is_finite() || !size.is_finite() ||
+        size[0U] <= 0.0F || size[1U] <= 0.0F) {
         return false;
     }
-
-    constexpr std::array<math::Vec3, 4U> unit_quad{
+    const std::array<math::Vec3, 4U> quad{
         math::Vec3{0.0F, 0.0F, 0.0F},
-        math::Vec3{1.0F, 0.0F, 0.0F},
-        math::Vec3{1.0F, 1.0F, 0.0F},
-        math::Vec3{0.0F, 1.0F, 0.0F}
+        math::Vec3{size[0U], 0.0F, 0.0F},
+        math::Vec3{size[0U], size[1U], 0.0F},
+        math::Vec3{0.0F, size[1U], 0.0F}
     };
-    for (const math::Vec3& corner : unit_quad) {
+    for (const math::Vec3& corner : quad) {
         if (!transform.transform_point(corner).has_value()) {
             return false;
         }
@@ -37,9 +39,28 @@ struct DrawContext final {
     return true;
 }
 
+[[nodiscard]] std::uint8_t multiply_channel(std::uint8_t color,
+                                            std::uint8_t tint) noexcept {
+    const unsigned int product =
+        static_cast<unsigned int>(color) * static_cast<unsigned int>(tint);
+    return static_cast<std::uint8_t>((product + 127U) / 255U);
+}
+
+[[nodiscard]] Rgba8 apply_tint(Rgba8 base,
+                               const std::array<std::uint8_t, 4U>& tint) noexcept {
+    return Rgba8{multiply_channel(base.r, tint[0U]),
+                 multiply_channel(base.g, tint[1U]),
+                 multiply_channel(base.b, tint[2U]),
+                 multiply_channel(base.a, tint[3U])};
+}
+
 void validate_entity(void* opaque, const scene::Entity& entity) noexcept {
     auto& context = *static_cast<PreflightContext*>(opaque);
     if (!context.valid) {
+        return;
+    }
+    const scene::Renderable2D* renderable = entity.renderable2d();
+    if (renderable == nullptr || !renderable->visible) {
         return;
     }
 
@@ -48,14 +69,17 @@ void validate_entity(void* opaque, const scene::Entity& entity) noexcept {
         context.valid = false;
         return;
     }
-
     const math::Matrix4 local_to_pixel = context.world_to_pixel * *local_to_world;
-    context.valid = has_finite_quad(local_to_pixel);
+    context.valid = has_finite_quad(local_to_pixel, renderable->size);
 }
 
 void draw_entity(void* opaque, const scene::Entity& entity) noexcept {
     auto& context = *static_cast<DrawContext*>(opaque);
     if (!context.succeeded) {
+        return;
+    }
+    const scene::Renderable2D* renderable = entity.renderable2d();
+    if (renderable == nullptr || !renderable->visible) {
         return;
     }
 
@@ -65,10 +89,9 @@ void draw_entity(void* opaque, const scene::Entity& entity) noexcept {
             context.succeeded = false;
             return;
         }
-
         const core::Status status = context.canvas->draw_rect(
-            context.world_to_pixel * *local_to_world, math::Vec2{1.0F, 1.0F},
-            context.entity_color);
+            context.world_to_pixel * *local_to_world, renderable->size,
+            apply_tint(context.entity_color, renderable->tint_rgba));
         context.succeeded = status.ok();
     } catch (...) {
         // Scene visitors are explicitly noexcept. Convert unexpected exceptions into failure.
@@ -105,8 +128,9 @@ core::Status SceneRenderer2D::render(const scene::Scene& source_scene, const Cam
             "2D camera parameters are invalid or unrepresentable");
     }
 
-    // Validate every transform and transformed unit quad before touching the prior framebuffer.
-    // Scene and canvas are single-owner-thread objects; the second traversal sees the same entities.
+    // Validate every visible renderable and its transformed quad before touching the prior
+    // framebuffer. Scene and canvas are single-owner-thread objects; the second traversal sees
+    // the same entities.
     PreflightContext preflight{*world_to_pixel, true};
     const std::size_t validated = source_scene.visit_entities(&preflight, &validate_entity);
     if (!preflight.valid || validated != source_scene.entity_count()) {

@@ -22,12 +22,14 @@ static_assert(sizeof(float) == sizeof(std::uint32_t) &&
               std::numeric_limits<float>::is_iec559,
               "SceneCodec requires IEEE-754 binary32 floats");
 
-// Versioned, deterministic scene persistence. Version 1 is a bounded little-endian binary format.
+// Versioned, deterministic scene persistence. Version 2 adds an explicit component mask and
+// bounded Renderable2D metadata. Version 1 remains readable through a documented migration path.
 // Deserialization is transactional and accepts only an empty destination Scene with matching
 // dimension and enough entity capacity.
 class SceneCodec final {
 public:
-    static constexpr std::uint16_t format_version = 1U;
+    static constexpr std::uint16_t format_version = 2U;
+    static constexpr std::uint16_t legacy_format_version = 1U;
     static constexpr std::size_t maximum_serialized_bytes = 64U * 1024U * 1024U;
 
     [[nodiscard]] static core::Status serialize(const Scene& scene,
@@ -47,13 +49,17 @@ public:
         for (const auto& entry : scene.entities_) {
             const Entity& entity = entry.second;
             if (!Entity::is_valid_name(entity.name_) || !entity.transform_.is_finite() ||
-                entity.transform_.dimension() != scene.dimension()) {
+                entity.transform_.dimension() != scene.dimension() ||
+                (entity.renderable2d_.has_value() &&
+                 (scene.dimension() != Dimension::Two || !entity.renderable2d_->is_valid()))) {
                 return core::Status::failure(
                     core::ErrorCode::InvalidState, "scene contains an invalid entity record");
             }
 
-            const std::size_t record_size = core::StableId::byte_count + sizeof(std::uint16_t) +
-                                            entity.name_.size() + transform_bytes;
+            const std::size_t record_size =
+                core::StableId::byte_count + sizeof(std::uint16_t) + entity.name_.size() +
+                transform_bytes + sizeof(std::uint32_t) +
+                (entity.renderable2d_.has_value() ? renderable2d_payload_size : 0U);
             if (record_size > maximum_serialized_bytes - encoded_size) {
                 return core::Status::failure(
                     core::ErrorCode::ResourceExhausted, "serialized scene exceeds the size limit");
@@ -114,6 +120,19 @@ public:
                         }
                     },
                     entity.transform_.data());
+
+                const std::uint32_t component_mask =
+                    entity.renderable2d_.has_value() ? renderable2d_component_mask : 0U;
+                append_u32(encoded, component_mask);
+                if (entity.renderable2d_.has_value()) {
+                    const Renderable2D& renderable = *entity.renderable2d_;
+                    append_float(encoded, renderable.size[0U]);
+                    append_float(encoded, renderable.size[1U]);
+                    for (const std::uint8_t component : renderable.tint_rgba) {
+                        append_u8(encoded, component);
+                    }
+                    append_u8(encoded, renderable.visible ? 1U : 0U);
+                }
             }
 
             if (encoded.size() != encoded_size) {
@@ -167,7 +186,7 @@ public:
             !reader.read_u8(reserved) || !reader.read_u32(entity_count)) {
             return core::Status::failure(core::ErrorCode::Parse, "scene header is truncated");
         }
-        if (version != format_version) {
+        if (version != legacy_format_version && version != format_version) {
             return core::Status::failure(
                 core::ErrorCode::Unsupported, "scene format version is not supported");
         }
@@ -191,7 +210,8 @@ public:
 
         const std::size_t minimum_record_size = core::StableId::byte_count +
                                                 sizeof(std::uint16_t) + 1U +
-                                                float_count(file_dimension) * sizeof(std::uint32_t);
+                                                float_count(file_dimension) * sizeof(std::uint32_t) +
+                                                (version == format_version ? sizeof(std::uint32_t) : 0U);
         if (static_cast<std::size_t>(entity_count) > reader.remaining() / minimum_record_size) {
             return core::Status::failure(
                 core::ErrorCode::Parse, "scene entity count exceeds the available file data");
@@ -291,8 +311,64 @@ public:
                         core::ErrorCode::Parse, "entity transform contains a non-finite value");
                 }
 
-                const auto inserted = parsed_entities.emplace(
-                    *id, Entity{*id, std::move(name), std::move(transform)});
+                std::optional<Renderable2D> renderable;
+                if (version == legacy_format_version) {
+                    // Version 1 rendered every 2D entity as a unit-quad placeholder. Preserve
+                    // that visible behavior when migrating old records into the new model.
+                    if (file_dimension == Dimension::Two) {
+                        renderable = Renderable2D{};
+                    }
+                } else {
+                    std::uint32_t component_mask{};
+                    if (!reader.read_u32(component_mask)) {
+                        return core::Status::failure(
+                            core::ErrorCode::Parse, "entity component mask is truncated");
+                    }
+                    if ((component_mask & ~renderable2d_component_mask) != 0U) {
+                        return core::Status::failure(
+                            core::ErrorCode::Unsupported, "scene contains an unknown entity component");
+                    }
+                    if ((component_mask & renderable2d_component_mask) != 0U) {
+                        if (file_dimension != Dimension::Two) {
+                            return core::Status::failure(
+                                core::ErrorCode::Parse,
+                                "Renderable2D component is only valid in a 2D scene");
+                        }
+                        float width{};
+                        float height{};
+                        std::array<std::uint8_t, 4U> tint{};
+                        std::uint8_t visible{};
+                        if (!reader.read_float(width) || !reader.read_float(height)) {
+                            return core::Status::failure(
+                                core::ErrorCode::Parse, "Renderable2D size is truncated");
+                        }
+                        for (std::uint8_t& component : tint) {
+                            if (!reader.read_u8(component)) {
+                                return core::Status::failure(
+                                    core::ErrorCode::Parse, "Renderable2D tint is truncated");
+                            }
+                        }
+                        if (!reader.read_u8(visible) || visible > 1U) {
+                            return core::Status::failure(
+                                core::ErrorCode::Parse, "Renderable2D visibility flag is invalid");
+                        }
+                        Renderable2D component;
+                        component.size = math::Vec2{width, height};
+                        component.tint_rgba = tint;
+                        component.visible = visible != 0U;
+                        if (!component.is_valid()) {
+                            return core::Status::failure(
+                                core::ErrorCode::Parse, "Renderable2D size is invalid");
+                        }
+                        renderable = component;
+                    }
+                }
+
+                Entity parsed_entity{*id, std::move(name), std::move(transform)};
+                if (renderable.has_value()) {
+                    parsed_entity.renderable2d_ = *renderable;
+                }
+                const auto inserted = parsed_entities.emplace(*id, std::move(parsed_entity));
                 if (!inserted.second) {
                     return core::Status::failure(
                         core::ErrorCode::Parse, "entity identifier is duplicated");
@@ -314,6 +390,9 @@ public:
 
 private:
     static constexpr std::size_t header_size = 12U;
+    static constexpr std::uint32_t renderable2d_component_mask = 1U;
+    static constexpr std::size_t renderable2d_payload_size =
+        2U * sizeof(std::uint32_t) + 5U * sizeof(std::uint8_t);
     static constexpr std::array<std::uint8_t, 4U> magic_bytes{0x53U, 0x54U, 0x53U, 0x43U};
 
     [[nodiscard]] static constexpr std::size_t float_count(Dimension dimension) noexcept {
