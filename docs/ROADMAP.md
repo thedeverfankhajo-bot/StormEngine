@@ -19,7 +19,8 @@ This roadmap is milestone-based, not a promise of release dates. A milestone is 
 - [x] Add a 128-bit stable identifier value type with canonical UUID parsing/formatting and malformed/Nil ID rejection.
 - [x] Add a validated in-memory runtime configuration for fixed-step timing and log severity.
 - [x] Add an in-memory stable-ID registry that rejects duplicate and invalid IDs.
-- Add ID generation policy, diagnostic aggregation and resource ownership conventions.
+- [x] Add OS-backed UUIDv4 generation with checked native secure-random APIs and no weak fallback.
+- Add diagnostic aggregation and resource ownership conventions.
 - [x] Add a Linux AddressSanitizer/UndefinedBehaviorSanitizer CI job and instrument the core tests.
 - Continue expanding boundary/malformed-input tests and add a secure ID-generation policy.
 

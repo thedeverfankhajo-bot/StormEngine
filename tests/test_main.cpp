@@ -3,6 +3,7 @@
 #include "storm/core/runtime_config.hpp"
 #include "storm/core/runtime_lifecycle.hpp"
 #include "storm/core/stable_id.hpp"
+#include "storm/core/stable_id_generator.hpp"
 #include "storm/core/stable_id_registry.hpp"
 #include "storm/core/status.hpp"
 #include "storm/core/version.hpp"
@@ -234,6 +235,40 @@ void test_stable_id_registry_duplicate_detection() {
     registry.clear();
     STORM_CHECK(registry.empty());
     STORM_CHECK(registry.size() == 0U);
+}
+
+
+void test_secure_stable_id_generation() {
+    using storm::core::StableId;
+    using storm::core::StableIdGenerator;
+    using storm::core::StableIdRegistry;
+
+    StableIdRegistry registry;
+    for (std::size_t index = 0U; index < 8U; ++index) {
+        StableId generated;
+        const auto status = StableIdGenerator::generate_v4(generated);
+        STORM_CHECK(status.ok());
+        if (!status.ok()) {
+            return;
+        }
+
+        STORM_CHECK(generated.is_valid());
+        const auto& bytes = generated.bytes();
+        STORM_CHECK((bytes[6] & 0xF0U) == 0x40U);
+        STORM_CHECK((bytes[8] & 0xC0U) == 0x80U);
+
+        const std::string text = generated.to_string();
+        STORM_CHECK(text.size() == StableId::text_length);
+        const auto reparsed = StableId::parse(text);
+        STORM_CHECK(reparsed.has_value());
+        if (reparsed.has_value()) {
+            STORM_CHECK(*reparsed == generated);
+        }
+
+        STORM_CHECK(registry.register_id(generated).ok());
+    }
+
+    STORM_CHECK(registry.size() == 8U);
 }
 
 void test_version() {
@@ -537,6 +572,7 @@ int main() {
     test_version();
     test_status_values();
     test_stable_id_validation_and_round_trip();
+    test_secure_stable_id_generation();
     test_stable_id_registry_duplicate_detection();
     test_runtime_config_validation();
     test_logging_dispatch_and_filtering();

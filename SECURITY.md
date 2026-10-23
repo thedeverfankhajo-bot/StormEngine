@@ -17,6 +17,7 @@ A useful report includes the affected commit, platform/compiler, reproducible st
 - Treat scenes, project files, imported media and downloaded packages as untrusted input.
 - Bound file size, item counts, nesting depth, offsets and decompression before allocating or parsing.
 - Use explicit ownership and RAII; avoid unchecked pointer arithmetic and unsafe memory operations.
+- Generate UUIDv4 values with operating-system cryptographic random APIs, check failures, and never silently downgrade to timestamps or a non-cryptographic pseudo-random generator.
 - Keep scripting, native plugins and asset importers out of trusted runtime paths unless their trust boundary is explicit.
 - Minimize third-party dependencies; track versions, licenses, advisories and update ownership.
 - Give CI the minimum permissions required and pin third-party workflow actions to reviewed immutable commit SHAs.

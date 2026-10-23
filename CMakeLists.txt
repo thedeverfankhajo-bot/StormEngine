@@ -21,6 +21,7 @@ option(STORM_BUILD_TESTS "Build StormEngine tests" ${_storm_tests_default})
 
 add_library(storm_core STATIC
     src/core/version.cpp
+    src/core/stable_id_generator.cpp
 )
 add_library(Storm::Core ALIAS storm_core)
 
@@ -31,6 +32,14 @@ set_target_properties(storm_core PROPERTIES
 )
 
 target_compile_features(storm_core PUBLIC cxx_std_20)
+
+# The generator uses native platform cryptography APIs; no third-party runtime dependency.
+if(WIN32)
+    target_link_libraries(storm_core PRIVATE bcrypt)
+elseif(APPLE)
+    find_library(STORM_SECURITY_FRAMEWORK Security REQUIRED)
+    target_link_libraries(storm_core PRIVATE "${STORM_SECURITY_FRAMEWORK}")
+endif()
 target_include_directories(storm_core
     PUBLIC
         $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>

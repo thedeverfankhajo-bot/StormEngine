@@ -27,6 +27,10 @@ ctest --test-dir build-sanitized --output-on-failure
 
 Both the core library and test translation unit are instrumented. The repository CI runs this additional job on Ubuntu; the sanitizer option remains off by default and is not supported by this configuration on MSVC.
 
+## Secure ID entropy providers
+
+The secure ID generator uses operating-system cryptographic random sources, without third-party runtime packages: [Windows BCryptGenRandom](https://learn.microsoft.com/en-us/windows/win32/api/bcrypt/nf-bcrypt-bcryptgenrandom), [Apple SecRandomCopyBytes](https://developer.apple.com/documentation/security/secrandomcopybytes%28_%3A_%3A_%3A%29?language=objc), and Linux/Android's `/dev/urandom` kernel interface ([manual](https://man7.org/linux/man-pages/man4/urandom.4.html)). A source failure is reported rather than falling back to a weak pseudo-random generator.
+
 ## Android NDK cross-compilation
 
 The core is currently a native library; this does **not** create a complete Android application or APK. Install Android Studio/SDK and an NDK version supported by your Android Gradle Plugin/toolchain, then set ANDROID_NDK_HOME to that NDK directory.
