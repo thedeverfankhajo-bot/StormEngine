@@ -60,7 +60,10 @@ jobs:
               echo "Android sdkmanager was not found under ${ANDROID_HOME}/cmdline-tools" >&2
               exit 1
             fi
+            # GitHub's bash shell enables pipefail; avoid treating yes' expected SIGPIPE as a failure.
+            set +o pipefail
             yes | "${SDKMANAGER}" --licenses >/dev/null
+            set -o pipefail
             "${SDKMANAGER}" "ndk;${ANDROID_NDK_VERSION}"
           fi
           if [[ ! -f "${NDK_DIR}/build/cmake/android.toolchain.cmake" ]]; then
