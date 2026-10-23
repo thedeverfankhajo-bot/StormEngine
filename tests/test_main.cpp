@@ -17,6 +17,7 @@
 #include "storm/render/camera2d.hpp"
 #include "storm/render/software_canvas2d.hpp"
 #include "storm/render/texture2d.hpp"
+#include "storm/render/texture2d_registry.hpp"
 #include "storm/render/scene_renderer2d.hpp"
 #include "storm/scene/dimension.hpp"
 #include "storm/scene/scene.hpp"
@@ -1282,6 +1283,104 @@ void test_texture2d_storage_sampling_and_failure_atomicity() {
     STORM_CHECK(texture.pixel_count() == 0U);
 }
 
+
+void test_texture2d_registry_ownership_limits_and_failure_atomicity() {
+    using storm::core::ErrorCode;
+    using storm::core::StableId;
+    using storm::render::Rgba8;
+    using storm::render::Texture2D;
+    using storm::render::Texture2DRegistry;
+
+    const auto first_id = StableId::parse("00000000-0000-4000-8000-000000000001");
+    const auto second_id = StableId::parse("00000000-0000-4000-8000-000000000002");
+    STORM_CHECK(first_id.has_value());
+    STORM_CHECK(second_id.has_value());
+    if (!first_id.has_value() || !second_id.has_value()) {
+        return;
+    }
+
+    constexpr std::array<Rgba8, 2U> two_pixels{
+        Rgba8{240U, 10U, 20U, 255U}, Rgba8{30U, 220U, 40U, 255U}
+    };
+    constexpr std::array<Rgba8, 1U> one_pixel{Rgba8{1U, 2U, 3U, 255U}};
+
+    Texture2D original;
+    STORM_CHECK(original.set_pixels(2U, 1U, two_pixels).ok());
+    Texture2D oversized_candidate;
+    STORM_CHECK(oversized_candidate.set_pixels(2U, 1U, two_pixels).ok());
+    Texture2DRegistry registry{2U, 3U};
+    STORM_CHECK(registry.register_texture(*first_id, original).ok());
+    STORM_CHECK(registry.size() == 1U);
+    STORM_CHECK(registry.total_pixels() == 2U);
+    STORM_CHECK(registry.contains(*first_id));
+
+    // The registry owns a copy: mutating the caller's texture cannot change registered data.
+    original.reset();
+    const Texture2D* stored = registry.find(*first_id);
+    STORM_CHECK(stored != nullptr);
+    if (stored != nullptr) {
+        STORM_CHECK(stored->width() == 2U);
+        STORM_CHECK(stored->height() == 1U);
+        STORM_CHECK(stored->pixels()[0U] == two_pixels[0U]);
+        STORM_CHECK(stored->pixels()[1U] == two_pixels[1U]);
+    }
+
+    Texture2D one_texel;
+    STORM_CHECK(one_texel.set_pixels(1U, 1U, one_pixel).ok());
+    STORM_CHECK(registry.register_texture(*first_id, one_texel).code() ==
+                ErrorCode::AlreadyExists);
+    STORM_CHECK(registry.size() == 1U);
+    STORM_CHECK(registry.total_pixels() == 2U);
+
+    // Registering two more pixels would exceed the shared pixel budget; no partial entry appears.
+    STORM_CHECK(registry.register_texture(*second_id, oversized_candidate).code() ==
+                ErrorCode::ResourceExhausted);
+    STORM_CHECK(registry.size() == 1U);
+    STORM_CHECK(registry.total_pixels() == 2U);
+    STORM_CHECK(!registry.contains(*second_id));
+
+    // A one-pixel texture fits exactly into the remaining budget.
+    STORM_CHECK(registry.register_texture(*second_id, one_texel).ok());
+    STORM_CHECK(registry.size() == 2U);
+    STORM_CHECK(registry.total_pixels() == 3U);
+    STORM_CHECK(registry.find(*second_id) != nullptr);
+
+    STORM_CHECK(registry.register_texture(StableId{}, one_texel).code() ==
+                ErrorCode::InvalidArgument);
+    Texture2D empty;
+    const auto third_id = StableId::parse("00000000-0000-4000-8000-000000000003");
+    STORM_CHECK(third_id.has_value());
+    if (third_id.has_value()) {
+        STORM_CHECK(registry.register_texture(*third_id, empty).code() ==
+                    ErrorCode::InvalidArgument);
+    }
+    STORM_CHECK(registry.size() == 2U);
+    STORM_CHECK(registry.total_pixels() == 3U);
+
+    // Removing an asset releases its budget and makes the old lookup unavailable.
+    STORM_CHECK(registry.unregister_texture(*first_id).ok());
+    STORM_CHECK(registry.find(*first_id) == nullptr);
+    STORM_CHECK(registry.size() == 1U);
+    STORM_CHECK(registry.total_pixels() == 1U);
+    STORM_CHECK(registry.unregister_texture(*first_id).code() == ErrorCode::NotFound);
+
+    STORM_CHECK(registry.register_texture(*first_id, oversized_candidate).ok());
+    STORM_CHECK(registry.total_pixels() == 3U);
+
+    Texture2DRegistry capacity_limited{1U, 3U};
+    STORM_CHECK(capacity_limited.register_texture(*first_id, one_texel).ok());
+    STORM_CHECK(capacity_limited.register_texture(*second_id, one_texel).code() ==
+                ErrorCode::ResourceExhausted);
+    STORM_CHECK(capacity_limited.size() == 1U);
+    STORM_CHECK(capacity_limited.total_pixels() == 1U);
+
+    registry.clear();
+    STORM_CHECK(registry.empty());
+    STORM_CHECK(registry.size() == 0U);
+    STORM_CHECK(registry.total_pixels() == 0U);
+    STORM_CHECK(registry.find(*second_id) == nullptr);
+}
+
 void test_scene_renderer2d_renders_entities_and_preserves_frame_on_invalid_input() {
     using storm::core::ErrorCode;
     using storm::core::StableId;
@@ -2346,6 +2445,7 @@ int main() {
     test_camera2d_world_pixel_mapping_and_validation();
     test_software_canvas2d_rasterization_and_bounds();
     test_texture2d_storage_sampling_and_failure_atomicity();
+    test_texture2d_registry_ownership_limits_and_failure_atomicity();
     test_scene_renderer2d_renders_entities_and_preserves_frame_on_invalid_input();
     test_dimensions();
     test_fixed_step_clock_basic_timing();
