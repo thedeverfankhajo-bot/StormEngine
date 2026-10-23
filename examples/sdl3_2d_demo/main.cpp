@@ -12,6 +12,7 @@
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
+#include <cstring>
 #include <iostream>
 
 namespace {
@@ -101,11 +102,28 @@ void print_sdl_error(const char* operation);
         return false;
     }
 
-    const int pitch = static_cast<int>(
-        static_cast<std::size_t>(canvas.width()) * sizeof(Rgba8));
-    if (!SDL_UpdateTexture(texture, nullptr, canvas.pixels().data(), pitch)) {
+    void* locked_pixels = nullptr;
+    int locked_pitch = 0;
+    if (!SDL_LockTexture(texture, nullptr, &locked_pixels, &locked_pitch)) {
         return false;
     }
+
+    const std::size_t source_pitch =
+        static_cast<std::size_t>(canvas.width()) * sizeof(Rgba8);
+    if (locked_pixels == nullptr || locked_pitch < 0 ||
+        static_cast<std::size_t>(locked_pitch) < source_pitch) {
+        SDL_UnlockTexture(texture);
+        return false;
+    }
+
+    auto* destination_bytes = static_cast<std::byte*>(locked_pixels);
+    const auto source_pixels = canvas.pixels();
+    for (std::size_t row = 0U; row < static_cast<std::size_t>(canvas.height()); ++row) {
+        std::memcpy(destination_bytes + row * static_cast<std::size_t>(locked_pitch),
+                    source_pixels.data() + row * static_cast<std::size_t>(canvas.width()),
+                    source_pitch);
+    }
+    SDL_UnlockTexture(texture);
     const SDL_FRect destination{0.0F, 0.0F, static_cast<float>(width),
                                 static_cast<float>(height)};
     if (!SDL_SetRenderDrawColor(renderer, background_color.r, background_color.g,
