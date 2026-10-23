@@ -933,10 +933,10 @@ void test_quaternion_rotation_and_validation() {
     STORM_CHECK(!zero.normalized().has_value());
     STORM_CHECK(!zero.rotate_vector(Vec3{1.0F, 0.0F, 0.0F}).has_value());
     STORM_CHECK(!zero.to_matrix().has_value());
-    STORM_CHECK(!Quaternion{nan, 0.0F, 0.0F, 0.0F}.normalized().has_value());
-    STORM_CHECK(!Quaternion{infinity, 0.0F, 0.0F, 0.0F}.to_matrix().has_value());
-    STORM_CHECK(!Quaternion{infinity, 0.0F, 0.0F, 0.0F}
-                     .rotate_vector(Vec3{1.0F, 0.0F, 0.0F}).has_value());
+    STORM_CHECK((!Quaternion{nan, 0.0F, 0.0F, 0.0F}.normalized().has_value()));
+    STORM_CHECK((!Quaternion{infinity, 0.0F, 0.0F, 0.0F}.to_matrix().has_value()));
+    STORM_CHECK((!Quaternion{infinity, 0.0F, 0.0F, 0.0F}
+                      .rotate_vector(Vec3{1.0F, 0.0F, 0.0F}).has_value()));
     STORM_CHECK(!identity.normalized(-1.0F).has_value());
     STORM_CHECK(!identity.normalized(nan).has_value());
     STORM_CHECK(!Quaternion::from_axis_angle(Vec3{}, half_pi).has_value());
@@ -946,7 +946,7 @@ void test_quaternion_rotation_and_validation() {
     STORM_CHECK(!z_rotation->rotate_vector(Vec3{nan, 0.0F, 0.0F}).has_value());
 
     const float largest = std::numeric_limits<float>::max();
-    STORM_CHECK(!Quaternion{largest, largest, largest, largest}.normalized().has_value());
+    STORM_CHECK((!Quaternion{largest, largest, largest, largest}.normalized().has_value()));
 }
 
 void test_matrix4_transform_conventions() {
