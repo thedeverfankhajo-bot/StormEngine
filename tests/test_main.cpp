@@ -1069,9 +1069,9 @@ void test_platform_event_queue_integrates_with_input_state() {
     }
 
     STORM_CHECK(queue.empty());
-    STORM_CHECK(!input.key_is_down(8U));
-    STORM_CHECK(input.key_was_pressed(8U));
-    STORM_CHECK(input.key_was_released(8U));
+    STORM_CHECK(!input.key_is_down(KeyCode::A));
+    STORM_CHECK(input.key_was_pressed(KeyCode::A));
+    STORM_CHECK(input.key_was_released(KeyCode::A));
     STORM_CHECK(!input.pointer_button_is_down(2U));
     STORM_CHECK(input.pointer_button_was_pressed(2U));
     STORM_CHECK(input.pointer_button_was_released(2U));
