@@ -43,6 +43,7 @@ This roadmap is milestone-based, not a promise of release dates. A milestone is 
 ## M3 — Asset and scene pipeline
 
 - [x] Define a dimension-aware in-memory Scene/Entity/Transform contract with stable IDs, validated transform/name updates, and deterministic entity traversal.
+- [x] Map 1D/2D/3D local transforms into the documented Matrix4 convention with non-finite result rejection.
 - [x] Add a version-1 binary scene codec with stable-ID preservation, deterministic record order, bounded input/output, strict malformed-data validation, and transactional loading.
 - [x] Add native bounded scene-file loading and same-directory atomic replacement with flush/error handling; the project-root sandbox and crash-recovery journal remain future work.
 - [x] Define a portable UTF-8 `ProjectPath` value with lexical traversal/portable-name rejection and explicit failure atomicity; it is not yet an OS-level sandbox.

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "storm/math/matrix4.hpp"
 #include "storm/math/vector.hpp"
 #include "storm/scene/dimension.hpp"
 
@@ -9,9 +10,8 @@
 
 namespace storm::scene {
 
-// Provisional transform values for a unified 1D/2D/3D scene model.
-// Angles are expressed in radians; renderer-facing axis/handedness conventions remain a
-// documented architecture decision before rendering and physics depend on them.
+// Dimension-aware local transform values for the unified 1D/2D/3D scene model.
+// Rotation values are expressed in radians; world and matrix conventions are documented in ADR 0002.
 struct Transform1D final {
     float position{};
     float scale{1.0F};
@@ -80,6 +80,39 @@ public:
 
     [[nodiscard]] const TransformData& data() const noexcept {
         return data_;
+    }
+
+    // Converts this local transform to the engine's column-vector Matrix4 convention.
+    // 1D maps onto X; 2D maps onto the XY plane; 3D applies scale, then X/Y/Z rotations,
+    // then translation. Returns no matrix for invalid or numerically overflowing values.
+    [[nodiscard]] std::optional<math::Matrix4> to_matrix() const noexcept {
+        if (!is_finite()) {
+            return std::nullopt;
+        }
+
+        math::Matrix4 result;
+        if (const auto* one = std::get_if<Transform1D>(&data_)) {
+            result = math::Matrix4::translation(math::Vec3{one->position, 0.0F, 0.0F}) *
+                     math::Matrix4::scale(math::Vec3{one->scale, 1.0F, 1.0F});
+        } else if (const auto* two = std::get_if<Transform2D>(&data_)) {
+            result = math::Matrix4::translation(
+                         math::Vec3{two->position[0U], two->position[1U], 0.0F}) *
+                     math::Matrix4::rotation_z(two->rotation_radians) *
+                     math::Matrix4::scale(
+                         math::Vec3{two->scale[0U], two->scale[1U], 1.0F});
+        } else {
+            const auto& three = std::get<Transform3D>(data_);
+            result = math::Matrix4::translation(three.position) *
+                     math::Matrix4::rotation_z(three.rotation_euler_radians[2U]) *
+                     math::Matrix4::rotation_y(three.rotation_euler_radians[1U]) *
+                     math::Matrix4::rotation_x(three.rotation_euler_radians[0U]) *
+                     math::Matrix4::scale(three.scale);
+        }
+
+        if (!result.is_finite()) {
+            return std::nullopt;
+        }
+        return result;
     }
 
 private:

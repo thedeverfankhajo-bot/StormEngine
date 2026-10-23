@@ -34,6 +34,8 @@ Transform values are ordered as follows:
 - **2D:** position X, position Y, rotation in radians, scale X, scale Y (5 floats).
 - **3D:** position X/Y/Z, Euler rotation X/Y/Z in radians, scale X/Y/Z (9 floats).
 
+When local transforms are converted to matrices, StormEngine maps 1D values onto X and 2D values onto the XY plane. 3D Euler rotations are applied X, then Y, then Z, following the column-vector composition `T * Rz * Ry * Rx * S`. See [ADR 0002](decisions/0002-coordinate-system-and-matrix-conventions.md). This defines matrix interpretation without changing the version-1 serialized field order.
+
 The name field is a bounded byte string; version 1 does not claim to validate UTF-8. A higher-level project/editor layer should establish the user-facing text encoding policy before relying on these bytes as localized text.
 
 ## Validation and failure behavior

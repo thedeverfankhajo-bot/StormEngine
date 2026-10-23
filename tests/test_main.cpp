@@ -733,7 +733,6 @@ void test_vector_normalization_and_validation() {
 }
 
 void test_matrix4_transform_conventions() {
-    using storm::math::Matrix4;
     using storm::math::Vec3;
 
     const auto close = [](float left, float right) {
