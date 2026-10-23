@@ -18,6 +18,22 @@
       "demo-ready":"Sandbox ready", "demo-paused":"Motion paused", pause:"Pause motion", resume:"Resume motion", reset:"Reset position",
       "direction-label":"Move demo marker", live:"LIVE", "canvas-label":"Interactive two-dimensional demo. Use arrow keys or WASD to move the marker.",
       "player-entity":"Player entity", "world-origin":"World origin",
+      "projection-kicker":"INTERACTIVE LAB / 002", "projection-title":"Shape a perspective camera.",
+      "projection-intro":"Change the camera settings and inspect the resulting right-handed perspective matrix. Near and far depth mappings update live; the diagram is illustrative and the matrix values are authoritative.",
+      "projection-controls-label":"Perspective projection controls", "projection-fov-label":"Vertical field of view", "projection-fov-help":"A larger angle shows more of the world but increases perspective distortion.",
+      "projection-aspect-label":"Viewport aspect ratio", "projection-aspect-16-9":"16:9 · widescreen", "projection-aspect-16-10":"16:10",
+      "projection-aspect-4-3":"4:3", "projection-aspect-1-1":"1:1 · square", "projection-near-label":"Near plane", "projection-far-label":"Far plane",
+      "projection-depth-label":"Normalized-device depth range", "projection-depth-zero":"Zero to one · [0, 1]", "projection-depth-negative":"Negative one to one · [-1, 1]",
+      "projection-depth-help":"Select the convention explicitly. StormEngine does not guess the graphics backend's clip-space depth range.",
+      "projection-preview-label":"Frustum preview", "projection-diagram-label":"Illustrative perspective frustum diagram",
+      "projection-canvas-fallback":"A perspective-frustum illustration. Matrix results remain available below.",
+      "projection-near-result":"Near plane → NDC z = {value}", "projection-far-result":"Far plane → NDC z = {value}",
+      "projection-matrix-title":"Projection matrix · row view", "projection-matrix-label":"Perspective projection matrix",
+      "projection-footnote":"The matrix is displayed by rows for readability; StormEngine's Matrix4 stores values column-major. The demo does not call a GPU API.",
+      "projection-ready":"Projection is valid. Near and far planes map to the selected depth range.",
+      "projection-invalid-planes":"Invalid planes: near must be positive and far must be greater than near.",
+      "projection-invalid-math":"This input combination exceeds the finite range supported by the engine's 32-bit float matrix.",
+      "projection-camera":"CAMERA", "projection-near-name":"NEAR", "projection-far-name":"FAR", "projection-not-to-scale":"ILLUSTRATIVE · NOT TO SCALE",
       "arch-kicker":"DESIGNED TO GROW", "arch-title":"One runtime, focused modules.",
       "arch-intro":"Build hard foundations first. Keep platform, rendering, scene data and tools separated so each can evolve without destabilizing the core.",
       "state-building":"Building blocks", "state-early":"Early implementation", "state-reference":"Reference prototype", "state-planned":"Planned",
@@ -92,6 +108,22 @@
       "demo-ready":"محیط آزمایش آماده است", "demo-paused":"حرکت متوقف شد", pause:"توقف حرکت", resume:"ادامهٔ حرکت", reset:"بازنشانی موقعیت",
       "direction-label":"حرکت‌دادن نشانگر آزمایشی", live:"زنده", "canvas-label":"دموی دوبعدی تعاملی؛ نشانگر را با کلیدهای جهت‌نما یا WASD حرکت بده.",
       "player-entity":"موجودیت بازیکن", "world-origin":"مبدأ جهان",
+      "projection-kicker":"آزمایشگاه تعاملی / ۰۰۲", "projection-title":"دوربین پرسپکتیو را شکل بده.",
+      "projection-intro":"پارامترهای دوربین را تغییر بده و ماتریس پرسپکتیو راست‌دست را ببین. نگاشت عمق صفحه‌های نزدیک و دور زنده تغییر می‌کند؛ شکل فقط نمایشی است و مقادیر ماتریس مرجع اصلی‌اند.",
+      "projection-controls-label":"کنترل‌های تصویرسازی پرسپکتیو", "projection-fov-label":"میدان دید عمودی", "projection-fov-help":"زاویهٔ بزرگ‌تر بخش بیشتری از جهان را نشان می‌دهد، اما اعوجاج پرسپکتیو را بیشتر می‌کند.",
+      "projection-aspect-label":"نسبت ابعاد نما", "projection-aspect-16-9":"۱۶:۹ · عریض", "projection-aspect-16-10":"۱۶:۱۰",
+      "projection-aspect-4-3":"۴:۳", "projection-aspect-1-1":"۱:۱ · مربع", "projection-near-label":"صفحهٔ نزدیک", "projection-far-label":"صفحهٔ دور",
+      "projection-depth-label":"بازهٔ عمق مختصات نرمال‌شده", "projection-depth-zero":"صفر تا یک · [۰، ۱]", "projection-depth-negative":"منفی یک تا یک · [۱-، ۱]",
+      "projection-depth-help":"قرارداد را صریح انتخاب کن. StormEngine بازهٔ عمق فضای برش را برای بک‌اند گرافیکی حدس نمی‌زند.",
+      "projection-preview-label":"پیش‌نمایش حجم دید", "projection-diagram-label":"نمودار نمایشی حجم دید پرسپکتیو",
+      "projection-canvas-fallback":"تصویرسازی حجم دید پرسپکتیو؛ نتیجهٔ ماتریس هم در پایین موجود است.",
+      "projection-near-result":"صفحهٔ نزدیک ← عمق نرمال‌شده z = {value}", "projection-far-result":"صفحهٔ دور ← عمق نرمال‌شده z = {value}",
+      "projection-matrix-title":"ماتریس پرسپکتیو · نمایش سطری", "projection-matrix-label":"ماتریس تصویرسازی پرسپکتیو",
+      "projection-footnote":"ماتریس برای خوانایی به‌شکل سطرها نمایش داده شده است؛ Matrix4 در StormEngine مقادیر را ستون‌به‌ستون ذخیره می‌کند. این دمو هیچ API گرافیکی را فراخوانی نمی‌کند.",
+      "projection-ready":"پرسپکتیو معتبر است. صفحه‌های نزدیک و دور به بازهٔ عمق انتخاب‌شده نگاشت می‌شوند.",
+      "projection-invalid-planes":"صفحه‌ها نامعتبرند: صفحهٔ نزدیک باید مثبت و صفحهٔ دور بزرگ‌تر از آن باشد.",
+      "projection-invalid-math":"این ترکیب ورودی از محدودهٔ متناهی ماتریس ۳۲بیتی موتور فراتر می‌رود.",
+      "projection-camera":"دوربین", "projection-near-name":"نزدیک", "projection-far-name":"دور", "projection-not-to-scale":"نمایشی · بدون مقیاس واقعی",
       "arch-kicker":"طراحی‌شده برای رشد", "arch-title":"یک زمان‌اجرا، ماژول‌های متمرکز.",
       "arch-intro":"ابتدا پایه‌های دشوار را بسازیم. پلتفرم، رندر، دادهٔ صحنه و ابزارها را جدا نگه می‌داریم تا مستقل از هسته تکامل یابند.",
       "state-building":"بلوک‌های پایه", "state-early":"پیاده‌سازی اولیه", "state-reference":"نمونهٔ مرجع", "state-planned":"برنامه‌ریزی‌شده",
@@ -185,6 +217,7 @@
     }
     updateSearch();
     updatePauseLabel();
+    updateProjection();
   }
 
   function setTheme(nextTheme) {
@@ -436,6 +469,194 @@
     if (status) status.textContent = "Canvas not available";
     if (pauseButton) pauseButton.disabled = true;
     if (resetButton) resetButton.disabled = true;
+  }
+
+
+  // This browser-only lab mirrors the engine's explicit right-handed -Z perspective convention.
+  // Math.fround keeps displayed intermediates near the engine's float32 representation.
+  const projectionCanvas = document.getElementById("projection-canvas");
+  const projectionFov = document.getElementById("projection-fov");
+  const projectionFovValue = document.getElementById("projection-fov-value");
+  const projectionAspect = document.getElementById("projection-aspect");
+  const projectionNear = document.getElementById("projection-near");
+  const projectionFar = document.getElementById("projection-far");
+  const projectionDepth = document.getElementById("projection-depth");
+  const projectionMatrix = document.getElementById("projection-matrix");
+  const projectionNearResult = document.getElementById("projection-near-result");
+  const projectionFarResult = document.getElementById("projection-far-result");
+  const projectionStatus = document.getElementById("projection-status");
+  let projectionContext = null;
+  let projectionDpr = 1;
+  let projectionWidth = 900;
+  let projectionHeight = 360;
+
+  function projectionNumber(value) {
+    if (!Number.isFinite(value)) return "—";
+    const normalized = Object.is(value, -0) ? 0 : value;
+    if (normalized !== 0 && (Math.abs(normalized) >= 10000 || Math.abs(normalized) < 0.0001)) {
+      return normalized.toExponential(2);
+    }
+    return normalized.toFixed(4);
+  }
+
+  function drawProjectionDiagram(fovDegrees, aspect, near, far) {
+    if (!projectionContext) return;
+    const ctx = projectionContext;
+    const width = projectionWidth;
+    const height = projectionHeight;
+    ctx.save();
+    ctx.setTransform(projectionDpr, 0, 0, projectionDpr, 0, 0);
+    ctx.fillStyle = "#0a141e";
+    ctx.fillRect(0, 0, width, height);
+    ctx.strokeStyle = "rgba(115,160,180,.10)";
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    for (let x = 0; x <= width; x += 28) { ctx.moveTo(x, 0); ctx.lineTo(x, height); }
+    for (let y = 0; y <= height; y += 28) { ctx.moveTo(0, y); ctx.lineTo(width, y); }
+    ctx.stroke();
+
+    const safeFov = Number.isFinite(fovDegrees) && fovDegrees > 0 && fovDegrees < 180 ? fovDegrees : 70;
+    const safeAspect = Number.isFinite(aspect) && aspect > 0 ? Math.min(aspect, 4) : 16 / 9;
+    const cameraX = width * 0.5;
+    const cameraY = height * 0.105;
+    const tangent = Math.tan(safeFov * Math.PI / 360);
+    const fovWidth = Math.max(0.08, Math.min(1.8, tangent * safeAspect));
+    const nearHalf = Math.max(16, Math.min(width * 0.19, width * fovWidth * 0.085));
+    const depthRatio = Number.isFinite(near) && Number.isFinite(far) && near > 0 && far > near
+      ? Math.sqrt(Math.min(far / near, 256)) : 4;
+    const farHalf = Math.max(nearHalf + 12, Math.min(width * 0.44, nearHalf * Math.max(1.6, depthRatio)));
+    const nearY = height * 0.49;
+    const farY = height * 0.84;
+
+    // Schematic rays and planes: the labels intentionally warn that this is not a metric scale.
+    ctx.strokeStyle = "rgba(131,202,255,.86)";
+    ctx.lineWidth = 1.8;
+    ctx.beginPath();
+    ctx.moveTo(cameraX, cameraY + 7); ctx.lineTo(cameraX - nearHalf, nearY);
+    ctx.moveTo(cameraX, cameraY + 7); ctx.lineTo(cameraX + nearHalf, nearY);
+    ctx.moveTo(cameraX, cameraY + 7); ctx.lineTo(cameraX - farHalf, farY);
+    ctx.moveTo(cameraX, cameraY + 7); ctx.lineTo(cameraX + farHalf, farY);
+    ctx.stroke();
+    ctx.strokeStyle = "rgba(143,247,210,.95)";
+    ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(cameraX - nearHalf, nearY); ctx.lineTo(cameraX + nearHalf, nearY); ctx.stroke();
+    ctx.strokeStyle = "rgba(243,199,116,.95)";
+    ctx.beginPath(); ctx.moveTo(cameraX - farHalf, farY); ctx.lineTo(cameraX + farHalf, farY); ctx.stroke();
+
+    ctx.fillStyle = "#8ff7d2";
+    ctx.beginPath(); ctx.arc(cameraX, cameraY, 4.5, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = "#eaf3f6";
+    ctx.font = "700 10px ui-monospace, monospace";
+    ctx.textAlign = "center";
+    ctx.direction = language === "fa" ? "rtl" : "ltr";
+    const labels = translations[language];
+    ctx.fillText(labels["projection-camera"], cameraX, Math.max(12, cameraY - 9));
+    ctx.textAlign = "left";
+    ctx.fillStyle = "#8ff7d2";
+    ctx.fillText(labels["projection-near-name"] + " · " + (Number.isFinite(near) ? String(near) : "—"), Math.min(width - 150, cameraX + nearHalf + 12), nearY + 4);
+    ctx.fillStyle = "#f3c774";
+    ctx.fillText(labels["projection-far-name"] + " · " + (Number.isFinite(far) ? String(far) : "—"), Math.min(width - 150, cameraX + farHalf + 12), farY + 4);
+    ctx.textAlign = "center";
+    ctx.fillStyle = "rgba(166,186,197,.8)";
+    ctx.font = "9px ui-monospace, monospace";
+    ctx.fillText(labels["projection-not-to-scale"], width * 0.5, height - 8);
+    ctx.restore();
+  }
+
+  function updateProjection() {
+    if (!projectionFov || !projectionAspect || !projectionNear || !projectionFar ||
+        !projectionDepth || !projectionMatrix || !projectionStatus) return;
+
+    const fovDegrees = Number(projectionFov.value);
+    const aspect = Number(projectionAspect.value);
+    const nearInput = Number(projectionNear.value);
+    const farInput = Number(projectionFar.value);
+    if (projectionFovValue) projectionFovValue.textContent = Number.isFinite(fovDegrees) ? fovDegrees + "°" : "—";
+
+    drawProjectionDiagram(fovDegrees, aspect, nearInput, farInput);
+    const validPlanes = Number.isFinite(nearInput) && Number.isFinite(farInput) &&
+      nearInput > 0 && farInput > nearInput;
+    const validBasic = Number.isFinite(fovDegrees) && fovDegrees > 0 && fovDegrees < 180 &&
+      Number.isFinite(aspect) && aspect > 0 && validPlanes;
+    if (!validBasic) {
+      projectionMatrix.textContent = "—";
+      projectionNearResult.textContent = translations[language]["projection-invalid-planes"];
+      projectionFarResult.textContent = "";
+      projectionStatus.textContent = translations[language]["projection-invalid-planes"];
+      return;
+    }
+
+    const f32 = Math.fround;
+    const fovRadians = f32(fovDegrees * Math.PI / 180);
+    const tangent = f32(Math.tan(f32(fovRadians * 0.5)));
+    const focal = f32(1 / tangent);
+    const aspect32 = f32(aspect);
+    const near32 = f32(nearInput);
+    const far32 = f32(farInput);
+    const denominator = f32(near32 - far32);
+    const range = projectionDepth.value;
+    const supportedRange = range === "zero-to-one" || range === "negative-one-to-one";
+    const sum = f32(far32 + near32);
+    const product = f32(far32 * near32);
+    const m00 = f32(focal / aspect32);
+    const m11 = focal;
+    const m22 = range === "zero-to-one" ? f32(far32 / denominator) : f32(sum / denominator);
+    const m23 = range === "zero-to-one" ? f32(product / denominator) : f32(f32(2 * product) / denominator);
+    const matrixValues = [m00, m11, m22, m23, -1, tangent, focal, denominator, product];
+    const validMath = supportedRange && Number.isFinite(tangent) && tangent > 0 &&
+      Number.isFinite(focal) && focal > 0 && Number.isFinite(denominator) && denominator !== 0 &&
+      matrixValues.every(Number.isFinite) && matrixValues.every(value => Number.isFinite(f32(value)));
+    if (!validMath) {
+      projectionMatrix.textContent = "—";
+      projectionNearResult.textContent = translations[language]["projection-invalid-math"];
+      projectionFarResult.textContent = "";
+      projectionStatus.textContent = translations[language]["projection-invalid-math"];
+      return;
+    }
+
+    const matrix = [
+      [m00, 0, 0, 0],
+      [0, m11, 0, 0],
+      [0, 0, m22, m23],
+      [0, 0, -1, 0]
+    ];
+    projectionMatrix.textContent = matrix.map(row => "| " + row.map(value => projectionNumber(value).padStart(9, " ")).join("  ") + " |").join("\n");
+
+    const nearClip = f32(f32(m22 * f32(-near32)) + m23);
+    const farClip = f32(f32(m22 * f32(-far32)) + m23);
+    const nearNdc = f32(nearClip / near32);
+    const farNdc = f32(farClip / far32);
+    projectionNearResult.textContent = translations[language]["projection-near-result"].replace("{value}", projectionNumber(nearNdc));
+    projectionFarResult.textContent = translations[language]["projection-far-result"].replace("{value}", projectionNumber(farNdc));
+    projectionStatus.textContent = translations[language]["projection-ready"];
+  }
+
+  function resizeProjectionCanvas() {
+    if (!projectionCanvas) return;
+    const rect = projectionCanvas.getBoundingClientRect();
+    if (rect.width < 1 || rect.height < 1) return;
+    projectionWidth = rect.width;
+    projectionHeight = rect.height;
+    projectionDpr = Math.min(window.devicePixelRatio || 1, 2);
+    const targetWidth = Math.max(1, Math.round(projectionWidth * projectionDpr));
+    const targetHeight = Math.max(1, Math.round(projectionHeight * projectionDpr));
+    if (projectionCanvas.width !== targetWidth || projectionCanvas.height !== targetHeight) {
+      projectionCanvas.width = targetWidth;
+      projectionCanvas.height = targetHeight;
+    }
+    projectionContext = projectionCanvas.getContext("2d", { alpha: false });
+    if (projectionContext) projectionContext.setTransform(projectionDpr, 0, 0, projectionDpr, 0, 0);
+    updateProjection();
+  }
+
+  [projectionFov, projectionAspect, projectionNear, projectionFar, projectionDepth].filter(Boolean).forEach(control => {
+    control.addEventListener("input", updateProjection);
+    control.addEventListener("change", updateProjection);
+  });
+  if (projectionCanvas) {
+    if (typeof ResizeObserver === "function") new ResizeObserver(resizeProjectionCanvas).observe(projectionCanvas);
+    else window.addEventListener("resize", resizeProjectionCanvas, { passive: true });
+    resizeProjectionCanvas();
   }
 
   const footerYear = document.getElementById("current-year");
