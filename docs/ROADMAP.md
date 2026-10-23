@@ -38,8 +38,9 @@ This roadmap is milestone-based, not a promise of release dates. A milestone is 
 - Choose production window/input/platform dependencies after license and maintenance review; the prototype choice is not a frozen engine ABI.
 - Add a desktop window, input events and a minimal render-device interface.
 - [x] Connect 2D Scene/Entity/Transform to Camera2D and SoftwareCanvas2D through a headless-testable SceneRenderer2D; unit-quad placeholders are temporary until renderable components/materials exist.
-- [x] Define a versioned, bounded `Renderable2D` quad data contract (local size, RGBA tint and visibility) with scene format v1-to-v2 migration; texture/sprite/material resources remain future work.
-- Render a simple 2D scene with a texture/sprite and a versioned renderable/material contract.
+- [x] Define a versioned, bounded `Renderable2D` quad data contract (local size, RGBA tint and visibility) with scene format v1-to-v2 migration.
+- [x] Add bounded CPU `Texture2D` pixel ownership and affine, nearest-neighbor canvas sampling with tint, clipping, alpha blending and malformed-resource tests.
+- Render a simple 2D scene with a persistent texture/sprite reference and a versioned material contract; image decoding and asset management remain future work.
 - Add a documented example project and an automated smoke test where practical.
 
 **Acceptance:** an executable starts, presents a frame, handles close/input events and reports unsupported platform features clearly.

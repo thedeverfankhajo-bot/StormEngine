@@ -16,6 +16,7 @@
 #include "storm/project/project_path.hpp"
 #include "storm/render/camera2d.hpp"
 #include "storm/render/software_canvas2d.hpp"
+#include "storm/render/texture2d.hpp"
 #include "storm/render/scene_renderer2d.hpp"
 #include "storm/scene/dimension.hpp"
 #include "storm/scene/scene.hpp"
@@ -24,6 +25,7 @@
 #include "storm/scene/renderable2d.hpp"
 #include "storm/scene/transform.hpp"
 
+#include <algorithm>
 #include <array>
 #include <cmath>
 #include <filesystem>
@@ -1178,6 +1180,108 @@ void test_software_canvas2d_rasterization_and_bounds() {
     STORM_CHECK(canvas.pixels().empty());
 }
 
+void test_texture2d_storage_sampling_and_failure_atomicity() {
+    using storm::core::ErrorCode;
+    using storm::math::Matrix4;
+    using storm::math::Vec2;
+    using storm::math::Vec3;
+    using storm::render::Rgba8;
+    using storm::render::SoftwareCanvas2D;
+    using storm::render::Texture2D;
+
+    constexpr std::array<Rgba8, 4U> source_pixels{
+        Rgba8{255U, 0U, 0U, 255U},
+        Rgba8{0U, 255U, 0U, 255U},
+        Rgba8{0U, 0U, 255U, 255U},
+        Rgba8{255U, 255U, 255U, 255U}
+    };
+    Texture2D texture;
+    STORM_CHECK(texture.empty());
+    STORM_CHECK(texture.set_pixels(2U, 2U, source_pixels).ok());
+    STORM_CHECK(!texture.empty());
+    STORM_CHECK(texture.width() == 2U);
+    STORM_CHECK(texture.height() == 2U);
+    STORM_CHECK(texture.pixel_count() == 4U);
+    STORM_CHECK(texture.pixels()[0U] == source_pixels[0U]);
+
+    // Invalid replacement dimensions/payload preserve the previously committed image.
+    STORM_CHECK(texture.set_pixels(0U, 2U, source_pixels).code() == ErrorCode::InvalidArgument);
+    STORM_CHECK(texture.set_pixels(3U, 2U, source_pixels).code() == ErrorCode::InvalidArgument);
+    STORM_CHECK(texture.width() == 2U);
+    STORM_CHECK(texture.height() == 2U);
+    STORM_CHECK(texture.pixels()[3U] == source_pixels[3U]);
+    STORM_CHECK(texture.set_pixels(8193U, 1U, source_pixels).code() == ErrorCode::InvalidArgument);
+    STORM_CHECK(texture.set_pixels(8192U, 8192U, source_pixels).code() == ErrorCode::ResourceExhausted);
+    STORM_CHECK(texture.width() == 2U);
+    STORM_CHECK(texture.height() == 2U);
+
+    SoftwareCanvas2D canvas;
+    STORM_CHECK(canvas.resize(4U, 4U).ok());
+    constexpr Rgba8 background{10U, 20U, 30U, 255U};
+    canvas.clear(background);
+    const Matrix4 translated = Matrix4::translation(Vec3{1.0F, 1.0F, 0.0F});
+    STORM_CHECK(canvas.draw_texture(translated, Vec2{2.0F, 2.0F}, texture).ok());
+    STORM_CHECK(canvas.pixels()[1U * 4U + 1U] == source_pixels[0U]);
+    STORM_CHECK(canvas.pixels()[1U * 4U + 2U] == source_pixels[1U]);
+    STORM_CHECK(canvas.pixels()[2U * 4U + 1U] == source_pixels[2U]);
+    STORM_CHECK(canvas.pixels()[2U * 4U + 2U] == source_pixels[3U]);
+    STORM_CHECK(canvas.pixels()[0U] == background);
+
+    // Geometry crossing the top/left edges is clipped before pixel indexing.
+    canvas.clear(background);
+    STORM_CHECK(canvas.draw_texture(
+                    Matrix4::translation(Vec3{-1.0F, -1.0F, 0.0F}),
+                    Vec2{2.0F, 2.0F}, texture).ok());
+    STORM_CHECK(canvas.pixels()[0U] == source_pixels[3U]);
+    STORM_CHECK(canvas.pixels()[1U] == background);
+    STORM_CHECK(canvas.pixels()[4U] == background);
+
+    // A single source texel is enlarged with nearest-neighbor sampling and tinted per channel.
+    canvas.clear(background);
+    Texture2D one_texel;
+    constexpr std::array<Rgba8, 1U> one_pixel{Rgba8{200U, 100U, 40U, 255U}};
+    STORM_CHECK(one_texel.set_pixels(1U, 1U, one_pixel).ok());
+    STORM_CHECK(canvas.draw_texture(
+                    Matrix4::translation(Vec3{1.0F, 1.0F, 0.0F}), Vec2{2.0F, 2.0F},
+                    one_texel, Rgba8{128U, 255U, 128U, 255U}).ok());
+    constexpr Rgba8 tinted{100U, 100U, 20U, 255U};
+    STORM_CHECK(canvas.pixels()[1U * 4U + 1U] == tinted);
+    STORM_CHECK(canvas.pixels()[1U * 4U + 2U] == tinted);
+    STORM_CHECK(canvas.pixels()[2U * 4U + 1U] == tinted);
+    STORM_CHECK(canvas.pixels()[2U * 4U + 2U] == tinted);
+
+    // Zero-alpha texels are transparent and do not overwrite the destination.
+    Texture2D transparent_texture;
+    constexpr std::array<Rgba8, 2U> transparent_pixels{
+        Rgba8{250U, 20U, 10U, 255U}, Rgba8{0U, 0U, 255U, 0U}
+    };
+    STORM_CHECK(transparent_texture.set_pixels(2U, 1U, transparent_pixels).ok());
+    canvas.clear(background);
+    STORM_CHECK(canvas.draw_texture(
+                    Matrix4::identity(), Vec2{2.0F, 1.0F}, transparent_texture).ok());
+    STORM_CHECK(canvas.pixels()[0U] == transparent_pixels[0U]);
+    STORM_CHECK(canvas.pixels()[1U] == background);
+
+    const std::vector<Rgba8> before_invalid(canvas.pixels().begin(), canvas.pixels().end());
+    Texture2D empty_texture;
+    STORM_CHECK(canvas.draw_texture(Matrix4::identity(), Vec2{1.0F, 1.0F}, empty_texture).code() ==
+                ErrorCode::InvalidArgument);
+    STORM_CHECK(canvas.draw_texture(Matrix4::identity(), Vec2{-1.0F, 1.0F}, texture).code() ==
+                ErrorCode::InvalidArgument);
+    Matrix4 perspective = Matrix4::identity();
+    perspective(3U, 0U) = 0.25F;
+    STORM_CHECK(canvas.draw_texture(perspective, Vec2{1.0F, 1.0F}, texture).code() ==
+                ErrorCode::InvalidArgument);
+    STORM_CHECK(std::equal(canvas.pixels().begin(), canvas.pixels().end(),
+                           before_invalid.begin(), before_invalid.end()));
+
+    texture.reset();
+    STORM_CHECK(texture.empty());
+    STORM_CHECK(texture.width() == 0U);
+    STORM_CHECK(texture.height() == 0U);
+    STORM_CHECK(texture.pixel_count() == 0U);
+}
+
 void test_scene_renderer2d_renders_entities_and_preserves_frame_on_invalid_input() {
     using storm::core::ErrorCode;
     using storm::core::StableId;
@@ -2241,6 +2345,7 @@ int main() {
     test_matrix4_transform_conventions();
     test_camera2d_world_pixel_mapping_and_validation();
     test_software_canvas2d_rasterization_and_bounds();
+    test_texture2d_storage_sampling_and_failure_atomicity();
     test_scene_renderer2d_renders_entities_and_preserves_frame_on_invalid_input();
     test_dimensions();
     test_fixed_step_clock_basic_timing();

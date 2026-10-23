@@ -11,6 +11,8 @@
 
 namespace storm::render {
 
+class Texture2D;
+
 struct Rgba8 final {
     std::uint8_t r{};
     std::uint8_t g{};
@@ -46,6 +48,13 @@ public:
     [[nodiscard]] core::Status draw_rect(const math::Matrix4& local_to_pixel,
                                          const math::Vec2& size,
                                          Rgba8 color);
+
+    // Nearest-neighbor sample of a CPU Texture2D into an affine 2D quad. The matrix maps
+    // local quad coordinates to pixels; texture source is row-major with a top-left origin.
+    // Invalid/empty textures, non-affine transforms, and negative sizes fail before drawing.
+    [[nodiscard]] core::Status draw_texture(
+        const math::Matrix4& local_to_pixel, const math::Vec2& size,
+        const Texture2D& texture, Rgba8 tint = Rgba8{255U, 255U, 255U, 255U});
 
 private:
     [[nodiscard]] static Rgba8 blend_over(Rgba8 source, Rgba8 destination) noexcept;
