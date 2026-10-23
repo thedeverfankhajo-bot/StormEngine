@@ -30,6 +30,16 @@ if(NOT "${_install_result}" STREQUAL "0")
         "StormEngine install failed (${_install_result}).\n${_install_stdout}\n${_install_stderr}")
 endif()
 
+if(NOT DEFINED STORM_INSTALL_DATADIR OR STORM_INSTALL_DATADIR STREQUAL "")
+    set(STORM_INSTALL_DATADIR "share")
+endif()
+set(_licenses_dir "${_install_prefix}/${STORM_INSTALL_DATADIR}/licenses/StormEngine")
+foreach(_notice IN ITEMS LICENSE THIRD_PARTY_NOTICES.md)
+    if(NOT EXISTS "${_licenses_dir}/${_notice}")
+        message(FATAL_ERROR "Installed legal notice is missing: ${_licenses_dir}/${_notice}")
+    endif()
+endforeach()
+
 # Relocation catches package configs that accidentally depend on the source/build directory.
 file(RENAME "${_install_prefix}" "${_relocated_prefix}" RESULT _rename_result)
 if(NOT "${_rename_result}" STREQUAL "0")

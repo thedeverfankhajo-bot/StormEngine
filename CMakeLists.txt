@@ -134,6 +134,7 @@ if(STORM_BUILD_TESTS)
                 "-DSTORM_SOURCE_DIR=${PROJECT_SOURCE_DIR}"
                 "-DSTORM_BUILD_DIR=${PROJECT_BINARY_DIR}"
                 "-DSTORM_BINARY_DIR=${PROJECT_BINARY_DIR}"
+                "-DSTORM_INSTALL_DATADIR=${CMAKE_INSTALL_DATADIR}"
                 "-DSTORM_TEST_CONFIG=$<CONFIG>"
                 "-DSTORM_GENERATOR=${CMAKE_GENERATOR}"
                 "-DSTORM_GENERATOR_PLATFORM=${CMAKE_GENERATOR_PLATFORM}"
@@ -214,4 +215,13 @@ install(
         "${PROJECT_BINARY_DIR}/StormEngineConfig.cmake"
         "${PROJECT_BINARY_DIR}/StormEngineConfigVersion.cmake"
     DESTINATION "${STORM_INSTALL_CMAKEDIR}"
+)
+
+
+# Redistribute the engine license and applicable third-party notices with installed SDKs.
+install(
+    FILES
+        "${PROJECT_SOURCE_DIR}/LICENSE"
+        "${PROJECT_SOURCE_DIR}/THIRD_PARTY_NOTICES.md"
+    DESTINATION "${CMAKE_INSTALL_DATADIR}/licenses/StormEngine"
 )

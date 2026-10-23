@@ -99,7 +99,7 @@ This roadmap is milestone-based, not a promise of release dates. A milestone is 
 
 ## M8 — Commercial release readiness
 
-- Decide and publish the project license and third-party notice process.
+- Maintain the Apache-2.0 project license and third-party notice process; verify dependency licenses, attribution, provenance and redistribution requirements for each release.
 - Add versioned releases, supported-platform matrix, release checksums and provenance.
 - Establish upgrade/migration policy for projects and asset formats.
 - Document packaging, platform signing, privacy/data handling, support and vulnerability disclosure.

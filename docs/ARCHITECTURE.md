@@ -151,7 +151,7 @@ Before a public release, require at least: license and third-party notices; docu
 
 ## Decisions intentionally deferred
 
-The following choices should be recorded as Architecture Decision Records before adoption: renderer backend and shader toolchain, windowing/input library, physics engine, audio backend, scripting language/runtime, editor UI framework, ECS/scene model, asset container, plugin ABI and project license.
+The following choices should be recorded as Architecture Decision Records before adoption: renderer backend and shader toolchain, windowing/input library, physics engine, audio backend, scripting language/runtime, editor UI framework, ECS/scene model, asset container, plugin ABI and release provenance/signing policy.
 
 
 ## Project-relative logical paths

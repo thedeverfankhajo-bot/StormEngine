@@ -35,4 +35,4 @@ it freely, subject to the following restrictions:
 
 ### Maintenance
 
-Do not update the version, release URL or checksum independently. Review the upstream release page and license, update this notice and the architecture decision together, and validate the CMake and desktop CI builds. SDL's permissive license covers SDL only; it does not resolve StormEngine's project-license decision.
+Do not update the version, release URL or checksum independently. Review the upstream release page and license, update this notice and the architecture decision together, and validate the CMake and desktop CI builds. SDL's zlib license applies only to SDL; StormEngine's own code and documentation are separately licensed under Apache-2.0 as described in [LICENSE](LICENSE).

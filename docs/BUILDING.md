@@ -35,6 +35,8 @@ Install the native library and its CMake package files from an existing build:
 cmake --install build --prefix stage
 ```
 
+The install tree includes LICENSE and THIRD_PARTY_NOTICES.md under CMAKE_INSTALL_DATADIR/licenses/StormEngine (normally share/licenses/StormEngine). Keep these notices with redistributed SDK/package contents.
+
 A downstream CMake project can then locate the installed package and link the exported target:
 
 ```cmake
