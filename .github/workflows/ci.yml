@@ -99,6 +99,21 @@ jobs:
       - name: Build Android core
         run: cmake --build build-android-arm64 --config Release --parallel 2
 
+  website-quality:
+    name: Static website validation
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Validate site structure and local assets
+        run: python3 scripts/check_site.py
+      - name: Check JavaScript syntax
+        run: node --check site/assets/js/site.js
+
   sanitizers:
     name: AddressSanitizer and UBSan (ubuntu-latest)
     runs-on: ubuntu-latest
