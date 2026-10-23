@@ -17,7 +17,7 @@ The planned dependency direction is from higher-level modules toward narrow lowe
 | Core | Versioning, status/error conventions, math, deterministic timing, lifecycle and low-level utilities | Version metadata, dimension-aware math, fixed-step clock, RuntimeConfig, Status, RuntimeLifecycle, stable IDs and bounded diagnostics |
 | Platform | Windowing, input, monotonic clocks, filesystems, threads and OS integration | Adapter-fed input state/event queue plus an optional SDL3 desktop bootstrap; full platform runtime still planned |
 | Render | Render-device abstraction, resource lifetime, command submission and capabilities | Planned; no graphics API dependency yet |
-| Scene | Worlds/scenes, entities, transforms, lifecycle and serialization | Initial in-memory Scene/Entity/Transform API plus bounded version-1 SceneCodec; hierarchy, components and migration remain future work |
+| Scene | Worlds/scenes, entities, transforms, lifecycle and serialization | In-memory Scene/Entity/Transform, bounded version-1 SceneCodec, and SceneFile with bounded reads and atomic replacement; hierarchy, components and migration remain future work |
 | Assets | Importers, validation, metadata, cache and cooked asset packages | Planned |
 | Physics | 2D/3D simulation interfaces, collision queries and fixed-step integration | Planned |
 | Audio | Device abstraction, spatial audio and asset streaming | Planned |

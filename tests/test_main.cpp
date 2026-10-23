@@ -15,10 +15,14 @@
 #include "storm/scene/dimension.hpp"
 #include "storm/scene/scene.hpp"
 #include "storm/scene/scene_codec.hpp"
+#include "storm/scene/scene_file.hpp"
 #include "storm/scene/transform.hpp"
 
 #include <array>
 #include <cmath>
+#include <filesystem>
+#include <fstream>
+#include <iterator>
 #include <cstddef>
 #include <iostream>
 #include <limits>
@@ -1312,6 +1316,126 @@ void test_scene_codec_rejects_malformed_data_transactionally() {
     STORM_CHECK(unchanged_output[0] == std::byte{0x42U});
 }
 
+
+void test_scene_file_atomic_save_and_bounded_load() {
+    using storm::core::StableId;
+    using storm::core::StableIdGenerator;
+    using storm::scene::Dimension;
+    using storm::scene::Scene;
+    using storm::scene::SceneFile;
+    using storm::scene::Transform;
+    using storm::scene::Transform2D;
+
+    struct TemporaryDirectory final {
+        std::filesystem::path path;
+        ~TemporaryDirectory() {
+            std::error_code ignored;
+            (void)std::filesystem::remove_all(path, ignored);
+        }
+    };
+
+    std::error_code filesystem_error;
+    const auto root = std::filesystem::temp_directory_path(filesystem_error);
+    STORM_CHECK(!filesystem_error);
+    if (filesystem_error) {
+        return;
+    }
+
+    StableId nonce;
+    STORM_CHECK(StableIdGenerator::generate_v4(nonce).ok());
+    if (!nonce.is_valid()) {
+        return;
+    }
+
+    TemporaryDirectory temporary{root / ("storm-scene-file-tests-" + nonce.to_string())};
+    STORM_CHECK(std::filesystem::create_directory(temporary.path, filesystem_error));
+    STORM_CHECK(!filesystem_error);
+    if (filesystem_error) {
+        return;
+    }
+
+    const auto file_path = temporary.path / "sample.stsc";
+    Scene source{Dimension::Two, 4U};
+    StableId entity_id;
+    STORM_CHECK(source.create_entity("Player", entity_id).ok());
+    auto* entity = source.find_entity(entity_id);
+    STORM_CHECK(entity != nullptr);
+    if (entity == nullptr) {
+        return;
+    }
+    STORM_CHECK(entity->set_transform(Transform{Transform2D{
+        storm::math::Vec2{2.0F, 3.0F}, 0.5F, storm::math::Vec2{1.5F, 2.0F}}}).ok());
+
+    STORM_CHECK(SceneFile::save_atomic(file_path, source).ok());
+    STORM_CHECK(std::filesystem::is_regular_file(file_path, filesystem_error));
+    STORM_CHECK(!filesystem_error);
+
+    const auto read_raw = [&file_path]() {
+        std::ifstream input{file_path, std::ios::binary};
+        return std::string{std::istreambuf_iterator<char>{input},
+                           std::istreambuf_iterator<char>{}};
+    };
+    const std::string saved_bytes = read_raw();
+    STORM_CHECK(!saved_bytes.empty());
+
+    Scene loaded{Dimension::Two, 4U};
+    STORM_CHECK(SceneFile::load(file_path, loaded).ok());
+    STORM_CHECK(loaded.entity_count() == 1U);
+    const auto* loaded_entity = loaded.find_entity(entity_id);
+    STORM_CHECK(loaded_entity != nullptr);
+    if (loaded_entity != nullptr) {
+        STORM_CHECK(loaded_entity->name() == "Player");
+        const auto* transform = std::get_if<Transform2D>(&loaded_entity->transform().data());
+        STORM_CHECK(transform != nullptr);
+        if (transform != nullptr) {
+            STORM_CHECK((transform->position == storm::math::Vec2{2.0F, 3.0F}));
+            STORM_CHECK(transform->rotation_radians == 0.5F);
+            STORM_CHECK((transform->scale == storm::math::Vec2{1.5F, 2.0F}));
+        }
+    }
+
+    // Invalid scene encoding must fail before touching the existing file.
+    Scene invalid_scene{static_cast<Dimension>(99U), 4U};
+    STORM_CHECK(!SceneFile::save_atomic(file_path, invalid_scene).ok());
+    STORM_CHECK(read_raw() == saved_bytes);
+
+    // Replacing an existing file is supported. The next load observes the new complete scene.
+    STORM_CHECK(entity->set_transform(Transform{Transform2D{
+        storm::math::Vec2{-7.0F, 8.0F}, 1.0F, storm::math::Vec2{1.0F, 1.0F}}}).ok());
+    STORM_CHECK(SceneFile::save_atomic(file_path, source).ok());
+    Scene reloaded{Dimension::Two, 4U};
+    STORM_CHECK(SceneFile::load(file_path, reloaded).ok());
+    const auto* updated_entity = reloaded.find_entity(entity_id);
+    STORM_CHECK(updated_entity != nullptr);
+    if (updated_entity != nullptr) {
+        const auto* transform = std::get_if<Transform2D>(&updated_entity->transform().data());
+        STORM_CHECK(transform != nullptr);
+        if (transform != nullptr) {
+            STORM_CHECK((transform->position == storm::math::Vec2{-7.0F, 8.0F}));
+        }
+    }
+
+    // A truncated file returns an error and does not partially populate the destination.
+    {
+        std::ofstream corrupt{file_path, std::ios::binary | std::ios::trunc};
+        STORM_CHECK(static_cast<bool>(corrupt));
+        corrupt.write("STSC", 4);
+        STORM_CHECK(static_cast<bool>(corrupt));
+    }
+    Scene malformed_destination{Dimension::Two, 4U};
+    STORM_CHECK(!SceneFile::load(file_path, malformed_destination).ok());
+    STORM_CHECK(malformed_destination.entity_count() == 0U);
+
+    Scene missing_destination{Dimension::Two, 4U};
+    STORM_CHECK(!SceneFile::load(temporary.path / "does-not-exist.stsc", missing_destination).ok());
+    STORM_CHECK(missing_destination.entity_count() == 0U);
+
+    const auto missing_parent = temporary.path / "missing" / "scene.stsc";
+    STORM_CHECK(!SceneFile::save_atomic(missing_parent, source).ok());
+    STORM_CHECK(!std::filesystem::exists(missing_parent, filesystem_error));
+    STORM_CHECK(!SceneFile::load({}, missing_destination).ok());
+}
+
 } // namespace
 
 int main() {
@@ -1325,6 +1449,7 @@ int main() {
     test_scene_entity_lifecycle_and_validation();
     test_scene_codec_round_trip_all_dimensions_and_determinism();
     test_scene_codec_rejects_malformed_data_transactionally();
+    test_scene_file_atomic_save_and_bounded_load();
     test_runtime_config_validation();
     test_logging_dispatch_and_filtering();
     test_runtime_lifecycle_normal_path();

@@ -37,6 +37,7 @@ write_basic_package_version_file(
 add_library(storm_core STATIC
     src/core/version.cpp
     src/core/stable_id_generator.cpp
+    src/scene/scene_file.cpp
 )
 add_library(Storm::Core ALIAS storm_core)
 

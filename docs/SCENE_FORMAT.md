@@ -63,3 +63,21 @@ const auto load_status = storm::scene::SceneCodec::deserialize(file_bytes, loade
 ```
 
 The codec only converts bytes to and from the in-memory scene model. It does not open files, create project bundles, follow references, import assets, or make scene data trusted executable code.
+
+
+## File I/O service
+
+Include `storm/scene/scene_file.hpp` when the application needs to persist these bytes to a local file:
+
+~~~cpp
+#include "storm/scene/scene_file.hpp"
+
+const auto save = storm::scene::SceneFile::save_atomic("level.stsc", scene);
+
+storm::scene::Scene reopened{storm::scene::Dimension::Two};
+const auto load = storm::scene::SceneFile::load("level.stsc", reopened);
+~~~
+
+The file service reads at most 64 MiB, rejects non-regular files and final-component symlinks/reparse points, and does not fill a non-empty destination. Saving writes and flushes a uniquely named temporary file in the destination directory before replacing the destination. On POSIX, it also flushes the parent directory after rename; if that final directory flush fails, the replacement may already be visible even though the call reports an I/O error. On Windows, the implementation uses `FlushFileBuffers` and `MoveFileExW` with replace/write-through flags.
+
+This is bounded local-file I/O, **not** a project sandbox. A higher-level project service must canonicalize or otherwise constrain untrusted project paths to the authorized project root. Durable storage guarantees also depend on filesystem and device behavior.
