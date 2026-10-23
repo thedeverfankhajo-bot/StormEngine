@@ -597,12 +597,15 @@
     const range = projectionDepth.value;
     const supportedRange = range === "zero-to-one" || range === "negative-one-to-one";
     const sum = f32(far32 + near32);
-    const product = f32(far32 * near32);
+    // Match the C++ expression order: (far * near) for [0, 1], but ((2 * far) * near) for [-1, 1].
+    const depthNumerator = range === "zero-to-one"
+      ? f32(far32 * near32)
+      : f32(f32(2 * far32) * near32);
     const m00 = f32(focal / aspect32);
     const m11 = focal;
     const m22 = range === "zero-to-one" ? f32(far32 / denominator) : f32(sum / denominator);
-    const m23 = range === "zero-to-one" ? f32(product / denominator) : f32(f32(2 * product) / denominator);
-    const matrixValues = [m00, m11, m22, m23, -1, tangent, focal, denominator, product];
+    const m23 = f32(depthNumerator / denominator);
+    const matrixValues = [m00, m11, m22, m23, -1, tangent, focal, denominator, depthNumerator];
     const validMath = supportedRange && Number.isFinite(tangent) && tangent > 0 &&
       Number.isFinite(focal) && focal > 0 && Number.isFinite(denominator) && denominator !== 0 &&
       matrixValues.every(Number.isFinite) && matrixValues.every(value => Number.isFinite(f32(value)));

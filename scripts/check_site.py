@@ -182,7 +182,7 @@ def main() -> int:
     javascript = js_path.read_text(encoding="utf-8")
     if "document.write(" in javascript:
         errors.append("site JavaScript uses document.write()")
-    for marker in ("function updateProjection()", "Math.fround", "projection-near-result", "projection-far-result"):
+    for marker in ("function updateProjection()", "Math.fround", "projection-near-result", "projection-far-result", 'const depthNumerator = range === "zero-to-one"'):
         if marker not in javascript:
             errors.append("site JavaScript is missing projection lab behavior: " + marker)
     if re.search(r"\b(?:fetch|XMLHttpRequest|WebSocket)\s*\(", javascript):
