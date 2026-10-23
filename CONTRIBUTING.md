@@ -38,4 +38,4 @@ The project uses the checklist in `.github/PULL_REQUEST_TEMPLATE.md`. Include mo
 
 ## Licensing
 
-The project license is currently undecided. Do not add code, assets or dependencies with incompatible or unclear licensing. The project owner must explicitly select the engine's license before reuse/distribution terms are promised.
+StormEngine's original project code and documentation are licensed under Apache-2.0; read [`LICENSE`](LICENSE) before redistributing changes. Submit only contributions you have the right to license under Apache-2.0, preserve existing copyright and attribution notices, and disclose third-party code/assets with their source and license. Do not add content with unclear or incompatible licensing. The project license does not grant permission to use StormEngine trademarks or logos. If a contribution is intentionally excluded from the Apache-2.0 contribution terms, mark it conspicuously as “Not a Contribution” when submitting it.
