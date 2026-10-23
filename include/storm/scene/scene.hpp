@@ -16,6 +16,7 @@
 namespace storm::scene {
 
 class Scene;
+class SceneCodec;
 
 class Entity final {
 public:
@@ -68,6 +69,7 @@ public:
 
 private:
     friend class Scene;
+    friend class SceneCodec;
 
     [[nodiscard]] static bool is_valid_name(std::string_view name) noexcept {
         return !name.empty() && name.size() <= max_name_bytes &&
@@ -85,6 +87,8 @@ private:
 // Owns its entities and their names/transforms. Entity IDs are OS-random UUIDv4 values.
 // This first in-memory scene model is single-owner-thread only and does not serialize data.
 class Scene final {
+    friend class SceneCodec;
+
 public:
     static constexpr std::size_t default_max_entities = 10'000U;
     static constexpr std::size_t maximum_allowed_entities = 1'000'000U;

@@ -14,6 +14,7 @@
 #include "storm/platform/event_queue.hpp"
 #include "storm/scene/dimension.hpp"
 #include "storm/scene/scene.hpp"
+#include "storm/scene/scene_codec.hpp"
 #include "storm/scene/transform.hpp"
 
 #include <array>
@@ -23,6 +24,8 @@
 #include <limits>
 #include <string>
 #include <string_view>
+#include <utility>
+#include <vector>
 
 namespace {
 
@@ -1106,6 +1109,209 @@ void test_named_key_codes_are_stable_and_validated() {
     STORM_CHECK(!input.key_was_pressed(KeyCode::Count));
 }
 
+
+void test_scene_codec_round_trip_all_dimensions_and_determinism() {
+    using storm::core::StableId;
+    using storm::scene::Dimension;
+    using storm::scene::Scene;
+    using storm::scene::SceneCodec;
+    using storm::scene::Transform;
+    using storm::scene::Transform1D;
+    using storm::scene::Transform2D;
+    using storm::scene::Transform3D;
+
+    constexpr std::array dimensions{Dimension::One, Dimension::Two, Dimension::Three};
+    for (const Dimension dimension : dimensions) {
+        Scene original{dimension, 4U};
+        StableId id;
+        STORM_CHECK(original.create_entity("Player", id).ok());
+        auto* entity = original.find_entity(id);
+        STORM_CHECK(entity != nullptr);
+        if (entity == nullptr) {
+            continue;
+        }
+
+        if (dimension == Dimension::One) {
+            STORM_CHECK(entity->set_transform(Transform{Transform1D{12.5F, 2.0F}}).ok());
+        } else if (dimension == Dimension::Two) {
+            STORM_CHECK(entity->set_transform(Transform{Transform2D{
+                storm::math::Vec2{3.0F, -4.0F}, 0.75F, storm::math::Vec2{2.0F, 0.5F}}}).ok());
+        } else {
+            STORM_CHECK(entity->set_transform(Transform{Transform3D{
+                storm::math::Vec3{1.0F, 2.0F, 3.0F}, storm::math::Vec3{0.1F, 0.2F, 0.3F},
+                storm::math::Vec3{1.0F, 2.0F, 3.0F}}}).ok());
+        }
+
+        std::vector<std::byte> encoded;
+        std::vector<std::byte> encoded_again;
+        STORM_CHECK(SceneCodec::serialize(original, encoded).ok());
+        STORM_CHECK(SceneCodec::serialize(original, encoded_again).ok());
+        STORM_CHECK(encoded == encoded_again);
+        STORM_CHECK(encoded.size() <= SceneCodec::maximum_serialized_bytes);
+
+        Scene reopened{dimension, 4U};
+        STORM_CHECK(SceneCodec::deserialize(encoded, reopened).ok());
+        STORM_CHECK(reopened.entity_count() == 1U);
+        const auto* loaded = reopened.find_entity(id);
+        STORM_CHECK(loaded != nullptr);
+        if (loaded == nullptr) {
+            continue;
+        }
+        STORM_CHECK(loaded->id() == id);
+        STORM_CHECK(loaded->name() == "Player");
+        STORM_CHECK(loaded->transform().dimension() == dimension);
+
+        if (dimension == Dimension::One) {
+            const auto* value = std::get_if<Transform1D>(&loaded->transform().data());
+            STORM_CHECK(value != nullptr);
+            if (value != nullptr) {
+                STORM_CHECK(value->position == 12.5F);
+                STORM_CHECK(value->scale == 2.0F);
+            }
+        } else if (dimension == Dimension::Two) {
+            const auto* value = std::get_if<Transform2D>(&loaded->transform().data());
+            STORM_CHECK(value != nullptr);
+            if (value != nullptr) {
+                STORM_CHECK((value->position == storm::math::Vec2{3.0F, -4.0F}));
+                STORM_CHECK(value->rotation_radians == 0.75F);
+                STORM_CHECK((value->scale == storm::math::Vec2{2.0F, 0.5F}));
+            }
+        } else {
+            const auto* value = std::get_if<Transform3D>(&loaded->transform().data());
+            STORM_CHECK(value != nullptr);
+            if (value != nullptr) {
+                STORM_CHECK((value->position == storm::math::Vec3{1.0F, 2.0F, 3.0F}));
+                STORM_CHECK((value->rotation_euler_radians == storm::math::Vec3{0.1F, 0.2F, 0.3F}));
+                STORM_CHECK((value->scale == storm::math::Vec3{1.0F, 2.0F, 3.0F}));
+            }
+        }
+    }
+}
+
+void test_scene_codec_rejects_malformed_data_transactionally() {
+    using storm::core::ErrorCode;
+    using storm::core::StableId;
+    using storm::scene::Dimension;
+    using storm::scene::Scene;
+    using storm::scene::SceneCodec;
+
+    Scene source{Dimension::Two, 4U};
+    StableId first_id;
+    StableId second_id;
+    STORM_CHECK(source.create_entity("Alpha", first_id).ok());
+    STORM_CHECK(source.create_entity("Beta", second_id).ok());
+    std::vector<std::byte> valid;
+    STORM_CHECK(SceneCodec::serialize(source, valid).ok());
+    if (valid.empty()) {
+        return;
+    }
+
+    const auto rejects_without_mutation = [](const std::vector<std::byte>& malformed) {
+        Scene destination{Dimension::Two, 4U};
+        const auto status = SceneCodec::deserialize(malformed, destination);
+        STORM_CHECK(!status.ok());
+        STORM_CHECK(destination.entity_count() == 0U);
+    };
+
+    auto truncated = valid;
+    truncated.pop_back();
+    rejects_without_mutation(truncated);
+
+    auto bad_magic = valid;
+    bad_magic[0] = std::byte{0x00U};
+    rejects_without_mutation(bad_magic);
+
+    auto unsupported_version = valid;
+    unsupported_version[4] = std::byte{0x02U};
+    unsupported_version[5] = std::byte{0x00U};
+    const auto version_status = [&unsupported_version]() {
+        Scene destination{Dimension::Two, 4U};
+        return SceneCodec::deserialize(unsupported_version, destination);
+    }();
+    STORM_CHECK(version_status.code() == ErrorCode::Unsupported);
+
+    auto invalid_dimension = valid;
+    invalid_dimension[6] = std::byte{0x04U};
+    rejects_without_mutation(invalid_dimension);
+
+    auto invalid_flags = valid;
+    invalid_flags[7] = std::byte{0x01U};
+    rejects_without_mutation(invalid_flags);
+
+    auto excessive_count = valid;
+    excessive_count[8] = std::byte{0xffU};
+    excessive_count[9] = std::byte{0xffU};
+    excessive_count[10] = std::byte{0xffU};
+    excessive_count[11] = std::byte{0xffU};
+    rejects_without_mutation(excessive_count);
+
+    auto nil_id = valid;
+    for (std::size_t offset = 12U; offset < 28U; ++offset) {
+        nil_id[offset] = std::byte{0x00U};
+    }
+    rejects_without_mutation(nil_id);
+
+    auto empty_name = valid;
+    empty_name[28] = std::byte{0x00U};
+    empty_name[29] = std::byte{0x00U};
+    rejects_without_mutation(empty_name);
+
+    auto oversized_name = valid;
+    oversized_name[28] = std::byte{0x81U};
+    oversized_name[29] = std::byte{0x00U};
+    rejects_without_mutation(oversized_name);
+
+    auto non_finite_transform = valid;
+    const std::size_t first_name_length =
+        static_cast<std::size_t>(std::to_integer<unsigned int>(valid[28])) |
+        (static_cast<std::size_t>(std::to_integer<unsigned int>(valid[29])) << 8U);
+    const std::size_t first_transform = 12U + 16U + 2U + first_name_length;
+    non_finite_transform[first_transform] = std::byte{0x00U};
+    non_finite_transform[first_transform + 1U] = std::byte{0x00U};
+    non_finite_transform[first_transform + 2U] = std::byte{0x80U};
+    non_finite_transform[first_transform + 3U] = std::byte{0x7fU};
+    rejects_without_mutation(non_finite_transform);
+
+    const std::size_t second_record =
+        12U + 16U + 2U + first_name_length + (5U * sizeof(std::uint32_t));
+    auto duplicate_id = valid;
+    for (std::size_t index = 0U; index < StableId::byte_count; ++index) {
+        duplicate_id[second_record + index] = duplicate_id[12U + index];
+    }
+    rejects_without_mutation(duplicate_id);
+
+    auto unsorted_ids = valid;
+    for (std::size_t index = 0U; index < StableId::byte_count; ++index) {
+        std::swap(unsorted_ids[12U + index], unsorted_ids[second_record + index]);
+    }
+    rejects_without_mutation(unsorted_ids);
+
+    auto trailing_data = valid;
+    trailing_data.push_back(std::byte{0x00U});
+    rejects_without_mutation(trailing_data);
+
+    Scene wrong_dimension{Dimension::Three, 4U};
+    STORM_CHECK(SceneCodec::deserialize(valid, wrong_dimension).code() == ErrorCode::InvalidArgument);
+    STORM_CHECK(wrong_dimension.entity_count() == 0U);
+
+    Scene too_small{Dimension::Two, 1U};
+    STORM_CHECK(SceneCodec::deserialize(valid, too_small).code() == ErrorCode::ResourceExhausted);
+    STORM_CHECK(too_small.entity_count() == 0U);
+
+    Scene non_empty_destination{Dimension::Two, 4U};
+    StableId sentinel;
+    STORM_CHECK(non_empty_destination.create_entity("Existing", sentinel).ok());
+    STORM_CHECK(SceneCodec::deserialize(valid, non_empty_destination).code() == ErrorCode::InvalidState);
+    STORM_CHECK(non_empty_destination.entity_count() == 1U);
+    STORM_CHECK(non_empty_destination.find_entity(sentinel) != nullptr);
+
+    std::vector<std::byte> unchanged_output{std::byte{0x42U}};
+    Scene invalid_scene{static_cast<Dimension>(99U), 4U};
+    STORM_CHECK(!SceneCodec::serialize(invalid_scene, unchanged_output).ok());
+    STORM_CHECK(unchanged_output.size() == 1U);
+    STORM_CHECK(unchanged_output[0] == std::byte{0x42U});
+}
+
 } // namespace
 
 int main() {
@@ -1117,6 +1323,8 @@ int main() {
     test_stable_id_registry_duplicate_detection();
     test_dimension_aware_transforms();
     test_scene_entity_lifecycle_and_validation();
+    test_scene_codec_round_trip_all_dimensions_and_determinism();
+    test_scene_codec_rejects_malformed_data_transactionally();
     test_runtime_config_validation();
     test_logging_dispatch_and_filtering();
     test_runtime_lifecycle_normal_path();
