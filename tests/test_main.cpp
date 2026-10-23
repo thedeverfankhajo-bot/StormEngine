@@ -1328,9 +1328,13 @@ void test_scene_file_atomic_save_and_bounded_load() {
 
     struct TemporaryDirectory final {
         std::filesystem::path path;
+        bool owns_directory{};
+
         ~TemporaryDirectory() {
-            std::error_code ignored;
-            (void)std::filesystem::remove_all(path, ignored);
+            if (owns_directory) {
+                std::error_code ignored;
+                (void)std::filesystem::remove_all(path, ignored);
+            }
         }
     };
 
@@ -1348,9 +1352,12 @@ void test_scene_file_atomic_save_and_bounded_load() {
     }
 
     TemporaryDirectory temporary{root / ("storm-scene-file-tests-" + nonce.to_string())};
-    STORM_CHECK(std::filesystem::create_directory(temporary.path, filesystem_error));
+    const bool directory_created =
+        std::filesystem::create_directory(temporary.path, filesystem_error);
+    temporary.owns_directory = directory_created;
+    STORM_CHECK(directory_created);
     STORM_CHECK(!filesystem_error);
-    if (filesystem_error) {
+    if (!directory_created || filesystem_error) {
         return;
     }
 

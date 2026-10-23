@@ -72,6 +72,7 @@ Include `storm/scene/scene_file.hpp` when the application needs to persist these
 ~~~cpp
 #include "storm/scene/scene_file.hpp"
 
+storm::scene::Scene scene{storm::scene::Dimension::Two};
 const auto save = storm::scene::SceneFile::save_atomic("level.stsc", scene);
 
 storm::scene::Scene reopened{storm::scene::Dimension::Two};

@@ -8,7 +8,9 @@
 #include <cstdint>
 #include <limits>
 #include <new>
+#include <span>
 #include <string>
+#include <system_error>
 #include <vector>
 
 #if defined(_WIN32)
