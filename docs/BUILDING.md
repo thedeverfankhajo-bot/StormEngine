@@ -17,7 +17,15 @@ From the repository root:
 
 On single-configuration generators, CMAKE_BUILD_TYPE controls the build type. Visual Studio and other multi-configuration generators use the --config option at build/test time.
 
-A sanitizer build is available with GCC/Clang-family toolchains: configure with `-DSTORM_ENABLE_SANITIZERS=ON`. Sanitizer availability depends on the host runtime and is not enabled by default.
+AddressSanitizer and UndefinedBehaviorSanitizer are supported with GCC/Clang-family toolchains. Configure and run an instrumented test build with:
+
+```sh
+cmake -S . -B build-sanitized -DSTORM_BUILD_TESTS=ON -DSTORM_ENABLE_SANITIZERS=ON -DCMAKE_BUILD_TYPE=Debug
+cmake --build build-sanitized --parallel 2
+ctest --test-dir build-sanitized --output-on-failure
+```
+
+Both the core library and test translation unit are instrumented. The repository CI runs this additional job on Ubuntu; the sanitizer option remains off by default and is not supported by this configuration on MSVC.
 
 ## Android NDK cross-compilation
 

@@ -18,7 +18,8 @@ This roadmap is milestone-based, not a promise of release dates. A milestone is 
 - [x] Add dependency-free core log-level filtering and synchronous dispatch to a caller-provided sink.
 - [x] Add a 128-bit stable identifier value type with canonical UUID parsing/formatting and malformed/Nil ID rejection.
 - Add ID generation policy, duplicate detection, diagnostic aggregation, runtime configuration and ownership conventions.
-- Add sanitizer jobs and component-level tests.
+- [x] Add a Linux AddressSanitizer/UndefinedBehaviorSanitizer CI job and instrument the core tests.
+- Continue expanding component-level tests and add diagnostic aggregation, runtime configuration and ID-generation policy.
 
 **Acceptance for the implemented primitives:** deterministic tests cover fixed-step timing boundaries, invalid input, lifecycle transitions, failure propagation and explicit recovery. The remaining runtime-kernel work is still in progress.
 

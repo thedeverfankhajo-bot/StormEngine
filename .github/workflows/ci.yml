@@ -32,3 +32,21 @@ jobs:
 
       - name: Test
         run: ctest --test-dir build -C Debug --output-on-failure
+
+  sanitizers:
+    name: AddressSanitizer and UBSan (ubuntu-latest)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Configure
+        run: cmake -S . -B build-sanitized -DSTORM_BUILD_TESTS=ON -DSTORM_ENABLE_SANITIZERS=ON -DCMAKE_BUILD_TYPE=Debug
+
+      - name: Build
+        run: cmake --build build-sanitized --parallel 2
+
+      - name: Test
+        run: ctest --test-dir build-sanitized --output-on-failure

@@ -54,8 +54,10 @@ endif()
 
 if(STORM_ENABLE_SANITIZERS)
     if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang|AppleClang")
-        target_compile_options(storm_core PRIVATE -fsanitize=address,undefined -fno-omit-frame-pointer)
-        target_link_options(storm_core INTERFACE -fsanitize=address,undefined)
+        set(_storm_sanitizer_compile_options -fsanitize=address,undefined -fno-omit-frame-pointer)
+        set(_storm_sanitizer_link_options -fsanitize=address,undefined)
+        target_compile_options(storm_core PRIVATE ${_storm_sanitizer_compile_options})
+        target_link_options(storm_core INTERFACE ${_storm_sanitizer_link_options})
     else()
         message(FATAL_ERROR
             "STORM_ENABLE_SANITIZERS currently supports GCC and Clang-family compilers only."
@@ -86,6 +88,11 @@ if(STORM_BUILD_TESTS)
                 -Wshadow
             )
         endif()
+    endif()
+
+    # The tests exercise many header-only primitives, so instrument their translation unit too.
+    if(STORM_ENABLE_SANITIZERS)
+        target_compile_options(storm_core_tests PRIVATE ${_storm_sanitizer_compile_options})
     endif()
 
     add_test(NAME storm_core_tests COMMAND storm_core_tests)
