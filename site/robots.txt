@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://thedeverfankhajo-bot.github.io/StormEngine/sitemap.xml
