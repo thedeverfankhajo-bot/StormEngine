@@ -57,6 +57,23 @@ void capture_log(void* user_data, const storm::core::LogRecord& record) noexcept
     capture.last_message.assign(record.message);
 }
 
+struct EntityVisitCapture final {
+    std::array<storm::core::StableId, 4U> ids{};
+    std::size_t count{};
+};
+
+void capture_entity_id(void* user_data, const storm::scene::Entity& entity) noexcept {
+    if (user_data == nullptr) {
+        return;
+    }
+
+    auto& capture = *static_cast<EntityVisitCapture*>(user_data);
+    if (capture.count < capture.ids.size()) {
+        capture.ids[capture.count] = entity.id();
+        ++capture.count;
+    }
+}
+
 void test_logging_dispatch_and_filtering() {
     using storm::core::LogLevel;
     using storm::core::Logger;
@@ -444,6 +461,14 @@ void test_scene_entity_lifecycle_and_validation() {
     }
     STORM_CHECK(player->id() == player_id);
     STORM_CHECK(player->name() == "Player");
+    STORM_CHECK(player->set_name("Hero").ok());
+    STORM_CHECK(player->name() == "Hero");
+    STORM_CHECK(player->set_name("").code() == ErrorCode::InvalidArgument);
+    STORM_CHECK(player->set_name(too_long_name).code() == ErrorCode::InvalidArgument);
+    STORM_CHECK(player->set_name(embedded_nul).code() == ErrorCode::InvalidArgument);
+    STORM_CHECK(player->name() == "Hero");
+    STORM_CHECK(player->set_name("Player").ok());
+    STORM_CHECK(player->name() == "Player");
     STORM_CHECK(player->transform().dimension() == Dimension::Two);
     STORM_CHECK(std::holds_alternative<Transform2D>(player->transform().data()));
 
@@ -474,6 +499,15 @@ void test_scene_entity_lifecycle_and_validation() {
     const StableId enemy_id = output;
     STORM_CHECK(scene.entity_count() == 2U);
     STORM_CHECK(scene.find_entity(enemy_id) != nullptr);
+
+    EntityVisitCapture visit_capture;
+    STORM_CHECK(scene.visit_entities(&visit_capture, &capture_entity_id) == 2U);
+    STORM_CHECK(visit_capture.count == 2U);
+    STORM_CHECK(scene.visit_entities(nullptr, nullptr) == 0U);
+    if (visit_capture.count == 2U) {
+        STORM_CHECK(visit_capture.ids[0] != visit_capture.ids[1]);
+        STORM_CHECK(storm::core::StableIdLess{}(visit_capture.ids[0], visit_capture.ids[1]));
+    }
 
     const StableId last_successful_output = output;
     STORM_CHECK(scene.create_entity("Overflow", output).code() == ErrorCode::ResourceExhausted);

@@ -29,6 +29,23 @@ public:
         return name_;
     }
 
+    // A returned name view is invalidated by a successful rename.
+    [[nodiscard]] core::Status set_name(std::string_view name) {
+        if (!is_valid_name(name)) {
+            return core::Status::failure(
+                core::ErrorCode::InvalidArgument, "entity name is invalid");
+        }
+
+        try {
+            std::string replacement{name.data(), name.size()};
+            name_.swap(replacement);
+        } catch (const std::bad_alloc&) {
+            return core::Status::failure(
+                core::ErrorCode::ResourceExhausted, "entity name allocation failed");
+        }
+        return core::Status::success();
+    }
+
     [[nodiscard]] const Transform& transform() const noexcept {
         return transform_;
     }
@@ -51,6 +68,11 @@ public:
 
 private:
     friend class Scene;
+
+    [[nodiscard]] static bool is_valid_name(std::string_view name) noexcept {
+        return !name.empty() && name.size() <= max_name_bytes &&
+               name.find('\0') == std::string_view::npos;
+    }
 
     Entity(core::StableId id, std::string name, Transform transform)
         : id_(id), name_(std::move(name)), transform_(std::move(transform)) {}
@@ -106,11 +128,9 @@ public:
         if (!configuration.ok()) {
             return configuration;
         }
-        if (name.empty() || name.size() > Entity::max_name_bytes ||
-            name.find('\0') != std::string_view::npos) {
+        if (!Entity::is_valid_name(name)) {
             return core::Status::failure(
-                core::ErrorCode::InvalidArgument,
-                "entity name is empty, too long, or contains NUL");
+                core::ErrorCode::InvalidArgument, "entity name is invalid");
         }
         if (entities_.size() >= max_entities_) {
             return core::Status::failure(
@@ -173,6 +193,23 @@ public:
     [[nodiscard]] const Entity* find_entity(const core::StableId& id) const noexcept {
         const auto found = entities_.find(id);
         return found == entities_.end() ? nullptr : &found->second;
+    }
+
+    using EntityVisitor = void (*)(void* context, const Entity& entity) noexcept;
+
+    // Visits entities in stable-ID byte order without allocating or exposing container internals.
+    // The callback must not mutate this Scene or retain the Entity reference beyond its lifetime.
+    [[nodiscard]] std::size_t visit_entities(void* context, EntityVisitor visitor) const noexcept {
+        if (visitor == nullptr) {
+            return 0U;
+        }
+
+        std::size_t visited = 0U;
+        for (const auto& entry : entities_) {
+            visitor(context, entry.second);
+            ++visited;
+        }
+        return visited;
     }
 
 private:

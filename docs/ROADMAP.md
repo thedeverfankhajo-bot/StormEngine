@@ -38,7 +38,7 @@ This roadmap is milestone-based, not a promise of release dates. A milestone is 
 
 ## M3 — Asset and scene pipeline
 
-- [x] Define an initial dimension-aware in-memory Scene/Entity/Transform contract with stable IDs and validated updates.
+- [x] Define a dimension-aware in-memory Scene/Entity/Transform contract with stable IDs, validated transform/name updates, and deterministic entity traversal.
 - Define versioned scene serialization and migration.
 - Build import, validation, metadata, cache and cooked-asset steps.
 - Add content hashes, import diagnostics and malformed-input tests.
