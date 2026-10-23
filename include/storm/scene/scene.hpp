@@ -85,7 +85,7 @@ private:
 };
 
 // Owns its entities and their names/transforms. Entity IDs are OS-random UUIDv4 values.
-// This first in-memory scene model is single-owner-thread only and does not serialize data.
+// The model is single-owner-thread only; SceneCodec defines its explicit versioned byte format.
 class Scene final {
     friend class SceneCodec;
 
