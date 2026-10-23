@@ -1,6 +1,7 @@
 #include "storm/core/fixed_step_clock.hpp"
 #include "storm/platform/event_queue.hpp"
 #include "storm/platform/input_state.hpp"
+#include "storm/platform/key_code.hpp"
 
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_main.h>
@@ -46,6 +47,83 @@ constexpr double nanoseconds_per_second = 1'000'000'000.0;
     }
 
     return SDL_RenderPresent(renderer);
+}
+
+
+[[nodiscard]] bool map_key_code(SDL_Scancode scancode, storm::platform::KeyCode& output) noexcept {
+    using storm::platform::KeyCode;
+    switch (scancode) {
+    case SDL_SCANCODE_A: output = KeyCode::A; return true;
+    case SDL_SCANCODE_B: output = KeyCode::B; return true;
+    case SDL_SCANCODE_C: output = KeyCode::C; return true;
+    case SDL_SCANCODE_D: output = KeyCode::D; return true;
+    case SDL_SCANCODE_E: output = KeyCode::E; return true;
+    case SDL_SCANCODE_F: output = KeyCode::F; return true;
+    case SDL_SCANCODE_G: output = KeyCode::G; return true;
+    case SDL_SCANCODE_H: output = KeyCode::H; return true;
+    case SDL_SCANCODE_I: output = KeyCode::I; return true;
+    case SDL_SCANCODE_J: output = KeyCode::J; return true;
+    case SDL_SCANCODE_K: output = KeyCode::K; return true;
+    case SDL_SCANCODE_L: output = KeyCode::L; return true;
+    case SDL_SCANCODE_M: output = KeyCode::M; return true;
+    case SDL_SCANCODE_N: output = KeyCode::N; return true;
+    case SDL_SCANCODE_O: output = KeyCode::O; return true;
+    case SDL_SCANCODE_P: output = KeyCode::P; return true;
+    case SDL_SCANCODE_Q: output = KeyCode::Q; return true;
+    case SDL_SCANCODE_R: output = KeyCode::R; return true;
+    case SDL_SCANCODE_S: output = KeyCode::S; return true;
+    case SDL_SCANCODE_T: output = KeyCode::T; return true;
+    case SDL_SCANCODE_U: output = KeyCode::U; return true;
+    case SDL_SCANCODE_V: output = KeyCode::V; return true;
+    case SDL_SCANCODE_W: output = KeyCode::W; return true;
+    case SDL_SCANCODE_X: output = KeyCode::X; return true;
+    case SDL_SCANCODE_Y: output = KeyCode::Y; return true;
+    case SDL_SCANCODE_Z: output = KeyCode::Z; return true;
+    case SDL_SCANCODE_0: output = KeyCode::Digit0; return true;
+    case SDL_SCANCODE_1: output = KeyCode::Digit1; return true;
+    case SDL_SCANCODE_2: output = KeyCode::Digit2; return true;
+    case SDL_SCANCODE_3: output = KeyCode::Digit3; return true;
+    case SDL_SCANCODE_4: output = KeyCode::Digit4; return true;
+    case SDL_SCANCODE_5: output = KeyCode::Digit5; return true;
+    case SDL_SCANCODE_6: output = KeyCode::Digit6; return true;
+    case SDL_SCANCODE_7: output = KeyCode::Digit7; return true;
+    case SDL_SCANCODE_8: output = KeyCode::Digit8; return true;
+    case SDL_SCANCODE_9: output = KeyCode::Digit9; return true;
+    case SDL_SCANCODE_ESCAPE: output = KeyCode::Escape; return true;
+    case SDL_SCANCODE_RETURN: output = KeyCode::Enter; return true;
+    case SDL_SCANCODE_TAB: output = KeyCode::Tab; return true;
+    case SDL_SCANCODE_SPACE: output = KeyCode::Space; return true;
+    case SDL_SCANCODE_BACKSPACE: output = KeyCode::Backspace; return true;
+    case SDL_SCANCODE_DELETE: output = KeyCode::Delete; return true;
+    case SDL_SCANCODE_INSERT: output = KeyCode::Insert; return true;
+    case SDL_SCANCODE_HOME: output = KeyCode::Home; return true;
+    case SDL_SCANCODE_END: output = KeyCode::End; return true;
+    case SDL_SCANCODE_PAGEUP: output = KeyCode::PageUp; return true;
+    case SDL_SCANCODE_PAGEDOWN: output = KeyCode::PageDown; return true;
+    case SDL_SCANCODE_LEFT: output = KeyCode::ArrowLeft; return true;
+    case SDL_SCANCODE_RIGHT: output = KeyCode::ArrowRight; return true;
+    case SDL_SCANCODE_UP: output = KeyCode::ArrowUp; return true;
+    case SDL_SCANCODE_DOWN: output = KeyCode::ArrowDown; return true;
+    case SDL_SCANCODE_F1: output = KeyCode::F1; return true;
+    case SDL_SCANCODE_F2: output = KeyCode::F2; return true;
+    case SDL_SCANCODE_F3: output = KeyCode::F3; return true;
+    case SDL_SCANCODE_F4: output = KeyCode::F4; return true;
+    case SDL_SCANCODE_F5: output = KeyCode::F5; return true;
+    case SDL_SCANCODE_F6: output = KeyCode::F6; return true;
+    case SDL_SCANCODE_F7: output = KeyCode::F7; return true;
+    case SDL_SCANCODE_F8: output = KeyCode::F8; return true;
+    case SDL_SCANCODE_F9: output = KeyCode::F9; return true;
+    case SDL_SCANCODE_F10: output = KeyCode::F10; return true;
+    case SDL_SCANCODE_F11: output = KeyCode::F11; return true;
+    case SDL_SCANCODE_F12: output = KeyCode::F12; return true;
+    case SDL_SCANCODE_LSHIFT: output = KeyCode::LeftShift; return true;
+    case SDL_SCANCODE_RSHIFT: output = KeyCode::RightShift; return true;
+    case SDL_SCANCODE_LCTRL: output = KeyCode::LeftControl; return true;
+    case SDL_SCANCODE_RCTRL: output = KeyCode::RightControl; return true;
+    case SDL_SCANCODE_LALT: output = KeyCode::LeftAlt; return true;
+    case SDL_SCANCODE_RALT: output = KeyCode::RightAlt; return true;
+    default: return false;
+    }
 }
 
 void print_sdl_error(const char* operation) {
@@ -136,16 +214,12 @@ int main(int argc, char* argv[]) {
                 if (native_event.key.windowID != SDL_GetWindowID(window)) {
                     break;
                 }
-                // The desktop prototype maps in-range SDL physical scancodes to provisional
-                // engine slots. A stable named cross-platform mapping remains future work.
-                const int code = static_cast<int>(native_event.key.scancode);
-                if (code > 0 &&
-                    static_cast<std::size_t>(code) < InputState::key_code_count) {
+                storm::platform::KeyCode key{};
+                if (map_key_code(native_event.key.scancode, key)) {
                     const bool is_down = native_event.type == SDL_EVENT_KEY_DOWN;
                     (void)enqueue(
                         event_queue,
-                        PlatformEvent{storm::platform::KeyStateChangedEvent{
-                            static_cast<std::uint16_t>(code), is_down}});
+                        PlatformEvent{storm::platform::KeyStateChangedEvent{key, is_down}});
                 }
                 break;
             }
@@ -242,7 +316,7 @@ int main(int argc, char* argv[]) {
             input.release_all();
         }
 
-        if (input.key_was_pressed(static_cast<std::size_t>(SDL_SCANCODE_ESCAPE))) {
+        if (input.key_was_pressed(storm::platform::KeyCode::Escape)) {
             running = false;
         }
         if (!running) {
@@ -259,14 +333,14 @@ int main(int argc, char* argv[]) {
 
         const auto advance = simulation_clock.advance(frame_delta);
         for (std::uint32_t step = 0U; step < advance.steps; ++step) {
-            const bool left = input.key_is_down(static_cast<std::size_t>(SDL_SCANCODE_A)) ||
-                              input.key_is_down(static_cast<std::size_t>(SDL_SCANCODE_LEFT));
-            const bool right = input.key_is_down(static_cast<std::size_t>(SDL_SCANCODE_D)) ||
-                               input.key_is_down(static_cast<std::size_t>(SDL_SCANCODE_RIGHT));
-            const bool up = input.key_is_down(static_cast<std::size_t>(SDL_SCANCODE_W)) ||
-                            input.key_is_down(static_cast<std::size_t>(SDL_SCANCODE_UP));
-            const bool down = input.key_is_down(static_cast<std::size_t>(SDL_SCANCODE_S)) ||
-                              input.key_is_down(static_cast<std::size_t>(SDL_SCANCODE_DOWN));
+            const bool left = input.key_is_down(storm::platform::KeyCode::A) ||
+                              input.key_is_down(storm::platform::KeyCode::ArrowLeft);
+            const bool right = input.key_is_down(storm::platform::KeyCode::D) ||
+                               input.key_is_down(storm::platform::KeyCode::ArrowRight);
+            const bool up = input.key_is_down(storm::platform::KeyCode::W) ||
+                            input.key_is_down(storm::platform::KeyCode::ArrowUp);
+            const bool down = input.key_is_down(storm::platform::KeyCode::S) ||
+                              input.key_is_down(storm::platform::KeyCode::ArrowDown);
             const float horizontal = (right ? 1.0F : 0.0F) - (left ? 1.0F : 0.0F);
             const float vertical = (down ? 1.0F : 0.0F) - (up ? 1.0F : 0.0F);
             const float distance = player_speed_units_per_second *

@@ -10,6 +10,7 @@
 #include "storm/core/version.hpp"
 #include "storm/math/vector.hpp"
 #include "storm/platform/input_state.hpp"
+#include "storm/platform/key_code.hpp"
 #include "storm/platform/event_queue.hpp"
 #include "storm/scene/dimension.hpp"
 #include "storm/scene/scene.hpp"
@@ -963,7 +964,7 @@ void test_platform_event_queue_fifo_overflow_and_wraparound() {
     STORM_CHECK(!queue.pop().has_value());
 
     STORM_CHECK(queue.push(QuitRequestedEvent{}));
-    STORM_CHECK(queue.push(KeyStateChangedEvent{42U, true}));
+    STORM_CHECK(queue.push(KeyStateChangedEvent{KeyCode::A, true}));
     STORM_CHECK(queue.push(WindowResizedEvent{1280U, 720U}));
     STORM_CHECK(queue.size() == 3U);
 
@@ -985,7 +986,7 @@ void test_platform_event_queue_fifo_overflow_and_wraparound() {
         const auto* value = std::get_if<KeyStateChangedEvent>(&*key);
         STORM_CHECK(value != nullptr);
         if (value != nullptr) {
-            STORM_CHECK(value->key_code == 42U);
+            STORM_CHECK(value->key == KeyCode::A);
             STORM_CHECK(value->is_down);
         }
     }
@@ -1023,7 +1024,7 @@ void test_platform_event_queue_rejects_invalid_payloads() {
     using namespace storm::platform;
     PlatformEventQueue<4U> queue;
 
-    STORM_CHECK(!queue.push(KeyStateChangedEvent{256U, true}));
+    STORM_CHECK(!queue.push(KeyStateChangedEvent{KeyCode::Count, true}));
     STORM_CHECK(!queue.push(PointerButtonStateChangedEvent{8U, true}));
     STORM_CHECK(!queue.push(PointerMovedEvent{std::numeric_limits<double>::quiet_NaN(), 0.0}));
     STORM_CHECK(!queue.push(PointerWheelScrolledEvent{
@@ -1050,13 +1051,13 @@ void test_platform_event_queue_integrates_with_input_state() {
     PlatformEventQueue<8U> queue;
     InputState input;
 
-    STORM_CHECK(queue.push(KeyStateChangedEvent{8U, true}));
+    STORM_CHECK(queue.push(KeyStateChangedEvent{KeyCode::A, true}));
     STORM_CHECK(queue.push(PointerButtonStateChangedEvent{2U, true}));
     STORM_CHECK(queue.push(WindowFocusChangedEvent{false}));
 
     while (const auto event = queue.pop()) {
         if (const auto* key = std::get_if<KeyStateChangedEvent>(&*event)) {
-            STORM_CHECK(input.set_key_down(key->key_code, key->is_down));
+            STORM_CHECK(input.set_key_down(key->key, key->is_down));
         } else if (const auto* button =
                        std::get_if<PointerButtonStateChangedEvent>(&*event)) {
             STORM_CHECK(input.set_pointer_button_down(button->button, button->is_down));
@@ -1074,6 +1075,35 @@ void test_platform_event_queue_integrates_with_input_state() {
     STORM_CHECK(!input.pointer_button_is_down(2U));
     STORM_CHECK(input.pointer_button_was_pressed(2U));
     STORM_CHECK(input.pointer_button_was_released(2U));
+}
+
+void test_named_key_codes_are_stable_and_validated() {
+    using namespace storm::platform;
+    STORM_CHECK(is_valid_key_code(KeyCode::A));
+    STORM_CHECK(is_valid_key_code(KeyCode::Z));
+    STORM_CHECK(is_valid_key_code(KeyCode::Digit0));
+    STORM_CHECK(is_valid_key_code(KeyCode::Escape));
+    STORM_CHECK(is_valid_key_code(KeyCode::ArrowLeft));
+    STORM_CHECK(is_valid_key_code(KeyCode::F12));
+    STORM_CHECK(is_valid_key_code(KeyCode::RightAlt));
+    STORM_CHECK(!is_valid_key_code(KeyCode::Count));
+    STORM_CHECK(!is_valid_key_code(static_cast<KeyCode>(0xffffU)));
+    STORM_CHECK(key_code_count == static_cast<std::size_t>(KeyCode::Count));
+
+    InputState input;
+    STORM_CHECK(input.set_key_down(KeyCode::W, true));
+    STORM_CHECK(input.key_is_down(KeyCode::W));
+    STORM_CHECK(input.key_was_pressed(KeyCode::W));
+    STORM_CHECK(!input.key_was_released(KeyCode::W));
+    input.begin_frame();
+    STORM_CHECK(input.key_is_down(KeyCode::W));
+    STORM_CHECK(!input.key_was_pressed(KeyCode::W));
+    STORM_CHECK(input.set_key_down(KeyCode::W, false));
+    STORM_CHECK(!input.key_is_down(KeyCode::W));
+    STORM_CHECK(input.key_was_released(KeyCode::W));
+    STORM_CHECK(!input.set_key_down(KeyCode::Count, true));
+    STORM_CHECK(!input.key_is_down(KeyCode::Count));
+    STORM_CHECK(!input.key_was_pressed(KeyCode::Count));
 }
 
 } // namespace
@@ -1102,6 +1132,7 @@ int main() {
     test_input_state_frame_edges();
     test_input_state_rejects_out_of_range_slots_and_resets();
     test_input_state_releases_controls_on_focus_loss();
+    test_named_key_codes_are_stable_and_validated();
     test_platform_event_queue_fifo_overflow_and_wraparound();
     test_platform_event_queue_rejects_invalid_payloads();
     test_platform_event_queue_integrates_with_input_state();

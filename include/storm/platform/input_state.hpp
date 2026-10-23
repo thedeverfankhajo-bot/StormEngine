@@ -1,5 +1,7 @@
 #pragma once
 
+#include "storm/platform/key_code.hpp"
+
 #include <bitset>
 #include <cstddef>
 
@@ -30,6 +32,11 @@ public:
         return update_button(keys_down_, keys_pressed_, keys_released_, key_code, is_down);
     }
 
+    [[nodiscard]] bool set_key_down(KeyCode key, bool is_down) noexcept {
+        return is_valid_key_code(key) &&
+               set_key_down(static_cast<std::size_t>(key), is_down);
+    }
+
     [[nodiscard]] bool set_pointer_button_down(std::size_t button, bool is_down) noexcept {
         return update_button(pointer_buttons_down_, pointer_buttons_pressed_,
                              pointer_buttons_released_, button, is_down);
@@ -45,6 +52,18 @@ public:
 
     [[nodiscard]] bool key_was_released(std::size_t key_code) const noexcept {
         return is_set(keys_released_, key_code);
+    }
+
+    [[nodiscard]] bool key_is_down(KeyCode key) const noexcept {
+        return is_valid_key_code(key) && key_is_down(static_cast<std::size_t>(key));
+    }
+
+    [[nodiscard]] bool key_was_pressed(KeyCode key) const noexcept {
+        return is_valid_key_code(key) && key_was_pressed(static_cast<std::size_t>(key));
+    }
+
+    [[nodiscard]] bool key_was_released(KeyCode key) const noexcept {
+        return is_valid_key_code(key) && key_was_released(static_cast<std::size_t>(key));
     }
 
     [[nodiscard]] bool pointer_button_is_down(std::size_t button) const noexcept {

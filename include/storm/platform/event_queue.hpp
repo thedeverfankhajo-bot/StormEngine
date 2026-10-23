@@ -1,6 +1,7 @@
 #pragma once
 
 #include "storm/platform/input_state.hpp"
+#include "storm/platform/key_code.hpp"
 
 #include <array>
 #include <cmath>
@@ -22,7 +23,7 @@ struct WindowFocusChangedEvent final {
 };
 
 struct KeyStateChangedEvent final {
-    std::uint16_t key_code{};
+    KeyCode key{KeyCode::Count};
     bool is_down{};
 };
 
@@ -63,7 +64,7 @@ static_assert(std::is_nothrow_copy_assignable_v<PlatformEvent>);
         [](const auto& payload) noexcept {
             using Event = std::remove_cvref_t<decltype(payload)>;
             if constexpr (std::is_same_v<Event, KeyStateChangedEvent>) {
-                return static_cast<std::size_t>(payload.key_code) < InputState::key_code_count;
+                return is_valid_key_code(payload.key);
             } else if constexpr (std::is_same_v<Event, PointerButtonStateChangedEvent>) {
                 return static_cast<std::size_t>(payload.button) <
                        InputState::pointer_button_count;
