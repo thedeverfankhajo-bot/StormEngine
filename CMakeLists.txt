@@ -12,6 +12,7 @@ include(CMakePackageConfigHelpers)
 
 option(STORM_ENABLE_WARNINGS "Enable strict compiler warnings for StormEngine targets" ON)
 option(STORM_ENABLE_SANITIZERS "Enable AddressSanitizer and UndefinedBehaviorSanitizer" OFF)
+option(STORM_BUILD_SDL3_DEMO "Build the optional SDL3 desktop 2D bootstrap demo" OFF)
 
 if(PROJECT_IS_TOP_LEVEL AND NOT CMAKE_CROSSCOMPILING)
     set(_storm_tests_default ON)
@@ -134,6 +135,57 @@ if(STORM_BUILD_TESTS)
                 "-DSTORM_GENERATOR_TOOLSET=${CMAKE_GENERATOR_TOOLSET}"
                 -P "${PROJECT_SOURCE_DIR}/tests/cmake/package_consumer_test.cmake"
         )
+    endif()
+endif()
+
+
+if(STORM_BUILD_SDL3_DEMO)
+    if(ANDROID)
+        message(FATAL_ERROR
+            "STORM_BUILD_SDL3_DEMO is a desktop executable, not an Android APK target. "
+            "Android SDL lifecycle and packaging need a dedicated application entry point."
+        )
+    endif()
+
+    include(FetchContent)
+
+    # The normal core build stays dependency-free. Opting into the sample fetches a checksum-pinned
+    # upstream release and builds SDL statically without its own tests, examples or install rules.
+    set(SDL_SHARED OFF CACHE BOOL "Build SDL3 shared library" FORCE)
+    set(SDL_STATIC ON CACHE BOOL "Build SDL3 static library" FORCE)
+    set(SDL_TEST_LIBRARY OFF CACHE BOOL "Build SDL3 test library" FORCE)
+    set(SDL_TESTS OFF CACHE BOOL "Build SDL3 tests" FORCE)
+    set(SDL_EXAMPLES OFF CACHE BOOL "Build SDL3 examples" FORCE)
+    set(SDL_INSTALL OFF CACHE BOOL "Install SDL3 artifacts" FORCE)
+    set(SDL_INSTALL_DOCS OFF CACHE BOOL "Install SDL3 documentation" FORCE)
+    set(SDL_INSTALL_TESTS OFF CACHE BOOL "Install SDL3 tests" FORCE)
+
+    FetchContent_Declare(
+        storm_sdl3
+        URL https://github.com/libsdl-org/SDL/releases/download/release-3.4.18/SDL3-3.4.18.tar.gz
+        URL_HASH SHA256=9c75cf16330322c217dedd2e0609f1124f1b54b8633e763467b4684d0f4334a3
+        DOWNLOAD_EXTRACT_TIMESTAMP TRUE
+    )
+    FetchContent_MakeAvailable(storm_sdl3)
+
+    add_executable(storm_sdl3_demo examples/sdl3_2d_demo/main.cpp)
+    target_link_libraries(storm_sdl3_demo PRIVATE Storm::Core SDL3::SDL3)
+    target_compile_features(storm_sdl3_demo PRIVATE cxx_std_20)
+    set_target_properties(storm_sdl3_demo PROPERTIES CXX_EXTENSIONS OFF)
+
+    if(STORM_ENABLE_WARNINGS)
+        if(MSVC)
+            target_compile_options(storm_sdl3_demo PRIVATE /W4 /permissive-)
+        else()
+            target_compile_options(storm_sdl3_demo PRIVATE
+                -Wall
+                -Wextra
+                -Wpedantic
+                -Wconversion
+                -Wsign-conversion
+                -Wshadow
+            )
+        endif()
     endif()
 endif()
 

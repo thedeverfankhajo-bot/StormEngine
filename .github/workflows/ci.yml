@@ -25,7 +25,7 @@ jobs:
           persist-credentials: false
 
       - name: Configure
-        run: cmake -S . -B build -DSTORM_BUILD_TESTS=ON -DCMAKE_BUILD_TYPE=Debug
+        run: cmake -S . -B build -DSTORM_BUILD_TESTS=ON -DSTORM_BUILD_SDL3_DEMO=ON -DCMAKE_BUILD_TYPE=Debug
 
       - name: Build
         run: cmake --build build --config Debug --parallel 2
