@@ -16,7 +16,7 @@ The planned dependency direction is from higher-level modules toward narrow lowe
 | --- | --- | --- |
 | Core | Versioning, status/error conventions, math, deterministic timing, lifecycle and low-level utilities | Version metadata, dimension-aware vectors and tested Matrix4 transforms, fixed-step clock, RuntimeConfig, Status, RuntimeLifecycle, stable IDs and bounded diagnostics |
 | Platform | Windowing, input, monotonic clocks, filesystems, threads and OS integration | Adapter-fed input state/event queue plus an optional SDL3 desktop bootstrap; full platform runtime still planned |
-| Render | Render-device abstraction, resource lifetime, command submission and capabilities | Planned; no graphics API dependency yet |
+| Render | Render-device abstraction, resource lifetime, command submission and capabilities | CPU reference `SoftwareCanvas2D` plus an orthographic `Camera2D` for validated world/pixel transforms; production RHI still planned |
 | Scene / Project | Worlds/scenes, entities, transforms, lifecycle, logical paths and serialization | In-memory Scene/Entity/Transform, bounded version-1 SceneCodec, atomic SceneFile storage, and syntax-validated ProjectPath; hierarchy, components and OS-level project-root confinement remain future work |
 | Assets | Importers, validation, metadata, cache and cooked asset packages | Planned |
 | Physics | 2D/3D simulation interfaces, collision queries and fixed-step integration | Planned |
@@ -115,9 +115,11 @@ These conventions are specified in [ADR 0002](decisions/0002-coordinate-system-a
 
 ## Rendering and software reference canvas
 
+`storm/render/camera2d.hpp` defines an allocation-free orthographic camera value that maps the world-space XY plane to continuous top-left-origin framebuffer coordinates. `view_height` sets visible world height at zoom 1, positive camera rotation is counter-clockwise in world space, and conversion methods reject invalid configuration and unrepresentable results. The generated world-to-pixel `Matrix4` composes directly with local transforms for CPU rasterization; round-trip and rotation behavior are covered by deterministic tests.
+
 `storm/render/software_canvas2d.hpp` defines an engine-owned RGBA8 framebuffer and deterministic CPU rectangle rasterizer. Rectangles are transformed by a `Matrix4`, clipped to bounded canvas dimensions, sampled at pixel centers, and composited with straight-alpha blending. The framebuffer is limited to 8,192 pixels per axis and 16,777,216 pixels (64 MiB RGBA8). Failed resize preserves the old frame. This is a single-owner-thread correctness baseline, not a SIMD-optimized production renderer.
 
-The SDL3 sample now uses SDL for window/input events and texture presentation only: StormEngine creates the rectangle pixels and SDL uploads the framebuffer through a streaming texture. Pixel tests run headlessly without SDL or a GPU. The canvas is not a production RHI, sprite/asset pipeline or 3D renderer.
+The SDL3 sample now uses StormEngine's camera and framebuffer while SDL handles window/input events and streaming-texture presentation. Pixel tests run headlessly without SDL or a GPU. The canvas and camera are not a production RHI, sprite/asset pipeline or 3D renderer.
 
 ## Scene, entities and transforms
 

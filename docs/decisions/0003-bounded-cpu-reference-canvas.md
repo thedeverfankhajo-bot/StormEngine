@@ -20,5 +20,5 @@ The SDL3 example becomes a thin platform/presentation adapter: StormEngine creat
 
 - The test suite can verify fill, transformed geometry, clipping, alpha compositing, memory limits and failure atomicity.
 - The canvas can be used as a correctness oracle for future optimized CPU/GPU paths.
-- Batching, texture/sprite assets, camera mapping, GPU resource lifetime, shader handling and a production Render Hardware Interface remain future work.
+- Camera mapping is now defined by [ADR 0004](0004-camera2d-coordinate-mapping.md). Batching, texture/sprite assets, GPU resource lifetime, shader handling and a production Render Hardware Interface remain future work.
 - This ADR does not choose Vulkan, Direct3D, Metal, OpenGL or a commercial renderer backend.

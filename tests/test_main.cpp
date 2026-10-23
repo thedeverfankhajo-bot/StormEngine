@@ -14,6 +14,7 @@
 #include "storm/platform/key_code.hpp"
 #include "storm/platform/event_queue.hpp"
 #include "storm/project/project_path.hpp"
+#include "storm/render/camera2d.hpp"
 #include "storm/render/software_canvas2d.hpp"
 #include "storm/scene/dimension.hpp"
 #include "storm/scene/scene.hpp"
@@ -926,6 +927,153 @@ void test_matrix4_transform_conventions() {
                      .has_value());
 }
 
+void test_camera2d_world_pixel_mapping_and_validation() {
+    using storm::math::Vec2;
+    using storm::math::Vec3;
+    using storm::render::Camera2D;
+
+    const auto close = [](float left, float right) {
+        return std::abs(left - right) < 1.0e-4F;
+    };
+
+    Camera2D camera;
+    STORM_CHECK(!camera.is_valid());
+    STORM_CHECK(!camera.world_to_pixel(Vec2{0.0F, 0.0F}).has_value());
+    STORM_CHECK(!camera.pixel_to_world(Vec2{0.0F, 0.0F}).has_value());
+
+    camera.center = Vec2{10.0F, -4.0F};
+    camera.view_height = 10.0F;
+    camera.zoom = 1.0F;
+    camera.viewport_width = 800U;
+    camera.viewport_height = 600U;
+    STORM_CHECK(camera.is_valid());
+
+    const auto center_pixel = camera.world_to_pixel(camera.center);
+    STORM_CHECK(center_pixel.has_value());
+    if (center_pixel.has_value()) {
+        STORM_CHECK(close((*center_pixel)[0U], 400.0F));
+        STORM_CHECK(close((*center_pixel)[1U], 300.0F));
+    }
+
+    const auto east_pixel = camera.world_to_pixel(Vec2{11.0F, -4.0F});
+    STORM_CHECK(east_pixel.has_value());
+    if (east_pixel.has_value()) {
+        STORM_CHECK(close((*east_pixel)[0U], 460.0F));
+        STORM_CHECK(close((*east_pixel)[1U], 300.0F));
+    }
+
+    const auto north_pixel = camera.world_to_pixel(Vec2{10.0F, -3.0F});
+    STORM_CHECK(north_pixel.has_value());
+    if (north_pixel.has_value()) {
+        STORM_CHECK(close((*north_pixel)[0U], 400.0F));
+        STORM_CHECK(close((*north_pixel)[1U], 240.0F));
+    }
+
+    const auto matrix = camera.world_to_pixel_matrix();
+    STORM_CHECK(matrix.has_value());
+    if (matrix.has_value()) {
+        const auto transformed = matrix->transform_point(Vec3{11.0F, -4.0F, 0.0F});
+        STORM_CHECK(transformed.has_value());
+        if (transformed.has_value() && east_pixel.has_value()) {
+            STORM_CHECK(close((*transformed)[0U], (*east_pixel)[0U]));
+            STORM_CHECK(close((*transformed)[1U], (*east_pixel)[1U]));
+        }
+    }
+
+    const Vec2 sample_world{11.25F, -3.5F};
+    const auto sample_pixel = camera.world_to_pixel(sample_world);
+    STORM_CHECK(sample_pixel.has_value());
+    if (sample_pixel.has_value()) {
+        const auto round_trip = camera.pixel_to_world(*sample_pixel);
+        STORM_CHECK(round_trip.has_value());
+        if (round_trip.has_value()) {
+            STORM_CHECK(close((*round_trip)[0U], sample_world[0U]));
+            STORM_CHECK(close((*round_trip)[1U], sample_world[1U]));
+        }
+    }
+
+    constexpr float quarter_turn = 1.57079632679F;
+    camera.rotation_radians = quarter_turn;
+    const auto north_rotated = camera.world_to_pixel(Vec2{10.0F, -3.0F});
+    STORM_CHECK(north_rotated.has_value());
+    if (north_rotated.has_value()) {
+        STORM_CHECK(close((*north_rotated)[0U], 460.0F));
+        STORM_CHECK(close((*north_rotated)[1U], 300.0F));
+    }
+
+    camera.zoom = 2.0F;
+    const auto zoomed_center = camera.world_to_pixel(camera.center);
+    const auto zoomed_north = camera.world_to_pixel(Vec2{10.0F, -3.0F});
+    STORM_CHECK(zoomed_center.has_value());
+    STORM_CHECK(zoomed_north.has_value());
+    if (zoomed_center.has_value() && zoomed_north.has_value()) {
+        STORM_CHECK(close((*zoomed_center)[0U], 400.0F));
+        STORM_CHECK(close((*zoomed_center)[1U], 300.0F));
+        STORM_CHECK(close((*zoomed_north)[0U], 520.0F));
+        STORM_CHECK(close((*zoomed_north)[1U], 300.0F));
+    }
+
+    const Vec2 rotated_sample{9.0F, -2.0F};
+    const auto rotated_pixel = camera.world_to_pixel(rotated_sample);
+    STORM_CHECK(rotated_pixel.has_value());
+    if (rotated_pixel.has_value()) {
+        const auto rotated_round_trip = camera.pixel_to_world(*rotated_pixel);
+        STORM_CHECK(rotated_round_trip.has_value());
+        if (rotated_round_trip.has_value()) {
+            STORM_CHECK(close((*rotated_round_trip)[0U], rotated_sample[0U]));
+            STORM_CHECK(close((*rotated_round_trip)[1U], rotated_sample[1U]));
+        }
+    }
+
+    Camera2D invalid = camera;
+    invalid.viewport_width = 0U;
+    STORM_CHECK(!invalid.is_valid());
+    STORM_CHECK(!invalid.world_to_pixel_matrix().has_value());
+    invalid = camera;
+    invalid.viewport_height = 0U;
+    STORM_CHECK(!invalid.is_valid());
+    invalid = camera;
+    invalid.zoom = 0.0F;
+    STORM_CHECK(!invalid.is_valid());
+    invalid.zoom = -1.0F;
+    STORM_CHECK(!invalid.is_valid());
+    invalid = camera;
+    invalid.view_height = 0.0F;
+    STORM_CHECK(!invalid.is_valid());
+    invalid.view_height = -1.0F;
+    STORM_CHECK(!invalid.is_valid());
+    invalid = camera;
+    invalid.rotation_radians = std::numeric_limits<float>::infinity();
+    STORM_CHECK(!invalid.is_valid());
+    invalid = camera;
+    invalid.center[0U] = std::numeric_limits<float>::quiet_NaN();
+    STORM_CHECK(!invalid.is_valid());
+
+    STORM_CHECK(!camera.world_to_pixel(
+                     Vec2{std::numeric_limits<float>::quiet_NaN(), 0.0F})
+                     .has_value());
+    STORM_CHECK(!camera.pixel_to_world(
+                     Vec2{0.0F, std::numeric_limits<float>::infinity()})
+                     .has_value());
+
+    Camera2D unrepresentable_scale = camera;
+    unrepresentable_scale.view_height = std::numeric_limits<float>::denorm_min();
+    unrepresentable_scale.zoom = std::numeric_limits<float>::max();
+    STORM_CHECK(unrepresentable_scale.is_valid());
+    STORM_CHECK(!unrepresentable_scale.world_to_pixel_matrix().has_value());
+
+    Camera2D unrepresentable_world = camera;
+    unrepresentable_world.rotation_radians = 0.0F;
+    unrepresentable_world.view_height = std::numeric_limits<float>::max();
+    unrepresentable_world.zoom = std::numeric_limits<float>::denorm_min();
+    unrepresentable_world.viewport_width = 1U;
+    unrepresentable_world.viewport_height = 1U;
+    STORM_CHECK(unrepresentable_world.is_valid());
+    STORM_CHECK(!unrepresentable_world.pixel_to_world(
+                     Vec2{std::numeric_limits<float>::max(), 0.0F})
+                     .has_value());
+}
+
 void test_software_canvas2d_rasterization_and_bounds() {
     using storm::core::ErrorCode;
     using storm::math::Matrix4;
@@ -1818,6 +1966,7 @@ int main() {
     test_vector_arithmetic();
     test_vector_normalization_and_validation();
     test_matrix4_transform_conventions();
+    test_camera2d_world_pixel_mapping_and_validation();
     test_software_canvas2d_rasterization_and_bounds();
     test_dimensions();
     test_fixed_step_clock_basic_timing();

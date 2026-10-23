@@ -1,6 +1,7 @@
 #include "storm/core/fixed_step_clock.hpp"
 #include "storm/math/matrix4.hpp"
 #include "storm/math/vector.hpp"
+#include "storm/render/camera2d.hpp"
 #include "storm/render/software_canvas2d.hpp"
 #include "storm/platform/event_queue.hpp"
 #include "storm/platform/input_state.hpp"
@@ -10,6 +11,7 @@
 #include <SDL3/SDL_main.h>
 
 #include <algorithm>
+#include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
@@ -24,15 +26,17 @@ using storm::math::Vec3;
 using storm::platform::InputState;
 using storm::platform::PlatformEvent;
 using storm::platform::PlatformEventQueue;
+using storm::render::Camera2D;
 using storm::render::Rgba8;
 using storm::render::SoftwareCanvas2D;
 
 constexpr int window_initial_width = 960;
 constexpr int window_initial_height = 540;
-constexpr float player_initial_size = 48.0F;
-constexpr float player_minimum_size = 20.0F;
-constexpr float player_maximum_size = 112.0F;
-constexpr float player_speed_units_per_second = 260.0F;
+constexpr float camera_initial_view_height = 9.0F;
+constexpr float camera_minimum_zoom = 0.35F;
+constexpr float camera_maximum_zoom = 3.0F;
+constexpr float player_initial_size = 0.8F;
+constexpr float player_speed_units_per_second = 4.3333335F;
 constexpr double nanoseconds_per_second = 1'000'000'000.0;
 constexpr Rgba8 background_color{13U, 19U, 34U, 255U};
 constexpr Rgba8 player_color{72U, 194U, 164U, 255U};
@@ -84,17 +88,30 @@ void print_sdl_error(const char* operation);
 
 [[nodiscard]] bool render_frame(SDL_Renderer* renderer, SDL_Texture* texture,
                                 SoftwareCanvas2D& canvas, int width, int height,
-                                float player_x, float player_y, float player_size) {
+                                const Camera2D& camera, const Vec2& player_position,
+                                float player_size) {
     if (width <= 0 || height <= 0) {
         return true;
     }
     if (texture == nullptr || canvas.width() != static_cast<std::uint32_t>(width) ||
-        canvas.height() != static_cast<std::uint32_t>(height)) {
+        canvas.height() != static_cast<std::uint32_t>(height) ||
+        camera.viewport_width != static_cast<std::uint32_t>(width) ||
+        camera.viewport_height != static_cast<std::uint32_t>(height)) {
+        return false;
+    }
+
+    const auto world_to_pixel = camera.world_to_pixel_matrix();
+    if (!world_to_pixel.has_value()) {
+        std::cerr << "2D camera parameters are invalid or unrepresentable\n";
         return false;
     }
 
     canvas.clear(background_color);
-    const Matrix4 player_transform = Matrix4::translation(Vec3{player_x, player_y, 0.0F});
+    const Vec2 player_origin =
+        player_position - Vec2{player_size * 0.5F, player_size * 0.5F};
+    const Matrix4 player_transform =
+        *world_to_pixel * Matrix4::translation(
+                              Vec3{player_origin[0U], player_origin[1U], 0.0F});
     const auto draw_status =
         canvas.draw_rect(player_transform, Vec2{player_size, player_size}, player_color);
     if (!draw_status.ok()) {
@@ -229,7 +246,7 @@ int main(int argc, char* argv[]) {
     }
 
     SDL_Window* window = SDL_CreateWindow(
-        "StormEngine 2D Bootstrap — WASD / arrows to move, mouse wheel to resize, Esc to quit",
+        "StormEngine 2D Bootstrap — WASD / arrows to move, wheel to zoom, click to move",
         window_initial_width, window_initial_height, SDL_WINDOW_RESIZABLE);
     if (window == nullptr) {
         print_sdl_error("SDL_CreateWindow");
@@ -261,9 +278,13 @@ int main(int argc, char* argv[]) {
     SoftwareCanvas2D canvas;
     SDL_Texture* texture = nullptr;
 
+    Camera2D camera;
+    camera.view_height = camera_initial_view_height;
+    camera.viewport_width = static_cast<std::uint32_t>(std::max(window_width, 0));
+    camera.viewport_height = static_cast<std::uint32_t>(std::max(window_height, 0));
+
     float player_size = player_initial_size;
-    float player_x = (static_cast<float>(window_width) - player_size) * 0.5F;
-    float player_y = (static_cast<float>(window_height) - player_size) * 0.5F;
+    Vec2 player_position{0.0F, 0.0F};
     float cursor_x = 0.0F;
     float cursor_y = 0.0F;
     bool running = true;
@@ -378,8 +399,10 @@ int main(int argc, char* argv[]) {
                            std::get_if<storm::platform::PointerButtonStateChangedEvent>(&*event)) {
                 (void)input.set_pointer_button_down(button->button, button->is_down);
                 if (button->is_down && button->button == SDL_BUTTON_LEFT) {
-                    player_x = cursor_x - player_size * 0.5F;
-                    player_y = cursor_y - player_size * 0.5F;
+                    const auto clicked_world = camera.pixel_to_world(Vec2{cursor_x, cursor_y});
+                    if (clicked_world.has_value()) {
+                        player_position = *clicked_world;
+                    }
                 }
             } else if (const auto* pointer =
                            std::get_if<storm::platform::PointerMovedEvent>(&*event)) {
@@ -388,14 +411,16 @@ int main(int argc, char* argv[]) {
             } else if (const auto* wheel =
                            std::get_if<storm::platform::PointerWheelScrolledEvent>(&*event)) {
                 if (wheel->delta_y > 0.0) {
-                    player_size = std::min(player_size + 4.0F, player_maximum_size);
+                    camera.zoom = std::min(camera.zoom * 1.1F, camera_maximum_zoom);
                 } else if (wheel->delta_y < 0.0) {
-                    player_size = std::max(player_size - 4.0F, player_minimum_size);
+                    camera.zoom = std::max(camera.zoom / 1.1F, camera_minimum_zoom);
                 }
             } else if (const auto* resized =
                            std::get_if<storm::platform::WindowResizedEvent>(&*event)) {
                 window_width = static_cast<int>(resized->width);
                 window_height = static_cast<int>(resized->height);
+                camera.viewport_width = resized->width;
+                camera.viewport_height = resized->height;
             }
         }
 
@@ -431,26 +456,39 @@ int main(int argc, char* argv[]) {
             const bool down = input.key_is_down(storm::platform::KeyCode::S) ||
                               input.key_is_down(storm::platform::KeyCode::ArrowDown);
             const float horizontal = (right ? 1.0F : 0.0F) - (left ? 1.0F : 0.0F);
-            const float vertical = (down ? 1.0F : 0.0F) - (up ? 1.0F : 0.0F);
+            const float vertical = (up ? 1.0F : 0.0F) - (down ? 1.0F : 0.0F);
+            float direction_length = std::sqrt(horizontal * horizontal + vertical * vertical);
             const float distance = player_speed_units_per_second *
                                    static_cast<float>(
                                        simulation_clock.config().fixed_delta_seconds);
-            player_x += horizontal * distance;
-            player_y += vertical * distance;
+            if (direction_length > 0.0F) {
+                direction_length = 1.0F / direction_length;
+                player_position[0U] += horizontal * direction_length * distance;
+                player_position[1U] += vertical * direction_length * distance;
+            }
         }
 
-        if (window_width > 0 && window_height > 0) {
-            const float max_x =
-                std::max(0.0F, static_cast<float>(window_width) - player_size);
-            const float max_y =
-                std::max(0.0F, static_cast<float>(window_height) - player_size);
-            player_x = std::clamp(player_x, 0.0F, max_x);
-            player_y = std::clamp(player_y, 0.0F, max_y);
+        if (camera.viewport_width > 0U && camera.viewport_height > 0U) {
+            const float half_view_height =
+                camera.view_height / (2.0F * camera.zoom);
+            const float aspect_ratio = static_cast<float>(camera.viewport_width) /
+                                       static_cast<float>(camera.viewport_height);
+            const float half_view_width = half_view_height * aspect_ratio;
+            const float allowed_x =
+                std::max(0.0F, half_view_width - player_size * 0.5F);
+            const float allowed_y =
+                std::max(0.0F, half_view_height - player_size * 0.5F);
+            player_position[0U] =
+                std::clamp(player_position[0U], camera.center[0U] - allowed_x,
+                           camera.center[0U] + allowed_x);
+            player_position[1U] =
+                std::clamp(player_position[1U], camera.center[1U] - allowed_y,
+                           camera.center[1U] + allowed_y);
         }
 
         if (!ensure_software_surface(renderer, canvas, texture, window_width, window_height) ||
             !render_frame(renderer, texture, canvas, window_width, window_height,
-                          player_x, player_y, player_size)) {
+                          camera, player_position, player_size)) {
             print_sdl_error("render frame");
             exit_code = 1;
             break;
