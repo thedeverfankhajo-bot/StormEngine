@@ -15,7 +15,8 @@ This roadmap is milestone-based, not a promise of release dates. A milestone is 
 
 - [x] Define an initial fixed-step clock with frame-delta limits, a bounded per-frame step budget, interpolation alpha, and explicit dropped-time reporting.
 - [x] Add a shared status/error convention and a validated runtime lifecycle state machine.
-- Add diagnostics/logging, runtime configuration and stable identifiers/ownership conventions.
+- [x] Add dependency-free core log-level filtering and synchronous dispatch to a caller-provided sink.
+- Add diagnostic aggregation, runtime configuration and stable identifiers/ownership conventions.
 - Add sanitizer jobs and component-level tests.
 
 **Acceptance for the implemented primitives:** deterministic tests cover fixed-step timing boundaries, invalid input, lifecycle transitions, failure propagation and explicit recovery. The remaining runtime-kernel work is still in progress.

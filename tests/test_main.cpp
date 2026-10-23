@@ -1,4 +1,5 @@
 #include "storm/core/fixed_step_clock.hpp"
+#include "storm/core/logging.hpp"
 #include "storm/core/runtime_lifecycle.hpp"
 #include "storm/core/status.hpp"
 #include "storm/core/version.hpp"
@@ -8,6 +9,7 @@
 #include <cmath>
 #include <iostream>
 #include <limits>
+#include <string>
 #include <string_view>
 
 namespace {
@@ -25,6 +27,77 @@ void check(bool condition, std::string_view expression, int line) {
 
 [[nodiscard]] bool nearly_equal(double left, double right, double tolerance = 1.0e-9) {
     return std::abs(left - right) <= tolerance;
+}
+
+
+struct LogCapture final {
+    unsigned int count{};
+    storm::core::LogLevel last_level{storm::core::LogLevel::Info};
+    std::string last_category{};
+    std::string last_message{};
+};
+
+void capture_log(void* user_data, const storm::core::LogRecord& record) noexcept {
+    if (user_data == nullptr) {
+        return;
+    }
+
+    auto& capture = *static_cast<LogCapture*>(user_data);
+    ++capture.count;
+    capture.last_level = record.level;
+    capture.last_category.assign(record.category);
+    capture.last_message.assign(record.message);
+}
+
+void test_logging_dispatch_and_filtering() {
+    using storm::core::LogLevel;
+    using storm::core::Logger;
+    using storm::core::is_valid_log_level;
+    using storm::core::log_level_name;
+
+    STORM_CHECK(log_level_name(LogLevel::Trace) == "Trace");
+    STORM_CHECK(log_level_name(LogLevel::Off) == "Off");
+    STORM_CHECK(log_level_name(static_cast<LogLevel>(255)) == "Unknown");
+    STORM_CHECK(is_valid_log_level(LogLevel::Critical));
+    STORM_CHECK(!is_valid_log_level(static_cast<LogLevel>(255)));
+
+    LogCapture capture;
+    Logger logger{capture_log, &capture};
+    STORM_CHECK(logger.minimum_level() == LogLevel::Info);
+    STORM_CHECK(logger.is_enabled(LogLevel::Info));
+    STORM_CHECK(!logger.is_enabled(LogLevel::Debug));
+
+    logger.write(LogLevel::Info, "core", "runtime ready");
+    STORM_CHECK(capture.count == 1U);
+    STORM_CHECK(capture.last_level == LogLevel::Info);
+    STORM_CHECK(capture.last_category == "core");
+    STORM_CHECK(capture.last_message == "runtime ready");
+
+    STORM_CHECK(logger.set_minimum_level(LogLevel::Warning));
+    logger.write(LogLevel::Info, "core", "filtered message");
+    logger.write(LogLevel::Warning, "platform", "surface unavailable");
+    STORM_CHECK(capture.count == 2U);
+    STORM_CHECK(capture.last_level == LogLevel::Warning);
+    STORM_CHECK(capture.last_category == "platform");
+    STORM_CHECK(capture.last_message == "surface unavailable");
+
+    const auto previous_minimum = logger.minimum_level();
+    STORM_CHECK(!logger.set_minimum_level(static_cast<LogLevel>(255)));
+    STORM_CHECK(logger.minimum_level() == previous_minimum);
+
+    STORM_CHECK(logger.set_minimum_level(LogLevel::Off));
+    logger.write(LogLevel::Critical, "core", "disabled");
+    STORM_CHECK(capture.count == 2U);
+    STORM_CHECK(!logger.is_enabled(LogLevel::Critical));
+
+    logger.set_sink(nullptr);
+    STORM_CHECK(!logger.is_enabled(LogLevel::Critical));
+    logger.write(LogLevel::Critical, "core", "no sink");
+    STORM_CHECK(capture.count == 2U);
+
+    Logger sinkless_logger;
+    STORM_CHECK(!sinkless_logger.is_enabled(LogLevel::Error));
+    sinkless_logger.write(LogLevel::Error, "core", "no output sink");
 }
 
 void test_version() {
@@ -327,6 +400,7 @@ void test_fixed_step_clock_rejects_invalid_time_and_configuration() {
 int main() {
     test_version();
     test_status_values();
+    test_logging_dispatch_and_filtering();
     test_runtime_lifecycle_normal_path();
     test_runtime_lifecycle_invalid_transitions();
     test_runtime_lifecycle_failure_and_recovery();

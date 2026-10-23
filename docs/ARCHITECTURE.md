@@ -14,7 +14,7 @@ The planned dependency direction is from higher-level modules toward narrow lowe
 
 | Module | Responsibility | Current state |
 | --- | --- | --- |
-| Core | Versioning, status/error conventions, math, deterministic timing, lifecycle and low-level utilities | Version metadata, dimension-aware math, fixed-step clock, Status and RuntimeLifecycle |
+| Core | Versioning, status/error conventions, math, deterministic timing, lifecycle and low-level utilities | Version metadata, dimension-aware math, fixed-step clock, Status, RuntimeLifecycle and logging dispatch |
 | Platform | Windowing, input, monotonic clocks, filesystems, threads and OS integration | Planned |
 | Render | Render-device abstraction, resource lifetime, command submission and capabilities | Planned; no graphics API dependency yet |
 | Scene | Worlds/scenes, entities, transforms, lifecycle and serialization | Planned |
@@ -40,6 +40,12 @@ The Status type provides a shared error vocabulary and an owned diagnostic messa
 RuntimeLifecycle validates transitions among Uninitialized, Initialized, Running, Paused, Stopping, Stopped, and Failed. Invalid transitions return InvalidState and leave the state unchanged. Resource setup/teardown remains the responsibility of the future platform/runtime owner; finish_stop() is called only once resources are released. A fatal fail() stores the first failure reason and moves to Failed. Stopped and Failed require explicit reset() before the runtime can be initialized again.
 
 The initial state machine is single-owner-thread only and is not a synchronization primitive. Platform events, callbacks and shutdown requests must be marshalled to the owning runtime thread; thread-safe event delivery will be designed with the platform shell. A successful status from initialize() means the state transition was accepted, not that any OS/GPU resource has already been allocated.
+
+## Logging and diagnostics
+
+The core `Logger` applies a minimum severity filter and forwards records to a caller-provided sink. It performs no I/O, formatting, or process-global configuration. The default instance has no sink, so logging is silent until a host explicitly supplies one.
+
+A log record carries non-owning string views. They are valid only during the synchronous sink call; a sink that retains a message must copy it. The caller owns the sink context and must keep it alive while the logger uses it. Sinks must not throw. The logger is not thread-safe, so concurrent producers must serialize access externally until a dedicated diagnostics queue is designed.
 
 ## Deterministic timing
 
