@@ -16,7 +16,7 @@ The planned dependency direction is from higher-level modules toward narrow lowe
 | --- | --- | --- |
 | Core | Versioning, status/error conventions, math, deterministic timing, lifecycle and low-level utilities | Version metadata, dimension-aware vectors and tested Matrix4 transforms, fixed-step clock, RuntimeConfig, Status, RuntimeLifecycle, stable IDs and bounded diagnostics |
 | Platform | Windowing, input, monotonic clocks, filesystems, threads and OS integration | Adapter-fed input state/event queue plus an optional SDL3 desktop bootstrap; full platform runtime still planned |
-| Render | Render-device abstraction, resource lifetime, command submission and capabilities | CPU reference `SoftwareCanvas2D` with bounded `Texture2D` pixel storage and nearest-neighbor sampling, bounded in-memory `Texture2DRegistry` lookup by caller-supplied stable IDs, orthographic `Camera2D`, and `SceneRenderer2D` for explicit tinted `Renderable2D` quads; image decoding, scene-persisted asset references, production RHI and materials remain planned |
+| Render | Render-device abstraction, resource lifetime, command submission and capabilities | CPU reference `SoftwareCanvas2D` with bounded `Texture2D` pixel storage and nearest-neighbor sampling, bounded in-memory `Texture2DRegistry` lookup by caller-supplied stable IDs, bounded CPU `MeshData` indexed triangle lists, orthographic `Camera2D`, and `SceneRenderer2D` for explicit tinted `Renderable2D` quads; image decoding, scene-persisted asset references, production RHI and materials remain planned |
 | Scene / Project | Worlds/scenes, entities, transforms, lifecycle, logical paths and serialization | In-memory Scene/Entity/Transform, explicit Renderable2D quad metadata, version-2 SceneCodec with version-1 migration, atomic SceneFile storage, and syntax-validated ProjectPath; world hierarchy and OS-level project-root confinement remain future work |
 | Assets | Importers, validation, metadata, cache and cooked asset packages | Initial bounded in-memory `Texture2DRegistry` for CPU RGBA8 values; import, metadata, cache and cooked packages planned |
 | Physics | 2D/3D simulation interfaces, collision queries and fixed-step integration | Planned |
@@ -96,6 +96,8 @@ This dependency is opt-in for ordinary developers and pinned by an official sour
 ## Rendering strategy
 
 Production rendering must sit behind a Render Hardware Interface (RHI), separating engine-facing operations from specific APIs. Candidate backends include Vulkan and compatibility-oriented options where platform coverage warrants them. The SDL renderer used by the desktop demo is not that RHI and is not a production-backend selection.
+
+The MeshData API provides bounded CPU-side indexed triangle-list geometry: each vertex stores local-space position, normal and UV values; all attributes must be finite, indices must form complete triangles and remain within the vertex array, and failed replacement leaves the current mesh untouched. This is a geometry ownership/validation layer only. It has no file importer, submesh/material model, GPU allocation, culling convention or rendering backend.
 
 Before committing to a renderer, build a small proof of concept covering device selection, swapchain/surface behavior, resource lifetimes, shader compilation, mobile thermal/battery behavior, driver variation, and CI validation. A backend is not "Android supported" merely because it compiles for Android.
 

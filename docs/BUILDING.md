@@ -89,7 +89,7 @@ before intentionally changing the pinned toolchain version.
 
 The core includes a bounded binary `SceneCodec` and a `SceneFile` service. `SceneFile::load` limits input to 64 MiB and refuses to populate a non-empty destination. `SceneFile::save_atomic` writes a uniquely named temporary sibling, flushes file contents, and replaces the destination; the POSIX path also flushes the parent directory. Loading refuses non-regular files and final-component symlinks/reparse points. It does not confine paths to a project root, so applications must enforce their own project-root policy before passing paths from untrusted project metadata.
 
-The first milestone verifies the core library and unit tests. An optional SDL3 desktop prototype now opens a window and draws a moving rectangle, but there is no Android activity/APK, production RHI, editor or asset pipeline yet. A successful cross-compile alone is not evidence that the engine is ready for Android gameplay.
+The first milestone verifies the core library and unit tests. The core also includes bounded CPU MeshData for validated indexed 3D triangle lists; it does not parse model files or create GPU resources. An optional SDL3 desktop prototype now opens a window and draws a moving rectangle, but there is no Android activity/APK, production RHI, editor or asset pipeline yet. A successful cross-compile alone is not evidence that the engine is ready for Android gameplay.
 
 ## Troubleshooting
 

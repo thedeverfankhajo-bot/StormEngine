@@ -40,6 +40,7 @@ add_library(storm_core STATIC
     src/scene/scene_file.cpp
     src/render/software_canvas2d.cpp
     src/render/texture2d.cpp
+    src/render/mesh_data.cpp
     src/render/camera2d.cpp
     src/render/scene_renderer2d.cpp
 )
@@ -125,6 +126,34 @@ if(STORM_BUILD_TESTS)
     endif()
 
     add_test(NAME storm_core_tests COMMAND storm_core_tests)
+
+    add_executable(storm_mesh_data_tests
+        tests/mesh_data_test.cpp
+    )
+    target_link_libraries(storm_mesh_data_tests PRIVATE Storm::Core)
+    target_compile_features(storm_mesh_data_tests PRIVATE cxx_std_20)
+    set_target_properties(storm_mesh_data_tests PROPERTIES CXX_EXTENSIONS OFF)
+
+    if(STORM_ENABLE_WARNINGS)
+        if(MSVC)
+            target_compile_options(storm_mesh_data_tests PRIVATE /W4 /permissive-)
+        else()
+            target_compile_options(storm_mesh_data_tests PRIVATE
+                -Wall
+                -Wextra
+                -Wpedantic
+                -Wconversion
+                -Wsign-conversion
+                -Wshadow
+            )
+        endif()
+    endif()
+
+    if(STORM_ENABLE_SANITIZERS)
+        target_compile_options(storm_mesh_data_tests PRIVATE ${_storm_sanitizer_compile_options})
+    endif()
+
+    add_test(NAME storm_mesh_data_tests COMMAND storm_mesh_data_tests)
 
     if(NOT CMAKE_CROSSCOMPILING)
         # Exercise the installed package from a separate, relocated consumer project.
