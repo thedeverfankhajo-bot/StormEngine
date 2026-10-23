@@ -1,3 +1,4 @@
+#include "storm/core/diagnostic_buffer.hpp"
 #include "storm/core/fixed_step_clock.hpp"
 #include "storm/core/logging.hpp"
 #include "storm/core/runtime_config.hpp"
@@ -12,6 +13,7 @@
 
 #include <array>
 #include <cmath>
+#include <cstddef>
 #include <iostream>
 #include <limits>
 #include <string>
@@ -237,7 +239,6 @@ void test_stable_id_registry_duplicate_detection() {
     STORM_CHECK(registry.size() == 0U);
 }
 
-
 void test_secure_stable_id_generation() {
     using storm::core::StableId;
     using storm::core::StableIdGenerator;
@@ -269,6 +270,87 @@ void test_secure_stable_id_generation() {
     }
 
     STORM_CHECK(registry.size() == 8U);
+}
+
+void test_diagnostic_buffer_bounded_storage_and_counters() {
+    using storm::core::DiagnosticBuffer;
+    using storm::core::LogLevel;
+    using storm::core::Logger;
+    using storm::core::LogRecord;
+
+    using SmallBuffer = DiagnosticBuffer<2U, 4U, 8U>;
+    SmallBuffer buffer;
+    STORM_CHECK(buffer.empty());
+    STORM_CHECK(buffer.max_size() == 2U);
+    STORM_CHECK(buffer.size() == 0U);
+
+    Logger logger{SmallBuffer::capture_sink, &buffer};
+    STORM_CHECK(logger.set_minimum_level(LogLevel::Trace));
+    logger.write(LogLevel::Info, "core", "startup");
+    logger.write(LogLevel::Error, "render", "device-failed");
+    STORM_CHECK(buffer.size() == 2U);
+    STORM_CHECK(buffer.total_record_count() == 2U);
+    STORM_CHECK(buffer.dropped_count() == 0U);
+    STORM_CHECK(buffer.count_for_level(LogLevel::Info) == 1U);
+    STORM_CHECK(buffer.count_for_level(LogLevel::Error) == 1U);
+
+    const auto oldest_before_overwrite = buffer.at(0U);
+    STORM_CHECK(oldest_before_overwrite.has_value());
+    if (oldest_before_overwrite.has_value()) {
+        STORM_CHECK(oldest_before_overwrite->category == "core");
+        STORM_CHECK(oldest_before_overwrite->message == "startup");
+        STORM_CHECK(!oldest_before_overwrite->category_truncated);
+        STORM_CHECK(!oldest_before_overwrite->message_truncated);
+    }
+
+    STORM_CHECK(buffer.append(LogRecord{LogLevel::Warning, "platform-long", "message-123456"}));
+    STORM_CHECK(buffer.size() == 2U);
+    STORM_CHECK(buffer.total_record_count() == 3U);
+    STORM_CHECK(buffer.dropped_count() == 1U);
+    STORM_CHECK(buffer.count_for_level(LogLevel::Info) == 1U);
+    STORM_CHECK(buffer.count_for_level(LogLevel::Error) == 1U);
+    STORM_CHECK(buffer.count_for_level(LogLevel::Warning) == 1U);
+
+    const auto now_oldest = buffer.at(0U);
+    STORM_CHECK(now_oldest.has_value());
+    if (now_oldest.has_value()) {
+        STORM_CHECK(now_oldest->level == LogLevel::Error);
+        STORM_CHECK(now_oldest->category == "rend");
+        STORM_CHECK(now_oldest->category_truncated);
+        STORM_CHECK(now_oldest->message == "device-f");
+        STORM_CHECK(now_oldest->message_truncated);
+    }
+
+    const auto newest = buffer.at(1U);
+    STORM_CHECK(newest.has_value());
+    if (newest.has_value()) {
+        STORM_CHECK(newest->level == LogLevel::Warning);
+        STORM_CHECK(newest->category == "plat");
+        STORM_CHECK(newest->category_truncated);
+        STORM_CHECK(newest->message == "message-");
+        STORM_CHECK(newest->message_truncated);
+    }
+    STORM_CHECK(!buffer.at(2U).has_value());
+
+    const auto total_before_invalid = buffer.total_record_count();
+    STORM_CHECK(!buffer.append(LogRecord{LogLevel::Off, "test", "ignored"}));
+    STORM_CHECK(!buffer.append(LogRecord{static_cast<LogLevel>(255), "test", "invalid"}));
+    STORM_CHECK(buffer.total_record_count() == total_before_invalid);
+    STORM_CHECK(buffer.count_for_level(LogLevel::Off) == 0U);
+    STORM_CHECK(buffer.count_for_level(static_cast<LogLevel>(255)) == 0U);
+
+    logger.write(LogLevel::Critical, "runtime", "shutdown");
+    STORM_CHECK(buffer.size() == 2U);
+    STORM_CHECK(buffer.dropped_count() == 2U);
+    STORM_CHECK(buffer.count_for_level(LogLevel::Critical) == 1U);
+
+    buffer.clear();
+    STORM_CHECK(buffer.empty());
+    STORM_CHECK(buffer.size() == 0U);
+    STORM_CHECK(buffer.total_record_count() == 0U);
+    STORM_CHECK(buffer.dropped_count() == 0U);
+    STORM_CHECK(buffer.count_for_level(LogLevel::Info) == 0U);
+    STORM_CHECK(!buffer.at(0U).has_value());
 }
 
 void test_version() {
@@ -572,6 +654,7 @@ int main() {
     test_version();
     test_status_values();
     test_stable_id_validation_and_round_trip();
+    test_diagnostic_buffer_bounded_storage_and_counters();
     test_secure_stable_id_generation();
     test_stable_id_registry_duplicate_detection();
     test_runtime_config_validation();

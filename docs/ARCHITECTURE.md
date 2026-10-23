@@ -14,7 +14,7 @@ The planned dependency direction is from higher-level modules toward narrow lowe
 
 | Module | Responsibility | Current state |
 | --- | --- | --- |
-| Core | Versioning, status/error conventions, math, deterministic timing, lifecycle and low-level utilities | Version metadata, dimension-aware math, fixed-step clock, RuntimeConfig, Status, RuntimeLifecycle, stable ID values and logging dispatch |
+| Core | Versioning, status/error conventions, math, deterministic timing, lifecycle and low-level utilities | Version metadata, dimension-aware math, fixed-step clock, RuntimeConfig, Status, RuntimeLifecycle, stable IDs and bounded diagnostics |
 | Platform | Windowing, input, monotonic clocks, filesystems, threads and OS integration | Planned |
 | Render | Render-device abstraction, resource lifetime, command submission and capabilities | Planned; no graphics API dependency yet |
 | Scene | Worlds/scenes, entities, transforms, lifecycle and serialization | Planned |
@@ -50,6 +50,14 @@ The initial state machine is single-owner-thread only and is not a synchronizati
 The core `Logger` applies a minimum severity filter and forwards records to a caller-provided sink. It performs no I/O, formatting, or process-global configuration. The default instance has no sink, so logging is silent until a host explicitly supplies one.
 
 A log record carries non-owning string views. They are valid only during the synchronous sink call; a sink that retains a message must copy it. The caller owns the sink context and must keep it alive while the logger uses it. Sinks must not throw. The logger is not thread-safe, so concurrent producers must serialize access externally until a dedicated diagnostics queue is designed.
+
+## Bounded diagnostics buffer
+
+`DiagnosticBuffer<Capacity, MaxCategoryBytes, MaxMessageBytes>` stores a fixed number of copied records in a ring. The capacity and byte limits are compile-time parameters; appending a message does not allocate memory. Once full, it overwrites the oldest record and increments a saturating dropped-record counter. Per-severity and total counters include accepted records even after their entries are evicted, until `clear()` resets the buffer.
+
+Records with an invalid severity or `Off` are rejected. Long category/message fields are truncated by bytes and flagged in the returned view. Because the data is byte-oriented, callers that need valid UTF-8 must ensure truncation does not split a multi-byte sequence or use a formatting layer that does. Views returned from `at()` are non-owning and become logically invalid if their slot is overwritten, the buffer is cleared, or the buffer is destroyed. The buffer is not thread-safe; callers must serialize access.
+
+The buffer can be attached to the existing logger using `DiagnosticBuffer<...>::capture_sink`. It is a bounded in-memory diagnostics primitive, not persistent crash reporting or a multi-threaded queue.
 
 ## Stable identifiers
 

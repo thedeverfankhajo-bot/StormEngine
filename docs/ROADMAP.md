@@ -20,9 +20,10 @@ This roadmap is milestone-based, not a promise of release dates. A milestone is 
 - [x] Add a validated in-memory runtime configuration for fixed-step timing and log severity.
 - [x] Add an in-memory stable-ID registry that rejects duplicate and invalid IDs.
 - [x] Add OS-backed UUIDv4 generation with checked native secure-random APIs and no weak fallback.
-- Add diagnostic aggregation and resource ownership conventions.
+- [x] Add a fixed-capacity diagnostics ring with byte-bounded messages, severity counters, truncation flags and overwrite accounting.
+- Establish resource ownership conventions and runtime integration.
 - [x] Add a Linux AddressSanitizer/UndefinedBehaviorSanitizer CI job and instrument the core tests.
-- Continue expanding boundary/malformed-input tests and add a secure ID-generation policy.
+- Continue expanding boundary/malformed-input tests and integrate diagnostics with platform/runtime ownership.
 
 **Acceptance for the implemented primitives:** deterministic tests cover fixed-step timing boundaries, invalid input, lifecycle transitions, failure propagation and explicit recovery. The remaining runtime-kernel work is still in progress.
 
