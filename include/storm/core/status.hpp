@@ -15,7 +15,8 @@ enum class ErrorCode : std::uint16_t {
     Io,
     Parse,
     ResourceExhausted,
-    Internal
+    Internal,
+    AlreadyExists
 };
 
 class Status final {

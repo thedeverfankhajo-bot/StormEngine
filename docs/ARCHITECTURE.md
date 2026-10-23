@@ -55,7 +55,7 @@ A log record carries non-owning string views. They are valid only during the syn
 
 `StableId` stores 128 identifier bits in byte order matching the canonical UUID text representation and supports the RFC 9562 hex-and-dash format. Parsing accepts upper- or lowercase hexadecimal but rejects malformed separators and the all-zero Nil UUID, which this API reserves to mean "no ID". The default-constructed value is invalid.
 
-This value type does not generate IDs. The generation policy must be selected separately and must not rely on timestamps or weak pseudo-random sources. When generated IDs need unpredictability, use an appropriate platform cryptographic random source; see [RFC 9562, Section 6.9](https://www.rfc-editor.org/rfc/rfc9562.html#section-6.9). Persistence, duplicate detection and scene/asset ownership remain responsibilities of the future project and asset layers.
+This value type does not generate IDs. The generation policy must be selected separately and must not rely on timestamps or weak pseudo-random sources. When generated IDs need unpredictability, use an appropriate platform cryptographic random source; see [RFC 9562, Section 6.9](https://www.rfc-editor.org/rfc/rfc9562.html#section-6.9). The in-memory `StableIdRegistry` detects duplicates and missing entries using an ordered, bytewise registry with logarithmic lookup; it rejects invalid IDs and reports duplicate registration as `AlreadyExists`. It is not thread-safe. Persistence, synchronization, and scene/asset ownership remain responsibilities of future layers.
 
 ## Deterministic timing
 

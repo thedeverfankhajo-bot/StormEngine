@@ -1,9 +1,10 @@
 #include "storm/core/fixed_step_clock.hpp"
 #include "storm/core/logging.hpp"
-#include "storm/core/runtime_lifecycle.hpp"
 #include "storm/core/runtime_config.hpp"
-#include "storm/core/status.hpp"
+#include "storm/core/runtime_lifecycle.hpp"
 #include "storm/core/stable_id.hpp"
+#include "storm/core/stable_id_registry.hpp"
+#include "storm/core/status.hpp"
 #include "storm/core/version.hpp"
 #include "storm/math/vector.hpp"
 #include "storm/scene/dimension.hpp"
@@ -31,7 +32,6 @@ void check(bool condition, std::string_view expression, int line) {
 [[nodiscard]] bool nearly_equal(double left, double right, double tolerance = 1.0e-9) {
     return std::abs(left - right) <= tolerance;
 }
-
 
 struct LogCapture final {
     unsigned int count{};
@@ -103,7 +103,6 @@ void test_logging_dispatch_and_filtering() {
     sinkless_logger.write(LogLevel::Error, "core", "no output sink");
 }
 
-
 void test_stable_id_validation_and_round_trip() {
     using storm::core::StableId;
 
@@ -153,7 +152,6 @@ void test_stable_id_validation_and_round_trip() {
     STORM_CHECK(!StableId::parse("00000000-0000-0000-0000-000000000000").has_value());
 }
 
-
 void test_runtime_config_validation() {
     using storm::core::ErrorCode;
     using storm::core::LogLevel;
@@ -189,6 +187,53 @@ void test_runtime_config_validation() {
     config.simulation.max_steps_per_frame = 8U;
     config.minimum_log_level = LogLevel::Debug;
     STORM_CHECK(config.validate().ok());
+}
+
+void test_stable_id_registry_duplicate_detection() {
+    using storm::core::ErrorCode;
+    using storm::core::StableId;
+    using storm::core::StableIdRegistry;
+
+    StableIdRegistry registry;
+    STORM_CHECK(registry.empty());
+    STORM_CHECK(registry.size() == 0U);
+
+    const auto first = StableId::parse("f81d4fae-7dec-11d0-a765-00a0c91e6bf6");
+    const auto second = StableId::parse("f81d4fae-7dec-11d0-a765-00a0c91e6bf7");
+    STORM_CHECK(first.has_value());
+    STORM_CHECK(second.has_value());
+    if (!first.has_value() || !second.has_value()) {
+        return;
+    }
+
+    STORM_CHECK(registry.register_id(*first).ok());
+    STORM_CHECK(registry.contains(*first));
+    STORM_CHECK(!registry.contains(*second));
+    STORM_CHECK(registry.size() == 1U);
+
+    const auto duplicate = registry.register_id(*first);
+    STORM_CHECK(!duplicate.ok());
+    STORM_CHECK(duplicate.code() == ErrorCode::AlreadyExists);
+    STORM_CHECK(registry.size() == 1U);
+
+    const auto missing = registry.unregister_id(*second);
+    STORM_CHECK(!missing.ok());
+    STORM_CHECK(missing.code() == ErrorCode::NotFound);
+
+    const StableId invalid;
+    STORM_CHECK(registry.register_id(invalid).code() == ErrorCode::InvalidArgument);
+    STORM_CHECK(registry.unregister_id(invalid).code() == ErrorCode::InvalidArgument);
+    STORM_CHECK(registry.size() == 1U);
+
+    STORM_CHECK(registry.register_id(*second).ok());
+    STORM_CHECK(registry.size() == 2U);
+    STORM_CHECK(registry.unregister_id(*first).ok());
+    STORM_CHECK(!registry.contains(*first));
+    STORM_CHECK(registry.contains(*second));
+
+    registry.clear();
+    STORM_CHECK(registry.empty());
+    STORM_CHECK(registry.size() == 0U);
 }
 
 void test_version() {
@@ -492,6 +537,7 @@ int main() {
     test_version();
     test_status_values();
     test_stable_id_validation_and_round_trip();
+    test_stable_id_registry_duplicate_detection();
     test_runtime_config_validation();
     test_logging_dispatch_and_filtering();
     test_runtime_lifecycle_normal_path();
