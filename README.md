@@ -15,9 +15,9 @@ The long-term goal is one coherent runtime and toolchain for 1D, 2D, and 3D expe
 
 ## Current status
 
-**Stage:** portable core / runtime lifecycle primitives.
+**Stage:** portable core / initial in-memory 1D, 2D and 3D scene model.
 
-The repository contains version metadata, 1D/2D/3D math primitives, scene dimension metadata, a bounded fixed-step clock, a shared status/error model, a validated runtime lifecycle state machine, UUID-compatible 128-bit stable identifiers with OS-backed version-4 generation, parsing/formatting and an in-memory duplicate-detecting registry, validated in-memory runtime configuration, dependency-free severity-filtered logging dispatch and a bounded no-heap diagnostics ring buffer, a test executable, CMake build/install configuration, multi-platform CI, security guidance, and an architecture roadmap. These components are foundational building blocks, not claims of feature parity with mature engines.
+The repository contains version metadata, 1D/2D/3D math primitives, a dimension-aware in-memory Scene/Entity/Transform model, a bounded fixed-step clock, a shared status/error model, a validated runtime lifecycle state machine, UUID-compatible 128-bit stable identifiers with OS-backed version-4 generation, parsing/formatting and an in-memory duplicate-detecting registry, validated in-memory runtime configuration, dependency-free severity-filtered logging dispatch and a bounded no-heap diagnostics ring buffer, a test executable, CMake build/install configuration, multi-platform CI, security guidance, and an architecture roadmap. The scene model validates finite dimension-matched transforms, bounds entity counts and names, owns entity storage, and uses OS-generated stable identifiers. It is currently in-memory only and does not serialize scenes. These components are foundational building blocks, not claims of feature parity with mature engines.
 
 See:
 - [Architecture](docs/ARCHITECTURE.md)

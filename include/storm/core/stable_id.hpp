@@ -138,4 +138,21 @@ private:
     Bytes bytes_{};
 };
 
+
+// Deterministic bytewise ordering shared by scene ownership and ID registries.
+// Byte order follows the canonical UUID representation, not host-endian integer order.
+struct StableIdLess final {
+    [[nodiscard]] bool operator()(const StableId& left, const StableId& right) const noexcept {
+        const auto& left_bytes = left.bytes();
+        const auto& right_bytes = right.bytes();
+
+        for (std::size_t index = 0U; index < StableId::byte_count; ++index) {
+            if (left_bytes[index] != right_bytes[index]) {
+                return left_bytes[index] < right_bytes[index];
+            }
+        }
+        return false;
+    }
+};
+
 } // namespace storm::core

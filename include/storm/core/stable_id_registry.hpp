@@ -8,21 +8,6 @@
 
 namespace storm::core {
 
-// Deterministic bytewise ordering for stable IDs; no attacker-controlled hash collisions.
-struct StableIdLess final {
-    [[nodiscard]] bool operator()(const StableId& left, const StableId& right) const noexcept {
-        const auto& left_bytes = left.bytes();
-        const auto& right_bytes = right.bytes();
-
-        for (std::size_t index = 0U; index < StableId::byte_count; ++index) {
-            if (left_bytes[index] != right_bytes[index]) {
-                return left_bytes[index] < right_bytes[index];
-            }
-        }
-        return false;
-    }
-};
-
 // In-memory duplicate detector for IDs discovered while loading a project or asset index.
 // It does not generate IDs, own the resources identified by them, or provide synchronization.
 class StableIdRegistry final {

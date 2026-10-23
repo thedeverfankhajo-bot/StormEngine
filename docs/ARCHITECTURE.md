@@ -17,7 +17,7 @@ The planned dependency direction is from higher-level modules toward narrow lowe
 | Core | Versioning, status/error conventions, math, deterministic timing, lifecycle and low-level utilities | Version metadata, dimension-aware math, fixed-step clock, RuntimeConfig, Status, RuntimeLifecycle, stable IDs and bounded diagnostics |
 | Platform | Windowing, input, monotonic clocks, filesystems, threads and OS integration | Planned |
 | Render | Render-device abstraction, resource lifetime, command submission and capabilities | Planned; no graphics API dependency yet |
-| Scene | Worlds/scenes, entities, transforms, lifecycle and serialization | Planned |
+| Scene | Worlds/scenes, entities, transforms, lifecycle and serialization | Initial in-memory Scene/Entity/Transform API; versioned serialization is not implemented |
 | Assets | Importers, validation, metadata, cache and cooked asset packages | Planned |
 | Physics | 2D/3D simulation interfaces, collision queries and fixed-step integration | Planned |
 | Audio | Device abstraction, spatial audio and asset streaming | Planned |
@@ -84,6 +84,12 @@ Before committing to a renderer, build a small proof of concept covering device 
 - Simulation timing should be separate from rendering frequency. Fixed-step simulation and interpolation are available as a core primitive; integration into an actual runtime loop remains future work.
 - The ECS versus scene-graph/entity API must be decided with representative workloads and editor requirements, not fashion alone.
 - Scene and asset formats must be versioned, validated, and have migration policies before they become long-term user data.
+
+## Scene, entities and transforms
+
+The initial `Scene` owns its `Entity` objects in an ordered map keyed by secure UUIDv4 `StableId` values. Creation is synchronous, reports failures using the shared `Status` vocabulary, and changes the caller's output ID only when insertion succeeds. Scene entity count and entity-name length are bounded; empty names and embedded NUL bytes are rejected. Map lookup is logarithmic, and pointers returned by `find_entity()` are non-owning and must not outlive the scene or the referenced entity.
+
+A scene has exactly one validated `Dimension`. Each entity starts with the matching `Transform1D`, `Transform2D`, or `Transform3D`; transform updates reject non-finite components and cross-dimension values without changing the old transform. This is a small in-memory ownership/API foundation, not yet a world hierarchy, component system, persistence format, or renderer contract. Scenes are single-owner-thread only. Transform angles are in radians, while axis order, handedness and renderer/physics conventions remain open decisions to document before those systems depend on them.
 
 ## Assets and extensions
 

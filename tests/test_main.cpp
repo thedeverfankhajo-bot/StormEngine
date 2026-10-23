@@ -10,6 +10,8 @@
 #include "storm/core/version.hpp"
 #include "storm/math/vector.hpp"
 #include "storm/scene/dimension.hpp"
+#include "storm/scene/scene.hpp"
+#include "storm/scene/transform.hpp"
 
 #include <array>
 #include <cmath>
@@ -353,6 +355,166 @@ void test_diagnostic_buffer_bounded_storage_and_counters() {
     STORM_CHECK(!buffer.at(0U).has_value());
 }
 
+void test_dimension_aware_transforms() {
+    using storm::scene::Dimension;
+    using storm::scene::Transform;
+    using storm::scene::Transform1D;
+    using storm::scene::Transform2D;
+    using storm::scene::Transform3D;
+
+    const auto one = Transform::for_dimension(Dimension::One);
+    const auto two = Transform::for_dimension(Dimension::Two);
+    const auto three = Transform::for_dimension(Dimension::Three);
+    STORM_CHECK(one.has_value());
+    STORM_CHECK(two.has_value());
+    STORM_CHECK(three.has_value());
+    STORM_CHECK(!Transform::for_dimension(static_cast<Dimension>(99)).has_value());
+
+    if (one.has_value()) {
+        STORM_CHECK(one->dimension() == Dimension::One);
+        STORM_CHECK(one->is_finite());
+        STORM_CHECK(std::holds_alternative<Transform1D>(one->data()));
+    }
+    if (two.has_value()) {
+        STORM_CHECK(two->dimension() == Dimension::Two);
+        STORM_CHECK(two->is_finite());
+        STORM_CHECK(std::holds_alternative<Transform2D>(two->data()));
+    }
+    if (three.has_value()) {
+        STORM_CHECK(three->dimension() == Dimension::Three);
+        STORM_CHECK(three->is_finite());
+        STORM_CHECK(std::holds_alternative<Transform3D>(three->data()));
+    }
+
+    const float not_a_number = std::numeric_limits<float>::quiet_NaN();
+    STORM_CHECK((!Transform{Transform1D{not_a_number, 1.0F}}.is_finite()));
+    STORM_CHECK((!Transform{Transform2D{storm::math::Vec2{0.0F, 0.0F},
+                                       std::numeric_limits<float>::infinity(),
+                                       storm::math::Vec2{1.0F, 1.0F}}}
+                      .is_finite()));
+    STORM_CHECK((!Transform{Transform3D{storm::math::Vec3{0.0F, not_a_number, 0.0F},
+                                       storm::math::Vec3{},
+                                       storm::math::Vec3{1.0F, 1.0F, 1.0F}}}
+                      .is_finite()));
+}
+
+void test_scene_entity_lifecycle_and_validation() {
+    using storm::core::ErrorCode;
+    using storm::core::StableId;
+    using storm::scene::Dimension;
+    using storm::scene::Entity;
+    using storm::scene::Scene;
+    using storm::scene::Transform;
+    using storm::scene::Transform2D;
+    using storm::scene::Transform3D;
+
+    const auto sentinel = StableId::parse("f81d4fae-7dec-11d0-a765-00a0c91e6bf6");
+    STORM_CHECK(sentinel.has_value());
+    if (!sentinel.has_value()) {
+        return;
+    }
+
+    Scene scene{Dimension::Two, 2U};
+    STORM_CHECK(scene.validate().ok());
+    STORM_CHECK(scene.dimension() == Dimension::Two);
+    STORM_CHECK(scene.max_entities() == 2U);
+    STORM_CHECK(scene.entity_count() == 0U);
+
+    StableId output = *sentinel;
+    STORM_CHECK(scene.create_entity("", output).code() == ErrorCode::InvalidArgument);
+    STORM_CHECK(output == *sentinel);
+
+    const std::string too_long_name(Entity::max_name_bytes + 1U, 'x');
+    STORM_CHECK(scene.create_entity(too_long_name, output).code() == ErrorCode::InvalidArgument);
+    STORM_CHECK(output == *sentinel);
+
+    const std::string embedded_nul{"bad\0name", 8U};
+    STORM_CHECK(scene.create_entity(embedded_nul, output).code() == ErrorCode::InvalidArgument);
+    STORM_CHECK(output == *sentinel);
+
+    STORM_CHECK(scene.create_entity("Player", output).ok());
+    const StableId player_id = output;
+    STORM_CHECK(player_id != *sentinel);
+    STORM_CHECK(scene.entity_count() == 1U);
+
+    Entity* player = scene.find_entity(player_id);
+    STORM_CHECK(player != nullptr);
+    if (player == nullptr) {
+        return;
+    }
+    STORM_CHECK(player->id() == player_id);
+    STORM_CHECK(player->name() == "Player");
+    STORM_CHECK(player->transform().dimension() == Dimension::Two);
+    STORM_CHECK(std::holds_alternative<Transform2D>(player->transform().data()));
+
+    const Transform original_transform = player->transform();
+    const auto wrong_dimension = player->set_transform(Transform{Transform3D{}});
+    STORM_CHECK(wrong_dimension.code() == ErrorCode::InvalidArgument);
+    STORM_CHECK(player->transform().dimension() == original_transform.dimension());
+    STORM_CHECK(std::holds_alternative<Transform2D>(player->transform().data()));
+
+    const float not_a_number = std::numeric_limits<float>::quiet_NaN();
+    const Transform non_finite{Transform2D{storm::math::Vec2{not_a_number, 0.0F}, 0.0F,
+                                           storm::math::Vec2{1.0F, 1.0F}}};
+    STORM_CHECK(player->set_transform(non_finite).code() == ErrorCode::InvalidArgument);
+    STORM_CHECK(player->transform().is_finite());
+
+    const Transform moved{Transform2D{storm::math::Vec2{3.0F, 4.0F}, 1.25F,
+                                      storm::math::Vec2{2.0F, 3.0F}}};
+    STORM_CHECK(player->set_transform(moved).ok());
+    const auto* moved_value = std::get_if<Transform2D>(&player->transform().data());
+    STORM_CHECK(moved_value != nullptr);
+    if (moved_value != nullptr) {
+        STORM_CHECK((moved_value->position == storm::math::Vec2{3.0F, 4.0F}));
+        STORM_CHECK(moved_value->rotation_radians == 1.25F);
+        STORM_CHECK((moved_value->scale == storm::math::Vec2{2.0F, 3.0F}));
+    }
+
+    STORM_CHECK(scene.create_entity("Enemy", output).ok());
+    const StableId enemy_id = output;
+    STORM_CHECK(scene.entity_count() == 2U);
+    STORM_CHECK(scene.find_entity(enemy_id) != nullptr);
+
+    const StableId last_successful_output = output;
+    STORM_CHECK(scene.create_entity("Overflow", output).code() == ErrorCode::ResourceExhausted);
+    STORM_CHECK(output == last_successful_output);
+    STORM_CHECK(scene.entity_count() == 2U);
+
+    STORM_CHECK(scene.destroy_entity(player_id).ok());
+    STORM_CHECK(scene.find_entity(player_id) == nullptr);
+    STORM_CHECK(scene.entity_count() == 1U);
+    STORM_CHECK(scene.destroy_entity(player_id).code() == ErrorCode::NotFound);
+    STORM_CHECK(scene.destroy_entity(StableId{}).code() == ErrorCode::InvalidArgument);
+
+    STORM_CHECK(scene.create_entity("Replacement", output).ok());
+    STORM_CHECK(scene.entity_count() == 2U);
+    STORM_CHECK(scene.find_entity(output) != nullptr);
+
+    Scene invalid_dimension{static_cast<Dimension>(99U), 2U};
+    STORM_CHECK(invalid_dimension.validate().code() == ErrorCode::InvalidArgument);
+    const StableId unchanged = output;
+    STORM_CHECK(invalid_dimension.create_entity("Invalid", output).code() ==
+                ErrorCode::InvalidArgument);
+    STORM_CHECK(output == unchanged);
+
+    Scene invalid_capacity{Dimension::One, 0U};
+    STORM_CHECK(invalid_capacity.validate().code() == ErrorCode::InvalidArgument);
+    Scene excessive_capacity{Dimension::One, Scene::maximum_allowed_entities + 1U};
+    STORM_CHECK(excessive_capacity.validate().code() == ErrorCode::InvalidArgument);
+
+    constexpr std::array dimensions{Dimension::One, Dimension::Two, Dimension::Three};
+    for (const Dimension dimension : dimensions) {
+        Scene dimension_scene{dimension, 1U};
+        StableId dimension_id;
+        STORM_CHECK(dimension_scene.create_entity("Dimensional", dimension_id).ok());
+        const Entity* entity = dimension_scene.find_entity(dimension_id);
+        STORM_CHECK(entity != nullptr);
+        if (entity != nullptr) {
+            STORM_CHECK(entity->transform().dimension() == dimension);
+        }
+    }
+}
+
 void test_version() {
     STORM_CHECK(storm::version() == storm::kVersion);
     STORM_CHECK(storm::version() == (storm::Version{0, 1, 0}));
@@ -657,6 +819,8 @@ int main() {
     test_diagnostic_buffer_bounded_storage_and_counters();
     test_secure_stable_id_generation();
     test_stable_id_registry_duplicate_detection();
+    test_dimension_aware_transforms();
+    test_scene_entity_lifecycle_and_validation();
     test_runtime_config_validation();
     test_logging_dispatch_and_filtering();
     test_runtime_lifecycle_normal_path();
