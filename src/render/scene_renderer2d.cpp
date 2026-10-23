@@ -78,14 +78,14 @@ void draw_entity(void* opaque, const scene::Entity& entity) noexcept {
 
 } // namespace
 
-core::Status SceneRenderer2D::render(const scene::Scene& scene, const Camera2D& camera,
+core::Status SceneRenderer2D::render(const scene::Scene& source_scene, const Camera2D& camera,
                                      SoftwareCanvas2D& canvas, Rgba8 clear_color,
                                      Rgba8 entity_color) {
-    const core::Status scene_status = scene.validate();
+    const core::Status scene_status = source_scene.validate();
     if (!scene_status.ok()) {
         return scene_status;
     }
-    if (scene.dimension() != scene::Dimension::Two) {
+    if (source_scene.dimension() != storm::scene::Dimension::Two) {
         return core::Status::failure(
             core::ErrorCode::Unsupported, "SceneRenderer2D only renders 2D scenes");
     }
@@ -108,8 +108,8 @@ core::Status SceneRenderer2D::render(const scene::Scene& scene, const Camera2D& 
     // Validate every transform and transformed unit quad before touching the prior framebuffer.
     // Scene and canvas are single-owner-thread objects; the second traversal sees the same entities.
     PreflightContext preflight{*world_to_pixel, true};
-    const std::size_t validated = scene.visit_entities(&preflight, &validate_entity);
-    if (!preflight.valid || validated != scene.entity_count()) {
+    const std::size_t validated = source_scene.visit_entities(&preflight, &validate_entity);
+    if (!preflight.valid || validated != source_scene.entity_count()) {
         return core::Status::failure(
             core::ErrorCode::InvalidArgument,
             "scene contains a transform that cannot be represented by the 2D renderer");
@@ -117,8 +117,8 @@ core::Status SceneRenderer2D::render(const scene::Scene& scene, const Camera2D& 
 
     canvas.clear(clear_color);
     DrawContext drawing{&canvas, *world_to_pixel, entity_color, true};
-    const std::size_t rendered = scene.visit_entities(&drawing, &draw_entity);
-    if (!drawing.succeeded || rendered != scene.entity_count()) {
+    const std::size_t rendered = source_scene.visit_entities(&drawing, &draw_entity);
+    if (!drawing.succeeded || rendered != source_scene.entity_count()) {
         return core::Status::failure(
             core::ErrorCode::Internal, "2D scene rendering failed after transform validation");
     }
