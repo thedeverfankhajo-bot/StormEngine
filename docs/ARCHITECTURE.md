@@ -89,7 +89,7 @@ This is a timing primitive, not a complete runtime loop. The platform layer will
 
 ## Desktop platform bootstrap
 
-The optional \`STORM_BUILD_SDL3_DEMO\` target uses SDL3 3.4.18 for a desktop window, keyboard/mouse event pumping and a minimal interactive 2D sample. The adapter maps supported SDL physical scancodes to the engine-owned `KeyCode` enum, so gameplay code does not depend on SDL numeric scancode values. It routes events through \`PlatformEventQueue\`, consumes focus/resize/input events on one owner thread, releases held inputs after focus loss or queue overflow, and advances movement through the existing fixed-step clock.
+The optional `STORM_BUILD_SDL3_DEMO` target uses SDL3 3.4.18 for a desktop window, keyboard/mouse event pumping and a minimal interactive 2D sample. The adapter maps supported SDL physical scancodes to the engine-owned `KeyCode` enum, so gameplay code does not depend on SDL numeric scancode values. It routes events through `PlatformEventQueue`, consumes focus/resize/input events on one owner thread, releases held inputs after focus loss or queue overflow, and advances movement through the existing fixed-step clock.
 
 This dependency is opt-in for ordinary developers and pinned by an official source-archive SHA-256; desktop CI opts in to build it on Linux, macOS and Windows. The SDL renderer is used only to prove window/event/frame integration. The engine-facing render-device abstraction, GPU-resource lifetime model, texture/sprite asset pipeline and 3D RHI remain unimplemented. Android application glue, APK packaging and device lifecycle tests are separate work; building the SDL source alone would not establish Android app support.
 
@@ -140,6 +140,6 @@ The following choices should be recorded as Architecture Decision Records before
 
 ## Project-relative logical paths
 
-\`storm/project/project_path.hpp\` defines the version-1 \`ProjectPath\` value. It rejects absolute/traversal spellings, ambiguous backslashes and colons, Windows-invalid/reserved names, malformed UTF-8, overlong segments and excessive segment counts. It preserves accepted spelling byte-for-byte so logical path comparison is deterministic.
+`storm/project/project_path.hpp` defines the version-1 `ProjectPath` value. It rejects absolute/traversal spellings, ambiguous backslashes and colons, Windows-invalid/reserved names, malformed UTF-8, overlong segments and excessive segment counts. It preserves accepted spelling byte-for-byte so logical path comparison is deterministic.
 
-\`ProjectPath\` is deliberately not the filesystem sandbox: it does not resolve symlinks or open files. \`SceneFile\` still accepts \`std::filesystem::path\`; code receiving untrusted project metadata must not treat \`ProjectPath\` syntax validation alone as authorization to access a disk location. A future root-confined service must anchor operations to an opened root directory/handle and test symlink, reparse-point, mount and race cases on supported operating systems.
+`ProjectPath` is deliberately not the filesystem sandbox: it does not resolve symlinks or open files. `SceneFile` still accepts `std::filesystem::path`; code receiving untrusted project metadata must not treat `ProjectPath` syntax validation alone as authorization to access a disk location. A future root-confined service must anchor operations to an opened root directory/handle and test symlink, reparse-point, mount and race cases on supported operating systems.
