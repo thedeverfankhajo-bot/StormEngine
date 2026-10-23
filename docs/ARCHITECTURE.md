@@ -37,7 +37,11 @@ The planned dependency direction is from higher-level modules toward narrow lowe
 
 `storm/platform/input_state.hpp` provides a fixed-capacity, allocation-free state snapshot for 256 adapter-fed key slots and 8 pointer-button slots. Adapters update held state as native events arrive; `begin_frame()` clears edge flags while preserving held controls. Press and release edges are both retained if both transitions happen within one frame. `release_all()` publishes release edges for all held controls so a focus loss or device detach cannot leave a key stuck; `reset()` clears all state without publishing edges.
 
-The primitive validates slot bounds, does not poll OS devices, and does not define a cross-platform key-code mapping or deliver events. Those contracts belong to the chosen platform adapter and must be documented before a native backend is selected. Like the initial runtime kernel, it is single-owner-thread only and provides no synchronization for concurrent event producers.
+The primitive validates slot bounds, does not poll OS devices, and does not deliver events. `KeyCode` provides stable names for common physical keyboard keys; adapters translate native scan codes into those names. Text entry, IME and localized character events remain separate from physical key state. Like the initial runtime kernel, it is single-owner-thread only and provides no synchronization for concurrent event producers.
+
+## Stable keyboard codes
+
+`storm/platform/key_code.hpp` defines named physical-key codes for letters, digits, common navigation/control keys, F1–F12 and left/right modifiers. These names are engine-owned and independent of SDL numeric enums. Letter/digit names represent physical key positions, not translated text characters. Platform adapters map native key positions into this enum; text input, IME, dead keys and localized characters belong to a separate text-input service. `KeyCode::Count` is a sentinel and is rejected as a key/event value.
 
 ## Bounded platform event queue
 
@@ -85,7 +89,7 @@ This is a timing primitive, not a complete runtime loop. The platform layer will
 
 ## Desktop platform bootstrap
 
-The optional \`STORM_BUILD_SDL3_DEMO\` target uses SDL3 3.4.18 for a desktop window, keyboard/mouse event pumping and a minimal interactive 2D sample. The adapter maps SDL physical scancodes below 256 directly to provisional input slots for this prototype; this is not yet a stable named cross-platform key mapping. It routes events through \`PlatformEventQueue\`, consumes focus/resize/input events on one owner thread, releases held inputs after focus loss or queue overflow, and advances movement through the existing fixed-step clock.
+The optional \`STORM_BUILD_SDL3_DEMO\` target uses SDL3 3.4.18 for a desktop window, keyboard/mouse event pumping and a minimal interactive 2D sample. The adapter maps supported SDL physical scancodes to the engine-owned `KeyCode` enum, so gameplay code does not depend on SDL numeric scancode values. It routes events through \`PlatformEventQueue\`, consumes focus/resize/input events on one owner thread, releases held inputs after focus loss or queue overflow, and advances movement through the existing fixed-step clock.
 
 This dependency is opt-in for ordinary developers and pinned by an official source-archive SHA-256; desktop CI opts in to build it on Linux, macOS and Windows. The SDL renderer is used only to prove window/event/frame integration. The engine-facing render-device abstraction, GPU-resource lifetime model, texture/sprite asset pipeline and 3D RHI remain unimplemented. Android application glue, APK packaging and device lifecycle tests are separate work; building the SDL source alone would not establish Android app support.
 
