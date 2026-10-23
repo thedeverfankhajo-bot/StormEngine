@@ -36,7 +36,7 @@
           <p data-t="projection-intro">Change the camera settings and inspect the resulting right-handed perspective matrix. Near and far depth mappings update live; the diagram is illustrative and the matrix values are authoritative.</p>
         </div>
         <div class="projection-workbench">
-          <form class="projection-controls" aria-label="Perspective projection controls" data-ta="aria-label" data-t="projection-controls-label">
+          <div class="projection-controls" role="group" aria-label="Perspective projection controls" data-ta="aria-label" data-t="projection-controls-label">
             <div class="projection-field">
               <label for="projection-fov" data-t="projection-fov-label">Vertical field of view</label>
               <div class="projection-range-line"><input id="projection-fov" name="projection-fov" type="range" min="5" max="175" step="1" value="70" aria-describedby="projection-fov-help"><output id="projection-fov-value" for="projection-fov">70°</output></div>
@@ -63,7 +63,7 @@
               </select>
             </div>
             <p class="projection-help projection-depth-help" data-t="projection-depth-help">Select the convention explicitly. StormEngine does not guess the graphics backend's clip-space depth range.</p>
-          </form>
+          </div>
           <div class="projection-visual-card">
             <div class="projection-visual-toolbar"><span data-t="projection-preview-label">Frustum preview</span><span class="mono">RH · CAMERA −Z</span></div>
             <canvas id="projection-canvas" width="900" height="360" aria-label="Illustrative perspective frustum diagram" data-ta="aria-label" data-t="projection-diagram-label"><span data-t="projection-canvas-fallback">A perspective-frustum illustration. Matrix results remain available below.</span></canvas>
