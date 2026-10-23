@@ -8,6 +8,7 @@
 #include "storm/core/stable_id_registry.hpp"
 #include "storm/core/status.hpp"
 #include "storm/core/version.hpp"
+#include "storm/math/matrix4.hpp"
 #include "storm/math/vector.hpp"
 #include "storm/platform/input_state.hpp"
 #include "storm/platform/key_code.hpp"
@@ -729,6 +730,103 @@ void test_vector_normalization_and_validation() {
                      std::numeric_limits<float>::quiet_NaN()).has_value()));
     STORM_CHECK((!Vec2{std::numeric_limits<float>::infinity(), 1.0F}.is_finite()));
     STORM_CHECK((Vec2{1.0F, 1.0F}.is_finite()));
+}
+
+
+void test_matrix4_transform_conventions() {
+    using storm::math::Matrix4;
+    using storm::math::Vec3;
+
+    const auto close = [](float left, float right) {
+        return std::abs(left - right) < 1.0e-5F;
+    };
+
+    const Matrix4 identity = Matrix4::identity();
+    STORM_CHECK(identity.is_finite());
+    STORM_CHECK(identity(0U, 0U) == 1.0F);
+    STORM_CHECK(identity(0U, 1U) == 0.0F);
+
+    const Matrix4 translated = Matrix4::translation(Vec3{5.0F, -2.0F, 4.0F});
+    STORM_CHECK(translated.values()[12U] == 5.0F);
+    STORM_CHECK(translated.values()[13U] == -2.0F);
+    STORM_CHECK(translated.values()[14U] == 4.0F);
+    const auto translated_point = translated.transform_point(Vec3{1.0F, 2.0F, 3.0F});
+    STORM_CHECK(translated_point.has_value());
+    if (translated_point.has_value()) {
+        STORM_CHECK(close((*translated_point)[0U], 6.0F));
+        STORM_CHECK(close((*translated_point)[1U], 0.0F));
+        STORM_CHECK(close((*translated_point)[2U], 7.0F));
+    }
+
+    // A translation affects points, not directions.
+    const auto direction = translated.transform_direction(Vec3{1.0F, 2.0F, 3.0F});
+    STORM_CHECK(direction.has_value());
+    if (direction.has_value()) {
+        STORM_CHECK(close((*direction)[0U], 1.0F));
+        STORM_CHECK(close((*direction)[1U], 2.0F));
+        STORM_CHECK(close((*direction)[2U], 3.0F));
+    }
+
+    const auto scaled = Matrix4::scale(Vec3{2.0F, 3.0F, 4.0F})
+                            .transform_point(Vec3{1.0F, 2.0F, 3.0F});
+    STORM_CHECK(scaled.has_value());
+    if (scaled.has_value()) {
+        STORM_CHECK(close((*scaled)[0U], 2.0F));
+        STORM_CHECK(close((*scaled)[1U], 6.0F));
+        STORM_CHECK(close((*scaled)[2U], 12.0F));
+    }
+
+    constexpr float half_turn_radians = 1.57079632679F;
+    const auto rotated_z =
+        Matrix4::rotation_z(half_turn_radians).transform_direction(Vec3{1.0F, 0.0F, 0.0F});
+    STORM_CHECK(rotated_z.has_value());
+    if (rotated_z.has_value()) {
+        STORM_CHECK(close((*rotated_z)[0U], 0.0F));
+        STORM_CHECK(close((*rotated_z)[1U], 1.0F));
+        STORM_CHECK(close((*rotated_z)[2U], 0.0F));
+    }
+    const auto rotated_x =
+        Matrix4::rotation_x(half_turn_radians).transform_direction(Vec3{0.0F, 1.0F, 0.0F});
+    STORM_CHECK(rotated_x.has_value());
+    if (rotated_x.has_value()) {
+        STORM_CHECK(close((*rotated_x)[1U], 0.0F));
+        STORM_CHECK(close((*rotated_x)[2U], 1.0F));
+    }
+    const auto rotated_y =
+        Matrix4::rotation_y(half_turn_radians).transform_direction(Vec3{0.0F, 0.0F, 1.0F});
+    STORM_CHECK(rotated_y.has_value());
+    if (rotated_y.has_value()) {
+        STORM_CHECK(close((*rotated_y)[0U], 1.0F));
+        STORM_CHECK(close((*rotated_y)[2U], 0.0F));
+    }
+
+    // Column-vector convention: A * B applies B before A.
+    const Matrix4 composed =
+        Matrix4::translation(Vec3{10.0F, 0.0F, 0.0F}) *
+        Matrix4::scale(Vec3{2.0F, 2.0F, 2.0F});
+    const auto composed_point = composed.transform_point(Vec3{1.0F, 2.0F, 3.0F});
+    STORM_CHECK(composed_point.has_value());
+    if (composed_point.has_value()) {
+        STORM_CHECK(close((*composed_point)[0U], 12.0F));
+        STORM_CHECK(close((*composed_point)[1U], 4.0F));
+        STORM_CHECK(close((*composed_point)[2U], 6.0F));
+    }
+
+    const Matrix4 transposed = translated.transposed();
+    STORM_CHECK(transposed(3U, 0U) == 5.0F);
+    STORM_CHECK(transposed(0U, 3U) == 0.0F);
+
+    Matrix4 invalid_homogeneous_w = Matrix4::identity();
+    invalid_homogeneous_w(3U, 3U) = 0.0F;
+    STORM_CHECK(!invalid_homogeneous_w.transform_point(Vec3{1.0F, 2.0F, 3.0F}).has_value());
+
+    Matrix4 non_finite = Matrix4::identity();
+    non_finite(0U, 0U) = std::numeric_limits<float>::infinity();
+    STORM_CHECK(!non_finite.is_finite());
+    STORM_CHECK(!non_finite.transform_direction(Vec3{1.0F, 0.0F, 0.0F}).has_value());
+    STORM_CHECK(!identity.transform_point(
+                    Vec3{std::numeric_limits<float>::quiet_NaN(), 0.0F, 0.0F})
+                     .has_value());
 }
 
 void test_dimensions() {
@@ -1550,6 +1648,7 @@ int main() {
     test_runtime_lifecycle_failure_and_recovery();
     test_vector_arithmetic();
     test_vector_normalization_and_validation();
+    test_matrix4_transform_conventions();
     test_dimensions();
     test_fixed_step_clock_basic_timing();
     test_fixed_step_clock_rounding_and_catch_up();

@@ -49,7 +49,7 @@ This roadmap is milestone-based, not a promise of release dates. A milestone is 
 - Define the multi-version scene migration policy and migration tests before introducing a newer format version.
 - Build import, validation, metadata, cache and cooked-asset steps.
 - Add content hashes, import diagnostics and malformed-input tests.
-- Establish the coordinate system and project settings contract.
+- [x] Record the initial world-coordinate and matrix conventions; add tested 4×4 affine matrix operations. The project settings contract remains future work.
 
 **Acceptance:** a sample scene can be imported, validated, saved, reopened and built headlessly with stable identifiers.
 

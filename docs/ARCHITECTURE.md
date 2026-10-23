@@ -14,7 +14,7 @@ The planned dependency direction is from higher-level modules toward narrow lowe
 
 | Module | Responsibility | Current state |
 | --- | --- | --- |
-| Core | Versioning, status/error conventions, math, deterministic timing, lifecycle and low-level utilities | Version metadata, dimension-aware math, fixed-step clock, RuntimeConfig, Status, RuntimeLifecycle, stable IDs and bounded diagnostics |
+| Core | Versioning, status/error conventions, math, deterministic timing, lifecycle and low-level utilities | Version metadata, dimension-aware vectors and tested Matrix4 transforms, fixed-step clock, RuntimeConfig, Status, RuntimeLifecycle, stable IDs and bounded diagnostics |
 | Platform | Windowing, input, monotonic clocks, filesystems, threads and OS integration | Adapter-fed input state/event queue plus an optional SDL3 desktop bootstrap; full platform runtime still planned |
 | Render | Render-device abstraction, resource lifetime, command submission and capabilities | Planned; no graphics API dependency yet |
 | Scene / Project | Worlds/scenes, entities, transforms, lifecycle, logical paths and serialization | In-memory Scene/Entity/Transform, bounded version-1 SceneCodec, atomic SceneFile storage, and syntax-validated ProjectPath; hierarchy, components and OS-level project-root confinement remain future work |
@@ -99,10 +99,16 @@ Production rendering must sit behind a Render Hardware Interface (RHI), separati
 
 Before committing to a renderer, build a small proof of concept covering device selection, swapchain/surface behavior, resource lifetimes, shader compilation, mobile thermal/battery behavior, driver variation, and CI validation. A backend is not "Android supported" merely because it compiles for Android.
 
+## Matrix math and coordinate conventions
+
+`storm/math/matrix4.hpp` provides a dependency-free `Matrix4` / `Mat4` value with identity, translation, scale, X/Y/Z rotations, multiplication, transpose, finite-value checks, and guarded point/direction transforms. Matrices use column-major storage while `operator()(row, column)` is indexed in mathematical row/column order. Points are column vectors, so `A * B` applies `B` first; all rotation arguments use radians.
+
+These conventions are specified in [ADR 0002](decisions/0002-coordinate-system-and-matrix-conventions.md). Matrix4 does not define a camera projection or freeze a graphics-backend upload ABI. In particular, do not reinterpret its float array as a GPU structure without an explicit backend conversion and layout check.
+
 ## Scenes, dimensions and simulation
 
 - One scene model should express a 1D, 2D, or 3D project through explicit dimension settings.
-- Transform conventions, coordinate handedness, units, angles, matrix layout, and serialization rules must be documented before renderer/physics integration.
+- The initial world-coordinate convention and matrix layout are documented in [ADR 0002](decisions/0002-coordinate-system-and-matrix-conventions.md). Scene units, projection clip-space rules, backend upload layout, and versioned matrix serialization remain unresolved until their owning subsystems need them.
 - Simulation timing should be separate from rendering frequency. Fixed-step simulation and interpolation are available as a core primitive; integration into an actual runtime loop remains future work.
 - The ECS versus scene-graph/entity API must be decided with representative workloads and editor requirements, not fashion alone.
 - Scene and asset formats must be versioned, validated, and have migration policies before they become long-term user data.
@@ -111,7 +117,7 @@ Before committing to a renderer, build a small proof of concept covering device 
 
 The initial `Scene` owns its `Entity` objects in an ordered map keyed by secure UUIDv4 `StableId` values. Creation is synchronous, reports failures using the shared `Status` vocabulary, and changes the caller's output ID only when insertion succeeds. Scene entity count and entity-name length are bounded; empty names and embedded NUL bytes are rejected. Map lookup is logarithmic, and pointers returned by `find_entity()` are non-owning and must not outlive the scene or the referenced entity.
 
-A scene has exactly one validated `Dimension`. Each entity starts with the matching `Transform1D`, `Transform2D`, or `Transform3D`; transform updates reject non-finite components and cross-dimension values without changing the old transform. Entity names can be changed after validation, while empty, oversized, or embedded-NUL names are rejected without mutating the old name. `visit_entities()` traverses the owned map in stable-ID byte order through a non-allocating callback, without exposing the storage container; callbacks must not mutate the same scene during traversal. This is a small ownership/API foundation, not yet a world hierarchy, component system, or renderer contract. The dependency-free version-1 SceneCodec provides bounded binary save/load for these records; the format is documented in [Scene format](SCENE_FORMAT.md), while multi-version migration remains future work. Scenes are single-owner-thread only. Transform angles are in radians, while axis order, handedness and renderer/physics conventions remain open decisions to document before those systems depend on them.
+A scene has exactly one validated `Dimension`. Each entity starts with the matching `Transform1D`, `Transform2D`, or `Transform3D`; transform updates reject non-finite components and cross-dimension values without changing the old transform. Entity names can be changed after validation, while empty, oversized, or embedded-NUL names are rejected without mutating the old name. `visit_entities()` traverses the owned map in stable-ID byte order through a non-allocating callback, without exposing the storage container; callbacks must not mutate the same scene during traversal. This is a small ownership/API foundation, not yet a world hierarchy, component system, or renderer contract. The dependency-free version-1 SceneCodec provides bounded binary save/load for these records; the format is documented in [Scene format](SCENE_FORMAT.md), while multi-version migration remains future work. Scenes are single-owner-thread only. Transform angles are in radians. Handedness, axis directions, positive rotation, and matrix composition conventions are recorded in ADR 0002; project units and renderer clip-space conventions remain open.
 
 ## Assets and extensions
 
