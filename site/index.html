@@ -29,6 +29,59 @@
       <div class="section-intro"><p class="section-kicker" data-t="demo-kicker">INTERACTIVE LAB / 001</p><h2 id="demo-title" data-t="demo-title">A small world you can move.</h2><p data-t="demo-intro">Move the marker with WASD, arrow keys, the buttons below, or tap the playfield. This is a browser illustration—not a build of the C++ runtime.</p><p class="demo-status"><span class="status-dot" aria-hidden="true"></span><span id="demo-status" role="status" aria-live="polite" data-t="demo-ready">Sandbox ready</span></p><div class="demo-controls"><button id="demo-pause" class="button button-secondary" type="button" data-t="pause">Pause motion</button><button id="demo-reset" class="button button-quiet" type="button" data-t="reset">Reset position</button></div><div class="direction-pad" aria-label="Move demo marker" data-ta="aria-label" data-t="direction-label"><button type="button" data-move="up" aria-label="Move up" data-ta="aria-label" data-t="move-up">↑</button><div class="direction-row"><button type="button" data-move="left" aria-label="Move left" data-ta="aria-label" data-t="move-left">←</button><button type="button" data-move="down" aria-label="Move down" data-ta="aria-label" data-t="move-down">↓</button><button type="button" data-move="right" aria-label="Move right" data-ta="aria-label" data-t="move-right">→</button></div></div></div>
       <div class="playfield-card"><div class="playfield-toolbar"><div class="window-dots" aria-hidden="true"><i></i><i></i><i></i></div><span class="mono">STORM / PLAYGROUND</span><span class="live-label"><i></i><span data-t="live">LIVE</span></span></div><div class="playfield-wrap"><canvas id="engine-canvas" width="900" height="480" tabindex="0" aria-label="Interactive two-dimensional demo. Use arrow keys or WASD to move the marker." data-ta="aria-label" data-t="canvas-label"><p>Your browser does not support the canvas demo. The rest of the site still works.</p></canvas><span class="axis-label axis-x">X →</span><span class="axis-label axis-y">Y ↓</span></div><div class="playfield-footer"><span><i class="legend-dot legend-player"></i><span data-t="player-entity">Player entity</span></span><span><i class="legend-dot legend-origin"></i><span data-t="world-origin">World origin</span></span><span class="mono">2D / XY</span></div></div>
     </div></section>
+    <section class="section-space projection-lab-section" id="projection-lab" aria-labelledby="projection-lab-title">
+      <div class="container">
+        <div class="section-heading projection-heading">
+          <div><p class="section-kicker" data-t="projection-kicker">INTERACTIVE LAB / 002</p><h2 id="projection-lab-title" data-t="projection-title">Shape a perspective camera.</h2></div>
+          <p data-t="projection-intro">Change the camera settings and inspect the resulting right-handed perspective matrix. Near and far depth mappings update live; the diagram is illustrative and the matrix values are authoritative.</p>
+        </div>
+        <div class="projection-workbench">
+          <form class="projection-controls" aria-label="Perspective projection controls" data-ta="aria-label" data-t="projection-controls-label">
+            <div class="projection-field">
+              <label for="projection-fov" data-t="projection-fov-label">Vertical field of view</label>
+              <div class="projection-range-line"><input id="projection-fov" name="projection-fov" type="range" min="5" max="175" step="1" value="70" aria-describedby="projection-fov-help"><output id="projection-fov-value" for="projection-fov">70°</output></div>
+              <p id="projection-fov-help" class="projection-help" data-t="projection-fov-help">A larger angle shows more of the world but increases perspective distortion.</p>
+            </div>
+            <div class="projection-field">
+              <label for="projection-aspect" data-t="projection-aspect-label">Viewport aspect ratio</label>
+              <select id="projection-aspect" name="projection-aspect">
+                <option value="1.7777778" data-t="projection-aspect-16-9">16:9 · widescreen</option>
+                <option value="1.6" data-t="projection-aspect-16-10">16:10</option>
+                <option value="1.3333334" data-t="projection-aspect-4-3">4:3</option>
+                <option value="1" data-t="projection-aspect-1-1">1:1 · square</option>
+              </select>
+            </div>
+            <div class="projection-field projection-plane-fields">
+              <div><label for="projection-near" data-t="projection-near-label">Near plane</label><input id="projection-near" name="projection-near" type="number" min="0.000001" max="1000000" step="any" value="0.1" inputmode="decimal"></div>
+              <div><label for="projection-far" data-t="projection-far-label">Far plane</label><input id="projection-far" name="projection-far" type="number" min="0.000001" max="1000000" step="any" value="100" inputmode="decimal"></div>
+            </div>
+            <div class="projection-field">
+              <label for="projection-depth" data-t="projection-depth-label">Normalized-device depth range</label>
+              <select id="projection-depth" name="projection-depth">
+                <option value="zero-to-one" data-t="projection-depth-zero">Zero to one · [0, 1]</option>
+                <option value="negative-one-to-one" data-t="projection-depth-negative">Negative one to one · [-1, 1]</option>
+              </select>
+            </div>
+            <p class="projection-help projection-depth-help" data-t="projection-depth-help">Select the convention explicitly. StormEngine does not guess the graphics backend's clip-space depth range.</p>
+          </form>
+          <div class="projection-visual-card">
+            <div class="projection-visual-toolbar"><span data-t="projection-preview-label">Frustum preview</span><span class="mono">RH · CAMERA −Z</span></div>
+            <canvas id="projection-canvas" width="900" height="360" aria-label="Illustrative perspective frustum diagram" data-ta="aria-label" data-t="projection-diagram-label"><span data-t="projection-canvas-fallback">A perspective-frustum illustration. Matrix results remain available below.</span></canvas>
+            <div class="projection-plane-results">
+              <p id="projection-near-result">Near plane → NDC z = 0.0000</p>
+              <p id="projection-far-result">Far plane → NDC z = 1.0000</p>
+            </div>
+            <div class="projection-matrix-heading"><span data-t="projection-matrix-title">Projection matrix · row view</span><span class="mono">FLOAT32 APPROX.</span></div>
+            <pre id="projection-matrix" class="projection-matrix" dir="ltr" aria-label="Perspective projection matrix" data-ta="aria-label" data-t="projection-matrix-label">|  1.4281  0.0000  0.0000  0.0000 |
+|  0.0000  1.4281  0.0000  0.0000 |
+|  0.0000  0.0000 -1.0010 -0.1001 |
+|  0.0000  0.0000 -1.0000  0.0000 |</pre>
+            <p class="projection-footnote" data-t="projection-footnote">The matrix is displayed by rows for readability; StormEngine's Matrix4 stores values column-major. The demo does not call a GPU API.</p>
+          </div>
+        </div>
+        <p class="projection-status" id="projection-status" role="status" aria-live="polite" data-t="projection-ready">Projection is valid. Near and far planes map to the selected depth range.</p>
+      </div>
+    </section>
     <section class="section-space" id="architecture" aria-labelledby="architecture-title"><div class="container"><div class="section-heading"><div><p class="section-kicker" data-t="arch-kicker">DESIGNED TO GROW</p><h2 id="architecture-title" data-t="arch-title">One runtime, focused modules.</h2></div><p data-t="arch-intro">Build hard foundations first. Keep platform, rendering, scene data and tools separated so each can evolve without destabilizing the core.</p></div>
       <div class="architecture-grid">
         <article class="module-card module-core"><div class="module-top"><span>01</span><b class="state-built" data-t="state-building">Building blocks</b></div><div class="module-glyph" aria-hidden="true">{ }</div><h3 data-t="mod-core">Core & Math</h3><p data-t="mod-core-desc">Versioning, status results, stable IDs, fixed-step timing, transforms, vectors, matrices and quaternion rotations.</p><a href="https://github.com/thedeverfankhajo-bot/StormEngine/tree/main/include/storm/core" rel="noopener noreferrer" data-t="link-headers">Explore headers ↗</a></article>
