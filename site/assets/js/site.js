@@ -15,7 +15,7 @@
       "metric-scenes":"Dimension-aware scenes", "metric-deps":"Third-party core runtime dependencies", "metric-license":"Open-source project license",
       "demo-kicker":"INTERACTIVE LAB / 001", "demo-title":"A small world you can move.",
       "demo-intro":"Move the marker with WASD, arrow keys, the buttons below, or tap the playfield. This is a browser illustration—not a build of the C++ runtime.",
-      "demo-ready":"Sandbox ready", pause:"Pause motion", resume:"Resume motion", reset:"Reset position",
+      "demo-ready":"Sandbox ready", "demo-paused":"Motion paused", pause:"Pause motion", resume:"Resume motion", reset:"Reset position",
       "direction-label":"Move demo marker", live:"LIVE", "canvas-label":"Interactive two-dimensional demo. Use arrow keys or WASD to move the marker.",
       "player-entity":"Player entity", "world-origin":"World origin",
       "arch-kicker":"DESIGNED TO GROW", "arch-title":"One runtime, focused modules.",
@@ -88,7 +88,7 @@
       "metric-scenes":"صحنه‌های چندبُعدی", "metric-deps":"وابستگی هستهٔ زمان‌اجرا به شخص ثالث", "metric-license":"مجوز متن‌باز پروژه",
       "demo-kicker":"آزمایشگاه تعاملی / ۰۰۱", "demo-title":"جهانی کوچک برای حرکت‌دادن.",
       "demo-intro":"نشانگر را با WASD، کلیدهای جهت‌نما، دکمه‌های پایین یا لمس میدان بازی حرکت بده. این تصویرسازی مرورگری است، نه نسخهٔ اجرایی موتور C++.",
-      "demo-ready":"محیط آزمایش آماده است", pause:"توقف حرکت", resume:"ادامهٔ حرکت", reset:"بازنشانی موقعیت",
+      "demo-ready":"محیط آزمایش آماده است", "demo-paused":"حرکت متوقف شد", pause:"توقف حرکت", resume:"ادامهٔ حرکت", reset:"بازنشانی موقعیت",
       "direction-label":"حرکت‌دادن نشانگر آزمایشی", live:"زنده", "canvas-label":"دموی دوبعدی تعاملی؛ نشانگر را با کلیدهای جهت‌نما یا WASD حرکت بده.",
       "player-entity":"موجودیت بازیکن", "world-origin":"مبدأ جهان",
       "arch-kicker":"طراحی‌شده برای رشد", "arch-title":"یک زمان‌اجرا، ماژول‌های متمرکز.",
@@ -244,8 +244,7 @@
           const temporary = document.createElement("textarea");
           temporary.value = command.textContent;
           temporary.setAttribute("readonly", "");
-          temporary.style.position = "fixed";
-          temporary.style.opacity = "0";
+          temporary.className = "clipboard-fallback";
           document.body.append(temporary);
           temporary.select();
           const ok = document.execCommand("copy");
@@ -337,7 +336,7 @@
     ctx.fillStyle = "rgba(83,224,183,.12)";
     ctx.beginPath(); ctx.arc(px, py, 18, 0, Math.PI * 2); ctx.fill();
     ctx.fillStyle = "#8ff7d2";
-    ctx.beginPath(); ctx.roundRect(px - 8, py - 8, 16, 16, 4); ctx.fill();
+    ctx.fillRect(px - 8, py - 8, 16, 16);
     ctx.strokeStyle = "#dffff5";
     ctx.strokeRect(px - 8, py - 8, 16, 16);
     ctx.restore();
