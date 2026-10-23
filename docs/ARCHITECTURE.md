@@ -14,8 +14,8 @@ The planned dependency direction is from higher-level modules toward narrow lowe
 
 | Module | Responsibility | Current state |
 | --- | --- | --- |
-| Core | Versioning, base types, math, deterministic timing and low-level utilities | Version metadata, dimension-aware math and fixed-step clock |
-| Platform | Windowing, input, clocks, filesystems, threads and OS integration | Planned |
+| Core | Versioning, status/error conventions, math, deterministic timing, lifecycle and low-level utilities | Version metadata, dimension-aware math, fixed-step clock, Status and RuntimeLifecycle |
+| Platform | Windowing, input, monotonic clocks, filesystems, threads and OS integration | Planned |
 | Render | Render-device abstraction, resource lifetime, command submission and capabilities | Planned; no graphics API dependency yet |
 | Scene | Worlds/scenes, entities, transforms, lifecycle and serialization | Planned |
 | Assets | Importers, validation, metadata, cache and cooked asset packages | Planned |
@@ -33,9 +33,17 @@ The planned dependency direction is from higher-level modules toward narrow lowe
 - Keep compiler flags target-scoped. Never force optimization flags globally; build configurations should own optimization policy.
 - Do not introduce templates, SIMD specializations, allocators, a custom ECS, or a custom container library without a measured reason.
 
+## Errors and runtime lifecycle
+
+The Status type provides a shared error vocabulary and an owned diagnostic message, so a message cannot dangle because its original temporary string disappeared. A failure cannot use ErrorCode::None; that misuse is normalized to Internal. Subsystems should return meaningful, stable error categories and include context without embedding sensitive user data.
+
+RuntimeLifecycle validates transitions among Uninitialized, Initialized, Running, Paused, Stopping, Stopped, and Failed. Invalid transitions return InvalidState and leave the state unchanged. Resource setup/teardown remains the responsibility of the future platform/runtime owner; finish_stop() is called only once resources are released. A fatal fail() stores the first failure reason and moves to Failed. Stopped and Failed require explicit reset() before the runtime can be initialized again.
+
+The initial state machine is single-owner-thread only and is not a synchronization primitive. Platform events, callbacks and shutdown requests must be marshalled to the owning runtime thread; thread-safe event delivery will be designed with the platform shell. A successful status from initialize() means the state transition was accepted, not that any OS/GPU resource has already been allocated.
+
 ## Deterministic timing
 
-The initial `FixedStepClock` accepts caller-supplied frame deltas rather than reading a platform clock. It bounds each accepted frame delta, caps the number of simulation steps requested per frame, reports discarded time explicitly, and exposes a fractional accumulator for render interpolation. Invalid (negative or non-finite) deltas are rejected without mutating state. Reconfiguration is validated and resets the accumulator so time from a previous simulation step does not leak into the new configuration.
+The initial FixedStepClock accepts caller-supplied frame deltas rather than reading a platform clock. It bounds each accepted frame delta, caps the number of simulation steps requested per frame, reports discarded time explicitly, and exposes a fractional accumulator for render interpolation. Invalid (negative or non-finite) deltas are rejected without mutating state. Reconfiguration is validated and resets the accumulator so time from a previous simulation step does not leak into the new configuration.
 
 This is a timing primitive, not a complete runtime loop. The platform layer will later provide monotonic time and lifecycle-aware pause/resume handling. Simulation determinism still depends on gameplay, physics, scheduling, and floating-point behavior; a fixed step alone does not guarantee deterministic replay or networking.
 

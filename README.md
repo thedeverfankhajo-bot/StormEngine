@@ -15,9 +15,9 @@ The long-term goal is one coherent runtime and toolchain for 1D, 2D, and 3D expe
 
 ## Current status
 
-**Stage:** portable core / deterministic runtime primitives.
+**Stage:** portable core / runtime lifecycle primitives.
 
-The repository contains version metadata, 1D/2D/3D math primitives, scene dimension metadata, a bounded fixed-step clock, a dependency-free test executable, CMake build/install configuration, multi-platform CI, security guidance, and an architecture roadmap. These components are foundational building blocks, not claims of feature parity with mature engines.
+The repository contains version metadata, 1D/2D/3D math primitives, scene dimension metadata, a bounded fixed-step clock, a shared status/error model, a validated runtime lifecycle state machine, a dependency-free test executable, CMake build/install configuration, multi-platform CI, security guidance, and an architecture roadmap. These components are foundational building blocks, not claims of feature parity with mature engines.
 
 See:
 - [Architecture](docs/ARCHITECTURE.md)

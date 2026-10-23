@@ -1,4 +1,6 @@
 #include "storm/core/fixed_step_clock.hpp"
+#include "storm/core/runtime_lifecycle.hpp"
+#include "storm/core/status.hpp"
 #include "storm/core/version.hpp"
 #include "storm/math/vector.hpp"
 #include "storm/scene/dimension.hpp"
@@ -29,6 +31,132 @@ void test_version() {
     STORM_CHECK(storm::version() == storm::kVersion);
     STORM_CHECK(storm::version() == (storm::Version{0, 1, 0}));
     STORM_CHECK(storm::version_string() == "0.1.0");
+}
+
+void test_status_values() {
+    using storm::core::ErrorCode;
+    using storm::core::Status;
+
+    const auto success = Status::success();
+    STORM_CHECK(success.ok());
+    STORM_CHECK(static_cast<bool>(success));
+    STORM_CHECK(success.code() == ErrorCode::None);
+    STORM_CHECK(success.message().empty());
+
+    const auto failure = Status::failure(ErrorCode::Parse, "invalid scene header");
+    STORM_CHECK(!failure.ok());
+    STORM_CHECK(!static_cast<bool>(failure));
+    STORM_CHECK(failure.code() == ErrorCode::Parse);
+    STORM_CHECK(failure.message() == "invalid scene header");
+
+    // Guard against accidentally constructing a failed operation with the success code.
+    const auto normalized_failure = Status::failure(ErrorCode::None, "invalid error code");
+    STORM_CHECK(!normalized_failure.ok());
+    STORM_CHECK(normalized_failure.code() == ErrorCode::Internal);
+    STORM_CHECK(normalized_failure.message() == "invalid error code");
+}
+
+void test_runtime_lifecycle_normal_path() {
+    using storm::core::ErrorCode;
+    using storm::core::RuntimeLifecycle;
+    using storm::core::RuntimeState;
+    using storm::core::runtime_state_name;
+
+    RuntimeLifecycle lifecycle;
+    STORM_CHECK(lifecycle.state() == RuntimeState::Uninitialized);
+    STORM_CHECK(!lifecycle.is_running());
+    STORM_CHECK(runtime_state_name(RuntimeState::Uninitialized) == "Uninitialized");
+    STORM_CHECK(runtime_state_name(RuntimeState::Running) == "Running");
+    STORM_CHECK(runtime_state_name(static_cast<RuntimeState>(255)) == "Unknown");
+
+    const auto start_too_early = lifecycle.start();
+    STORM_CHECK(!start_too_early.ok());
+    STORM_CHECK(start_too_early.code() == ErrorCode::InvalidState);
+    STORM_CHECK(start_too_early.message().find("Uninitialized") != std::string::npos);
+    STORM_CHECK(lifecycle.state() == RuntimeState::Uninitialized);
+
+    STORM_CHECK(lifecycle.initialize().ok());
+    STORM_CHECK(lifecycle.state() == RuntimeState::Initialized);
+    STORM_CHECK(lifecycle.initialize().code() == ErrorCode::InvalidState);
+    STORM_CHECK(lifecycle.state() == RuntimeState::Initialized);
+
+    STORM_CHECK(lifecycle.start().ok());
+    STORM_CHECK(lifecycle.is_running());
+    STORM_CHECK(lifecycle.pause().ok());
+    STORM_CHECK(lifecycle.state() == RuntimeState::Paused);
+    STORM_CHECK(!lifecycle.is_running());
+    STORM_CHECK(lifecycle.resume().ok());
+    STORM_CHECK(lifecycle.is_running());
+
+    STORM_CHECK(lifecycle.request_stop().ok());
+    STORM_CHECK(lifecycle.state() == RuntimeState::Stopping);
+    STORM_CHECK(!lifecycle.is_running());
+    STORM_CHECK(lifecycle.finish_stop().ok());
+    STORM_CHECK(lifecycle.state() == RuntimeState::Stopped);
+    STORM_CHECK(lifecycle.finish_stop().code() == ErrorCode::InvalidState);
+    STORM_CHECK(lifecycle.state() == RuntimeState::Stopped);
+
+    STORM_CHECK(lifecycle.reset().ok());
+    STORM_CHECK(lifecycle.state() == RuntimeState::Uninitialized);
+    STORM_CHECK(!lifecycle.failure_reason().has_value());
+}
+
+void test_runtime_lifecycle_invalid_transitions() {
+    using storm::core::ErrorCode;
+    using storm::core::RuntimeLifecycle;
+    using storm::core::RuntimeState;
+
+    RuntimeLifecycle lifecycle;
+    STORM_CHECK(lifecycle.pause().code() == ErrorCode::InvalidState);
+    STORM_CHECK(lifecycle.resume().code() == ErrorCode::InvalidState);
+    STORM_CHECK(lifecycle.request_stop().code() == ErrorCode::InvalidState);
+    STORM_CHECK(lifecycle.finish_stop().code() == ErrorCode::InvalidState);
+    STORM_CHECK(lifecycle.reset().code() == ErrorCode::InvalidState);
+    STORM_CHECK(lifecycle.state() == RuntimeState::Uninitialized);
+
+    STORM_CHECK(lifecycle.initialize().ok());
+    STORM_CHECK(lifecycle.request_stop().ok());
+    STORM_CHECK(lifecycle.state() == RuntimeState::Stopping);
+    STORM_CHECK(lifecycle.start().code() == ErrorCode::InvalidState);
+    STORM_CHECK(lifecycle.pause().code() == ErrorCode::InvalidState);
+    STORM_CHECK(lifecycle.reset().code() == ErrorCode::InvalidState);
+    STORM_CHECK(lifecycle.finish_stop().ok());
+    STORM_CHECK(lifecycle.reset().ok());
+}
+
+void test_runtime_lifecycle_failure_and_recovery() {
+    using storm::core::ErrorCode;
+    using storm::core::RuntimeLifecycle;
+    using storm::core::RuntimeState;
+
+    RuntimeLifecycle lifecycle;
+    STORM_CHECK(lifecycle.initialize().ok());
+    STORM_CHECK(lifecycle.start().ok());
+
+    const auto fatal = lifecycle.fail(ErrorCode::Io, "platform initialization failed");
+    STORM_CHECK(!fatal.ok());
+    STORM_CHECK(fatal.code() == ErrorCode::Io);
+    STORM_CHECK(fatal.message() == "platform initialization failed");
+    STORM_CHECK(lifecycle.state() == RuntimeState::Failed);
+    STORM_CHECK(lifecycle.failure_reason().has_value());
+    if (lifecycle.failure_reason().has_value()) {
+        STORM_CHECK(lifecycle.failure_reason()->code() == ErrorCode::Io);
+        STORM_CHECK(lifecycle.failure_reason()->message() == "platform initialization failed");
+    }
+
+    STORM_CHECK(lifecycle.start().code() == ErrorCode::InvalidState);
+    STORM_CHECK(lifecycle.fail(ErrorCode::Internal, "second failure").code() ==
+                ErrorCode::InvalidState);
+    STORM_CHECK(lifecycle.failure_reason()->message() == "platform initialization failed");
+
+    STORM_CHECK(lifecycle.reset().ok());
+    STORM_CHECK(lifecycle.state() == RuntimeState::Uninitialized);
+    STORM_CHECK(!lifecycle.failure_reason().has_value());
+    STORM_CHECK(lifecycle.initialize().ok());
+
+    const auto missing_code = lifecycle.fail(ErrorCode::None, "failure without code");
+    STORM_CHECK(missing_code.code() == ErrorCode::Internal);
+    STORM_CHECK(lifecycle.state() == RuntimeState::Failed);
 }
 
 void test_vector_arithmetic() {
@@ -198,6 +326,10 @@ void test_fixed_step_clock_rejects_invalid_time_and_configuration() {
 
 int main() {
     test_version();
+    test_status_values();
+    test_runtime_lifecycle_normal_path();
+    test_runtime_lifecycle_invalid_transitions();
+    test_runtime_lifecycle_failure_and_recovery();
     test_vector_arithmetic();
     test_vector_normalization_and_validation();
     test_dimensions();
