@@ -8,6 +8,7 @@ project(
 )
 
 include(GNUInstallDirs)
+include(CMakePackageConfigHelpers)
 
 option(STORM_ENABLE_WARNINGS "Enable strict compiler warnings for StormEngine targets" ON)
 option(STORM_ENABLE_SANITIZERS "Enable AddressSanitizer and UndefinedBehaviorSanitizer" OFF)
@@ -18,6 +19,19 @@ else()
     set(_storm_tests_default OFF)
 endif()
 option(STORM_BUILD_TESTS "Build StormEngine tests" ${_storm_tests_default})
+
+# Provide a relocatable CMake package for downstream projects.
+set(STORM_INSTALL_CMAKEDIR "${CMAKE_INSTALL_LIBDIR}/cmake/StormEngine")
+configure_package_config_file(
+    "${PROJECT_SOURCE_DIR}/cmake/StormEngineConfig.cmake.in"
+    "${PROJECT_BINARY_DIR}/StormEngineConfig.cmake"
+    INSTALL_DESTINATION "${STORM_INSTALL_CMAKEDIR}"
+)
+write_basic_package_version_file(
+    "${PROJECT_BINARY_DIR}/StormEngineConfigVersion.cmake"
+    VERSION "${PROJECT_VERSION}"
+    COMPATIBILITY SameMinorVersion
+)
 
 add_library(storm_core STATIC
     src/core/version.cpp
@@ -105,6 +119,22 @@ if(STORM_BUILD_TESTS)
     endif()
 
     add_test(NAME storm_core_tests COMMAND storm_core_tests)
+
+    if(NOT CMAKE_CROSSCOMPILING)
+        # Exercise the installed package from a separate, relocated consumer project.
+        add_test(
+            NAME storm_package_consumer
+            COMMAND "${CMAKE_COMMAND}"
+                "-DSTORM_SOURCE_DIR=${PROJECT_SOURCE_DIR}"
+                "-DSTORM_BUILD_DIR=${PROJECT_BINARY_DIR}"
+                "-DSTORM_BINARY_DIR=${PROJECT_BINARY_DIR}"
+                "-DSTORM_TEST_CONFIG=$<CONFIG>"
+                "-DSTORM_GENERATOR=${CMAKE_GENERATOR}"
+                "-DSTORM_GENERATOR_PLATFORM=${CMAKE_GENERATOR_PLATFORM}"
+                "-DSTORM_GENERATOR_TOOLSET=${CMAKE_GENERATOR_TOOLSET}"
+                -P "${PROJECT_SOURCE_DIR}/tests/cmake/package_consumer_test.cmake"
+        )
+    endif()
 endif()
 
 install(
@@ -120,5 +150,11 @@ install(
     EXPORT StormEngineTargets
     FILE StormEngineTargets.cmake
     NAMESPACE Storm::
-    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/StormEngine
+    DESTINATION "${STORM_INSTALL_CMAKEDIR}"
+)
+install(
+    FILES
+        "${PROJECT_BINARY_DIR}/StormEngineConfig.cmake"
+        "${PROJECT_BINARY_DIR}/StormEngineConfigVersion.cmake"
+    DESTINATION "${STORM_INSTALL_CMAKEDIR}"
 )

@@ -27,6 +27,23 @@ ctest --test-dir build-sanitized --output-on-failure
 
 Both the core library and test translation unit are instrumented. The repository CI runs this additional job on Ubuntu; the sanitizer option remains off by default and is not supported by this configuration on MSVC.
 
+## Install and consume the core package
+
+Install the native library and its CMake package files from an existing build:
+
+```sh
+cmake --install build --prefix stage
+```
+
+A downstream CMake project can then locate the installed package and link the exported target:
+
+```cmake
+find_package(StormEngine 0.1 CONFIG REQUIRED)
+target_link_libraries(my_game PRIVATE Storm::Core)
+```
+
+Set `CMAKE_PREFIX_PATH` to the installation prefix when configuring the downstream project, or use `StormEngine_DIR` to point directly at the directory containing `StormEngineConfig.cmake`. The package is designed to remain usable after its installation directory is moved. The normal CTest suite includes an isolated consumer build that checks package discovery, linking and execution against a relocated install.
+
 ## Secure ID entropy providers
 
 The secure ID generator uses operating-system cryptographic random sources, without third-party runtime packages: [Windows BCryptGenRandom](https://learn.microsoft.com/en-us/windows/win32/api/bcrypt/nf-bcrypt-bcryptgenrandom), [Apple SecRandomCopyBytes](https://developer.apple.com/documentation/security/secrandomcopybytes%28_%3A_%3A_%3A%29?language=objc), and Linux/Android's `/dev/urandom` kernel interface ([manual](https://man7.org/linux/man-pages/man4/urandom.4.html)). A source failure is reported rather than falling back to a weak pseudo-random generator.
