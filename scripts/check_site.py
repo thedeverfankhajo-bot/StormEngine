@@ -16,7 +16,9 @@ REQUIRED = (
     "assets/css/site.css", "assets/js/site.js", "assets/images/storm-mark.svg",
 )
 REQUIRED_IDS = {
-    "main", "architecture", "roadmap", "docs", "engine-canvas",
+    "main", "architecture", "roadmap", "docs", "engine-canvas", "projection-lab",
+    "projection-canvas", "projection-fov", "projection-aspect", "projection-near",
+    "projection-far", "projection-depth", "projection-matrix",
     "copy-command", "language-toggle", "theme-toggle",
 }
 
@@ -135,7 +137,7 @@ def main() -> int:
                     errors.append("index.html CSP is missing " + expected)
 
         html = (SITE / "index.html").read_text(encoding="utf-8")
-        for marker in ('data-t="hero-title-a"', 'data-t="roadmap-title-a"', 'data-t="docs-title"', 'data-t="reality-note"'):
+        for marker in ('data-t="hero-title-a"', 'data-t="roadmap-title-a"', 'data-t="docs-title"', 'data-t="reality-note"', 'data-t="projection-title"', 'data-t="projection-depth-label"'):
             if marker not in html:
                 errors.append("index.html missing required content marker: " + marker)
 
@@ -180,6 +182,9 @@ def main() -> int:
     javascript = js_path.read_text(encoding="utf-8")
     if "document.write(" in javascript:
         errors.append("site JavaScript uses document.write()")
+    for marker in ("function updateProjection()", "Math.fround", "projection-near-result", "projection-far-result"):
+        if marker not in javascript:
+            errors.append("site JavaScript is missing projection lab behavior: " + marker)
     if re.search(r"\b(?:fetch|XMLHttpRequest|WebSocket)\s*\(", javascript):
         errors.append("site JavaScript contains network API usage; the published page is intended to be self-contained")
 
