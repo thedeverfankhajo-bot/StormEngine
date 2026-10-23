@@ -34,7 +34,8 @@ public:
             return invalid_path("project path is not valid UTF-8");
         }
 
-        for (const unsigned char character : input) {
+        for (const char raw_character : input) {
+            const auto character = static_cast<unsigned char>(raw_character);
             if (character < 0x20U || character == 0x7fU || is_forbidden_ascii(character)) {
                 return invalid_path("project path contains a forbidden character");
             }
@@ -75,7 +76,7 @@ public:
 
         try {
             std::string candidate{input};
-            value_.swap(candidate);
+            output.value_.swap(candidate);
         } catch (const std::bad_alloc&) {
             return core::Status::failure(core::ErrorCode::ResourceExhausted, std::string{});
         }
