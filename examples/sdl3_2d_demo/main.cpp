@@ -284,7 +284,7 @@ int main(int argc, char* argv[]) {
                 }
             } else if (const auto* key =
                            std::get_if<storm::platform::KeyStateChangedEvent>(&*event)) {
-                (void)input.set_key_down(key->key_code, key->is_down);
+                (void)input.set_key_down(key->key, key->is_down);
             } else if (const auto* button =
                            std::get_if<storm::platform::PointerButtonStateChangedEvent>(&*event)) {
                 (void)input.set_pointer_button_down(button->button, button->is_down);
