@@ -4,6 +4,8 @@
 
 The long-term goal is one coherent runtime and toolchain for 1D, 2D, and 3D experiences, with desktop development first and Android as a first-class target. The project remains at an early foundational stage and does not yet provide a production renderer, editor, physics engine, asset pipeline, or complete platform runtime.
 
+**Project site:** [StormEngine on GitHub Pages](https://thedeverfankhajo-bot.github.io/StormEngine/).
+
 ## Project principles
 
 - **Native and portable:** C++20 and CMake are the starting point; Android builds use the official Android NDK CMake toolchain.
