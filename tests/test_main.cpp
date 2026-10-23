@@ -10,6 +10,7 @@
 #include "storm/core/version.hpp"
 #include "storm/math/matrix4.hpp"
 #include "storm/math/quaternion.hpp"
+#include "storm/math/projection.hpp"
 #include "storm/math/vector.hpp"
 #include "storm/platform/input_state.hpp"
 #include "storm/platform/key_code.hpp"
@@ -947,6 +948,86 @@ void test_quaternion_rotation_and_validation() {
 
     const float largest = std::numeric_limits<float>::max();
     STORM_CHECK((!Quaternion{largest, largest, largest, largest}.normalized().has_value()));
+}
+
+void test_perspective_projection_depth_ranges_and_validation() {
+    using storm::math::ClipDepthRange;
+    using storm::math::Projection;
+    using storm::math::Vec3;
+
+    constexpr float pi = 3.14159265358979323846F;
+    constexpr float half_pi = pi * 0.5F;
+    constexpr double tolerance = 1.0e-5;
+
+    const auto zero_to_one =
+        Projection::perspective_rh(half_pi, 1.0F, 1.0F, 100.0F, ClipDepthRange::ZeroToOne);
+    STORM_CHECK(zero_to_one.has_value());
+    if (!zero_to_one.has_value()) {
+        return;
+    }
+    STORM_CHECK(zero_to_one->is_finite());
+    STORM_CHECK(nearly_equal((*zero_to_one)(0U, 0U), 1.0, tolerance));
+    STORM_CHECK(nearly_equal((*zero_to_one)(1U, 1U), 1.0, tolerance));
+    STORM_CHECK((*zero_to_one)(3U, 2U) == -1.0F);
+
+    const auto near_zero_to_one = zero_to_one->transform_point(Vec3{0.0F, 0.0F, -1.0F});
+    const auto far_zero_to_one = zero_to_one->transform_point(Vec3{0.0F, 0.0F, -100.0F});
+    STORM_CHECK(near_zero_to_one.has_value());
+    STORM_CHECK(far_zero_to_one.has_value());
+    if (near_zero_to_one.has_value() && far_zero_to_one.has_value()) {
+        STORM_CHECK(nearly_equal((*near_zero_to_one)[2U], 0.0, tolerance));
+        STORM_CHECK(nearly_equal((*far_zero_to_one)[2U], 1.0, tolerance));
+    }
+
+    const auto frustum_corner = zero_to_one->transform_point(Vec3{1.0F, 1.0F, -1.0F});
+    STORM_CHECK(frustum_corner.has_value());
+    if (frustum_corner.has_value()) {
+        STORM_CHECK(nearly_equal((*frustum_corner)[0U], 1.0, tolerance));
+        STORM_CHECK(nearly_equal((*frustum_corner)[1U], 1.0, tolerance));
+    }
+
+    const auto negative_one_to_one = Projection::perspective_rh(
+        half_pi, 1.0F, 1.0F, 100.0F, ClipDepthRange::NegativeOneToOne);
+    STORM_CHECK(negative_one_to_one.has_value());
+    if (negative_one_to_one.has_value()) {
+        const auto near_gl = negative_one_to_one->transform_point(Vec3{0.0F, 0.0F, -1.0F});
+        const auto far_gl = negative_one_to_one->transform_point(Vec3{0.0F, 0.0F, -100.0F});
+        STORM_CHECK(near_gl.has_value());
+        STORM_CHECK(far_gl.has_value());
+        if (near_gl.has_value() && far_gl.has_value()) {
+            STORM_CHECK(nearly_equal((*near_gl)[2U], -1.0, tolerance));
+            STORM_CHECK(nearly_equal((*far_gl)[2U], 1.0, tolerance));
+        }
+    }
+
+    const float nan = std::numeric_limits<float>::quiet_NaN();
+    const float infinity = std::numeric_limits<float>::infinity();
+    const float largest = std::numeric_limits<float>::max();
+
+    STORM_CHECK(!Projection::perspective_rh(0.0F, 1.0F, 1.0F, 100.0F,
+                                            ClipDepthRange::ZeroToOne).has_value());
+    STORM_CHECK(!Projection::perspective_rh(pi, 1.0F, 1.0F, 100.0F,
+                                            ClipDepthRange::ZeroToOne).has_value());
+    STORM_CHECK(!Projection::perspective_rh(nan, 1.0F, 1.0F, 100.0F,
+                                            ClipDepthRange::ZeroToOne).has_value());
+    STORM_CHECK(!Projection::perspective_rh(half_pi, infinity, 1.0F, 100.0F,
+                                            ClipDepthRange::ZeroToOne).has_value());
+    STORM_CHECK(!Projection::perspective_rh(half_pi, 0.0F, 1.0F, 100.0F,
+                                            ClipDepthRange::ZeroToOne).has_value());
+    STORM_CHECK(!Projection::perspective_rh(half_pi, nan, 1.0F, 100.0F,
+                                            ClipDepthRange::ZeroToOne).has_value());
+    STORM_CHECK(!Projection::perspective_rh(half_pi, 1.0F, 0.0F, 100.0F,
+                                            ClipDepthRange::ZeroToOne).has_value());
+    STORM_CHECK(!Projection::perspective_rh(half_pi, 1.0F, nan, 100.0F,
+                                            ClipDepthRange::ZeroToOne).has_value());
+    STORM_CHECK(!Projection::perspective_rh(half_pi, 1.0F, 1.0F, 1.0F,
+                                            ClipDepthRange::ZeroToOne).has_value());
+    STORM_CHECK(!Projection::perspective_rh(half_pi, 1.0F, 1.0F, infinity,
+                                            ClipDepthRange::ZeroToOne).has_value());
+    STORM_CHECK(!Projection::perspective_rh(half_pi, 1.0F, 1.0F, 100.0F,
+                                            static_cast<ClipDepthRange>(255)).has_value());
+    STORM_CHECK(!Projection::perspective_rh(half_pi, 1.0F, largest * 0.75F, largest,
+                                            ClipDepthRange::ZeroToOne).has_value());
 }
 
 void test_matrix4_transform_conventions() {
@@ -2555,6 +2636,7 @@ int main() {
     test_vector_arithmetic();
     test_vector_normalization_and_validation();
     test_quaternion_rotation_and_validation();
+    test_perspective_projection_depth_ranges_and_validation();
     test_matrix4_transform_conventions();
     test_camera2d_world_pixel_mapping_and_validation();
     test_software_canvas2d_rasterization_and_bounds();
