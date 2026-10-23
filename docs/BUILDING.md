@@ -59,6 +59,15 @@ On a POSIX shell:
 
 Use Android Studio/Gradle with externalNativeBuild when integrating this library into an Android application. Do not hard-code compiler options in Gradle when those options belong to CMake targets. Verify the chosen NDK, Android Gradle Plugin, minimum API level and ABI against the official Android documentation for the application being built.
 
+### Android CI coverage
+
+The GitHub Actions workflow cross-compiles the native core for `arm64-v8a` using Android NDK
+`30.0.16248370` (r30 LTS) and `android-26`. The workflow installs that pinned NDK with the SDK
+manager if the hosted runner image does not already contain it. This checks the native CMake
+toolchain and core sources; it does **not** create an APK, launch an app, or replace smoke tests
+on real Android devices. Review the [official NDK release list](https://developer.android.com/ndk/downloads)
+before intentionally changing the pinned toolchain version.
+
 ## Current scope and limitations
 
 The first milestone verifies only the core library and unit tests. There is no Android activity, APK, window/surface abstraction, renderer, editor or asset pipeline yet. A successful cross-compile alone is not evidence that the engine is ready for Android gameplay.

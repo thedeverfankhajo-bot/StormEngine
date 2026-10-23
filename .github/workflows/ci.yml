@@ -33,6 +33,56 @@ jobs:
       - name: Test
         run: ctest --test-dir build -C Debug --output-on-failure
 
+  android-arm64:
+    name: Android NDK build (arm64-v8a)
+    runs-on: ubuntu-latest
+    env:
+      ANDROID_NDK_VERSION: 30.0.16248370
+      ANDROID_PLATFORM: android-26
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Locate or install pinned Android NDK
+        shell: bash
+        run: |
+          set -eu
+          : "${ANDROID_HOME:?GitHub runner must provide ANDROID_HOME}"
+          NDK_DIR="${ANDROID_HOME}/ndk/${ANDROID_NDK_VERSION}"
+          if [[ ! -f "${NDK_DIR}/build/cmake/android.toolchain.cmake" ]]; then
+            SDKMANAGER="${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager"
+            if [[ ! -x "${SDKMANAGER}" ]]; then
+              SDKMANAGER="$(find "${ANDROID_HOME}/cmdline-tools" -maxdepth 3 -type f -name sdkmanager -perm -u+x | sort -V | tail -n 1)"
+            fi
+            if [[ ! -x "${SDKMANAGER}" ]]; then
+              echo "Android sdkmanager was not found under ${ANDROID_HOME}/cmdline-tools" >&2
+              exit 1
+            fi
+            yes | "${SDKMANAGER}" --licenses >/dev/null
+            "${SDKMANAGER}" "ndk;${ANDROID_NDK_VERSION}"
+          fi
+          if [[ ! -f "${NDK_DIR}/build/cmake/android.toolchain.cmake" ]]; then
+            echo "Pinned Android NDK toolchain is missing: ${NDK_DIR}" >&2
+            exit 1
+          fi
+          echo "ANDROID_NDK_HOME=${NDK_DIR}" >> "${GITHUB_ENV}"
+          echo "Using Android NDK ${ANDROID_NDK_VERSION}"
+
+      - name: Configure Android core
+        run: >
+          cmake -S . -B build-android-arm64
+          -DCMAKE_TOOLCHAIN_FILE="${ANDROID_NDK_HOME}/build/cmake/android.toolchain.cmake"
+          -DANDROID_ABI=arm64-v8a
+          -DANDROID_PLATFORM="${ANDROID_PLATFORM}"
+          -DANDROID_STL=c++_shared
+          -DSTORM_BUILD_TESTS=OFF
+          -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build Android core
+        run: cmake --build build-android-arm64 --config Release --parallel 2
+
   sanitizers:
     name: AddressSanitizer and UBSan (ubuntu-latest)
     runs-on: ubuntu-latest
