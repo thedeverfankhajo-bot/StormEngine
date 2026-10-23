@@ -1,6 +1,6 @@
 # Third-party notices
 
-StormEngine's own project license remains undecided. The following notice applies to the optional SDL3 desktop prototype when `STORM_BUILD_SDL3_DEMO=ON`. This notice does not grant a license to StormEngine's own code.
+StormEngine's original code and documentation are licensed under the Apache License 2.0 (SPDX: `Apache-2.0`); see [`LICENSE`](LICENSE). The following notice applies to the optional SDL3 desktop prototype when `STORM_BUILD_SDL3_DEMO=ON`. SDL remains separately licensed under zlib; this notice does not modify or replace either license.
 
 ## SDL — Simple DirectMedia Layer
 
