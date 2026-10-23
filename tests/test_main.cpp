@@ -415,8 +415,105 @@ void test_dimension_aware_transforms() {
         STORM_CHECK(std::holds_alternative<Transform3D>(three->data()));
     }
 
+    if (!one.has_value() || !two.has_value() || !three.has_value()) {
+        return;
+    }
+
+    using storm::math::Vec3;
+    const auto close = [](float left, float right) {
+        return std::abs(left - right) < 1.0e-5F;
+    };
+    constexpr float quarter_turn_radians = 1.57079632679F;
+
+    const auto default_one_matrix = one->to_matrix();
+    const auto default_two_matrix = two->to_matrix();
+    const auto default_three_matrix = three->to_matrix();
+    STORM_CHECK(default_one_matrix.has_value());
+    STORM_CHECK(default_two_matrix.has_value());
+    STORM_CHECK(default_three_matrix.has_value());
+    if (default_one_matrix.has_value()) {
+        const auto point = default_one_matrix->transform_point(Vec3{2.0F, 3.0F, 4.0F});
+        STORM_CHECK(point.has_value());
+        if (point.has_value()) {
+            STORM_CHECK((*point == Vec3{2.0F, 3.0F, 4.0F}));
+        }
+    }
+    if (default_two_matrix.has_value()) {
+        const auto point = default_two_matrix->transform_point(Vec3{2.0F, 3.0F, 4.0F});
+        STORM_CHECK(point.has_value());
+        if (point.has_value()) {
+            STORM_CHECK((*point == Vec3{2.0F, 3.0F, 4.0F}));
+        }
+    }
+    if (default_three_matrix.has_value()) {
+        const auto point = default_three_matrix->transform_point(Vec3{2.0F, 3.0F, 4.0F});
+        STORM_CHECK(point.has_value());
+        if (point.has_value()) {
+            STORM_CHECK((*point == Vec3{2.0F, 3.0F, 4.0F}));
+        }
+    }
+
+    const Transform one_dimensional{Transform1D{4.0F, 2.0F}};
+    const auto one_matrix = one_dimensional.to_matrix();
+    STORM_CHECK(one_matrix.has_value());
+    if (one_matrix.has_value()) {
+        const auto point = one_matrix->transform_point(Vec3{3.0F, 2.0F, 1.0F});
+        STORM_CHECK(point.has_value());
+        if (point.has_value()) {
+            STORM_CHECK(close((*point)[0U], 10.0F));
+            STORM_CHECK(close((*point)[1U], 2.0F));
+            STORM_CHECK(close((*point)[2U], 1.0F));
+        }
+    }
+
+    const Transform two_dimensional{
+        Transform2D{storm::math::Vec2{3.0F, 4.0F}, quarter_turn_radians,
+                    storm::math::Vec2{2.0F, 3.0F}}};
+    const auto two_matrix = two_dimensional.to_matrix();
+    STORM_CHECK(two_matrix.has_value());
+    if (two_matrix.has_value()) {
+        const auto point = two_matrix->transform_point(Vec3{1.0F, 0.0F, 5.0F});
+        STORM_CHECK(point.has_value());
+        if (point.has_value()) {
+            STORM_CHECK(close((*point)[0U], 3.0F));
+            STORM_CHECK(close((*point)[1U], 6.0F));
+            STORM_CHECK(close((*point)[2U], 5.0F));
+        }
+    }
+
+    const Transform three_dimensional{
+        Transform3D{Vec3{10.0F, 0.0F, 0.0F}, Vec3{0.0F, 0.0F, quarter_turn_radians},
+                   Vec3{2.0F, 1.0F, 1.0F}}};
+    const auto three_matrix = three_dimensional.to_matrix();
+    STORM_CHECK(three_matrix.has_value());
+    if (three_matrix.has_value()) {
+        const auto point = three_matrix->transform_point(Vec3{1.0F, 0.0F, 0.0F});
+        STORM_CHECK(point.has_value());
+        if (point.has_value()) {
+            STORM_CHECK(close((*point)[0U], 10.0F));
+            STORM_CHECK(close((*point)[1U], 2.0F));
+            STORM_CHECK(close((*point)[2U], 0.0F));
+        }
+    }
+
+    const auto x_then_z = Transform{Transform3D{
+        Vec3{}, Vec3{quarter_turn_radians, 0.0F, quarter_turn_radians},
+        Vec3{1.0F, 1.0F, 1.0F}}}.to_matrix();
+    STORM_CHECK(x_then_z.has_value());
+    if (x_then_z.has_value()) {
+        const auto point = x_then_z->transform_point(Vec3{0.0F, 1.0F, 0.0F});
+        STORM_CHECK(point.has_value());
+        if (point.has_value()) {
+            // X is applied first: +Y becomes +Z, which the later Z rotation leaves unchanged.
+            STORM_CHECK(close((*point)[0U], 0.0F));
+            STORM_CHECK(close((*point)[1U], 0.0F));
+            STORM_CHECK(close((*point)[2U], 1.0F));
+        }
+    }
+
     const float not_a_number = std::numeric_limits<float>::quiet_NaN();
     STORM_CHECK((!Transform{Transform1D{not_a_number, 1.0F}}.is_finite()));
+    STORM_CHECK((!Transform{Transform1D{not_a_number, 1.0F}}.to_matrix().has_value()));
     STORM_CHECK((!Transform{Transform2D{storm::math::Vec2{0.0F, 0.0F},
                                        std::numeric_limits<float>::infinity(),
                                        storm::math::Vec2{1.0F, 1.0F}}}
