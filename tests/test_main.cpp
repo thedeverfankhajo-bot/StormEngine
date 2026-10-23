@@ -14,6 +14,7 @@
 #include "storm/platform/key_code.hpp"
 #include "storm/platform/event_queue.hpp"
 #include "storm/project/project_path.hpp"
+#include "storm/render/software_canvas2d.hpp"
 #include "storm/scene/dimension.hpp"
 #include "storm/scene/scene.hpp"
 #include "storm/scene/scene_codec.hpp"
@@ -925,6 +926,78 @@ void test_matrix4_transform_conventions() {
                      .has_value());
 }
 
+void test_software_canvas2d_rasterization_and_bounds() {
+    using storm::core::ErrorCode;
+    using storm::math::Matrix4;
+    using storm::math::Vec2;
+    using storm::math::Vec3;
+    using storm::render::Rgba8;
+    using storm::render::SoftwareCanvas2D;
+
+    SoftwareCanvas2D canvas;
+    STORM_CHECK(canvas.resize(4U, 3U).ok());
+    STORM_CHECK(canvas.width() == 4U);
+    STORM_CHECK(canvas.height() == 3U);
+    STORM_CHECK(canvas.pixel_count() == 12U);
+
+    constexpr Rgba8 background{10U, 20U, 30U, 255U};
+    constexpr Rgba8 teal{72U, 194U, 164U, 255U};
+    canvas.clear(background);
+    const Matrix4 translated = Matrix4::translation(Vec3{1.0F, 1.0F, 0.0F});
+    STORM_CHECK(canvas.draw_rect(translated, Vec2{2.0F, 1.0F}, teal).ok());
+    STORM_CHECK(canvas.pixels()[0U] == background);
+    STORM_CHECK(canvas.pixels()[5U] == teal);
+    STORM_CHECK(canvas.pixels()[6U] == teal);
+    STORM_CHECK(canvas.pixels()[4U] == background);
+    STORM_CHECK(canvas.pixels()[7U] == background);
+
+    STORM_CHECK(canvas.resize(5U, 5U).ok());
+    canvas.clear(background);
+    constexpr float quarter_turn = 1.57079632679F;
+    const Matrix4 rotated =
+        Matrix4::translation(Vec3{3.0F, 1.0F, 0.0F}) * Matrix4::rotation_z(quarter_turn);
+    STORM_CHECK(canvas.draw_rect(rotated, Vec2{2.0F, 1.0F}, teal).ok());
+    STORM_CHECK(canvas.pixels()[1U * 5U + 2U] == teal);
+    STORM_CHECK(canvas.pixels()[2U * 5U + 2U] == teal);
+    STORM_CHECK(canvas.pixels()[1U * 5U + 3U] == background);
+
+    STORM_CHECK(canvas.resize(3U, 3U).ok());
+    canvas.clear(background);
+    STORM_CHECK(canvas.draw_rect(Matrix4::translation(Vec3{-1.0F, -1.0F, 0.0F}),
+                                 Vec2{2.0F, 2.0F}, teal).ok());
+    STORM_CHECK(canvas.pixels()[0U] == teal);
+    STORM_CHECK(canvas.pixels()[1U] == background);
+    STORM_CHECK(canvas.pixels()[3U] == background);
+
+    STORM_CHECK(canvas.resize(2U, 2U).ok());
+    canvas.clear(Rgba8{0U, 0U, 0U, 255U});
+    STORM_CHECK(canvas.draw_rect(Matrix4::identity(), Vec2{1.0F, 1.0F},
+                                 Rgba8{200U, 100U, 0U, 128U}).ok());
+    STORM_CHECK(canvas.pixels()[0U] == (Rgba8{100U, 50U, 0U, 255U}));
+    STORM_CHECK(canvas.pixels()[1U] == (Rgba8{0U, 0U, 0U, 255U}));
+
+    const Rgba8 before_invalid_draw = canvas.pixels()[0U];
+    STORM_CHECK(canvas.draw_rect(Matrix4::identity(), Vec2{-1.0F, 1.0F}, teal).code() ==
+                ErrorCode::InvalidArgument);
+    Matrix4 non_finite = Matrix4::identity();
+    non_finite(0U, 0U) = std::numeric_limits<float>::infinity();
+    STORM_CHECK(canvas.draw_rect(non_finite, Vec2{1.0F, 1.0F}, teal).code() ==
+                ErrorCode::InvalidArgument);
+    STORM_CHECK(canvas.pixels()[0U] == before_invalid_draw);
+
+    STORM_CHECK(canvas.resize(8193U, 1U).code() == ErrorCode::InvalidArgument);
+    STORM_CHECK(canvas.width() == 2U);
+    STORM_CHECK(canvas.height() == 2U);
+    STORM_CHECK(canvas.pixels()[0U] == before_invalid_draw);
+    STORM_CHECK(canvas.resize(8192U, 8192U).code() == ErrorCode::ResourceExhausted);
+    STORM_CHECK(canvas.width() == 2U);
+    STORM_CHECK(canvas.height() == 2U);
+
+    STORM_CHECK(canvas.resize(0U, 0U).ok());
+    STORM_CHECK(canvas.pixel_count() == 0U);
+    STORM_CHECK(canvas.pixels().empty());
+}
+
 void test_dimensions() {
     using storm::scene::Dimension;
     using storm::scene::component_count;
@@ -1745,6 +1818,7 @@ int main() {
     test_vector_arithmetic();
     test_vector_normalization_and_validation();
     test_matrix4_transform_conventions();
+    test_software_canvas2d_rasterization_and_bounds();
     test_dimensions();
     test_fixed_step_clock_basic_timing();
     test_fixed_step_clock_rounding_and_catch_up();

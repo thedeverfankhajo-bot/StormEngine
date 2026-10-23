@@ -38,6 +38,7 @@ add_library(storm_core STATIC
     src/core/version.cpp
     src/core/stable_id_generator.cpp
     src/scene/scene_file.cpp
+    src/render/software_canvas2d.cpp
 )
 add_library(Storm::Core ALIAS storm_core)
 
