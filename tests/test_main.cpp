@@ -732,7 +732,6 @@ void test_vector_normalization_and_validation() {
     STORM_CHECK((Vec2{1.0F, 1.0F}.is_finite()));
 }
 
-
 void test_matrix4_transform_conventions() {
     using storm::math::Matrix4;
     using storm::math::Vec3;
@@ -776,9 +775,9 @@ void test_matrix4_transform_conventions() {
         STORM_CHECK(close((*scaled)[2U], 12.0F));
     }
 
-    constexpr float half_turn_radians = 1.57079632679F;
+    constexpr float quarter_turn_radians = 1.57079632679F;
     const auto rotated_z =
-        Matrix4::rotation_z(half_turn_radians).transform_direction(Vec3{1.0F, 0.0F, 0.0F});
+        Matrix4::rotation_z(quarter_turn_radians).transform_direction(Vec3{1.0F, 0.0F, 0.0F});
     STORM_CHECK(rotated_z.has_value());
     if (rotated_z.has_value()) {
         STORM_CHECK(close((*rotated_z)[0U], 0.0F));
@@ -786,14 +785,14 @@ void test_matrix4_transform_conventions() {
         STORM_CHECK(close((*rotated_z)[2U], 0.0F));
     }
     const auto rotated_x =
-        Matrix4::rotation_x(half_turn_radians).transform_direction(Vec3{0.0F, 1.0F, 0.0F});
+        Matrix4::rotation_x(quarter_turn_radians).transform_direction(Vec3{0.0F, 1.0F, 0.0F});
     STORM_CHECK(rotated_x.has_value());
     if (rotated_x.has_value()) {
         STORM_CHECK(close((*rotated_x)[1U], 0.0F));
         STORM_CHECK(close((*rotated_x)[2U], 1.0F));
     }
     const auto rotated_y =
-        Matrix4::rotation_y(half_turn_radians).transform_direction(Vec3{0.0F, 0.0F, 1.0F});
+        Matrix4::rotation_y(quarter_turn_radians).transform_direction(Vec3{0.0F, 0.0F, 1.0F});
     STORM_CHECK(rotated_y.has_value());
     if (rotated_y.has_value()) {
         STORM_CHECK(close((*rotated_y)[0U], 1.0F));
