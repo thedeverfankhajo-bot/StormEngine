@@ -63,6 +63,7 @@ This roadmap is milestone-based, not a promise of release dates. A milestone is 
 ## M4 — 3D rendering and simulation
 
 - [x] Add a dependency-free quaternion rotation primitive with axis-angle construction, validated normalization, vector rotation, Matrix4 conversion and invalid-input tests. This is a 3D math foundation only; scene transforms still use their existing Euler representation and this does not implement a 3D renderer.
+- [x] Add explicit right-handed perspective projection math for zero-to-one and negative-one-to-one clip-depth ranges, with validation, overflow checks and near/far plane tests. This is CPU math, not a production 3D renderer.
 - Evaluate renderer backends with a vertical-slice prototype.
 - Add meshes, materials, camera, lighting and shader compilation.
 - Define physics integration and fixed-step behavior based on measured needs.
