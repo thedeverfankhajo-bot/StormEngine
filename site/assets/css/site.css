@@ -20,3 +20,10 @@ html[dir="rtl"] body{text-align:right}html[dir="rtl"] .primary-nav{margin-inline
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;transition-duration:.01ms!important;animation-duration:.01ms!important;animation-iteration-count:1!important}}
 
 .clipboard-fallback{position:fixed;inset-inline-start:-10000px;top:0;width:1px;height:1px;opacity:0;pointer-events:none}
+
+.error-page{min-height:100vh;display:grid;place-items:center;padding-block:40px;background:radial-gradient(ellipse at 50% 30%,rgb(57 145 150 / 12%),transparent 32rem),var(--bg)}
+.error-content{max-width:760px;padding-block:10vh}
+.error-content .brand{margin-bottom:70px}
+.error-content .section-kicker{display:block;margin-bottom:14px}
+.error-content h1{max-width:650px;margin:0;font-size:clamp(42px,8vw,72px);letter-spacing:-.06em;line-height:1.02}
+.error-content>p:not(.section-kicker){max-width:500px;color:var(--muted);margin-block:19px 27px}
