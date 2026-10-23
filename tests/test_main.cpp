@@ -1208,7 +1208,21 @@ void test_scene_renderer2d_renders_entities_and_preserves_frame_on_invalid_input
         return;
     }
     STORM_CHECK(first->set_renderable2d(Renderable2D{}).ok());
-    STORM_CHECK(second->set_renderable2d(Renderable2D{}).ok());
+    Renderable2D second_renderable;
+    second_renderable.size = Vec2{1.5F, 0.75F};
+    second_renderable.tint_rgba = {128U, 255U, 128U, 255U};
+    STORM_CHECK(second->set_renderable2d(second_renderable).ok());
+
+    // Failed component updates must preserve the valid component already attached.
+    Renderable2D invalid_renderable = second_renderable;
+    invalid_renderable.size = Vec2{0.0F, 0.75F};
+    STORM_CHECK(second->set_renderable2d(invalid_renderable).code() == ErrorCode::InvalidArgument);
+    const auto* preserved_renderable = second->renderable2d();
+    STORM_CHECK(preserved_renderable != nullptr);
+    if (preserved_renderable != nullptr) {
+        STORM_CHECK((preserved_renderable->size == Vec2{1.5F, 0.75F}));
+        STORM_CHECK((preserved_renderable->tint_rgba == std::array<std::uint8_t, 4U>{128U, 255U, 128U, 255U}));
+    }
 
     StableId logic_id;
     STORM_CHECK(scene.create_entity("Logic only", logic_id).ok());
@@ -1219,6 +1233,20 @@ void test_scene_renderer2d_renders_entities_and_preserves_frame_on_invalid_input
     }
     Transform2D logic_transform;
     STORM_CHECK(logic_entity->set_transform(Transform{logic_transform}).ok());
+
+    // Invisible renderables stay out of the framebuffer, even when centered in the view.
+    StableId hidden_id;
+    STORM_CHECK(scene.create_entity("Hidden", hidden_id).ok());
+    auto* hidden_entity = scene.find_entity(hidden_id);
+    STORM_CHECK(hidden_entity != nullptr);
+    if (hidden_entity == nullptr) {
+        return;
+    }
+    Renderable2D hidden_renderable;
+    hidden_renderable.visible = false;
+    STORM_CHECK(hidden_entity->set_renderable2d(hidden_renderable).ok());
+    Transform2D hidden_transform;
+    STORM_CHECK(hidden_entity->set_transform(Transform{hidden_transform}).ok());
 
     Transform2D first_transform;
     first_transform.position = Vec2{-2.0F, 1.0F};
@@ -1240,7 +1268,11 @@ void test_scene_renderer2d_renders_entities_and_preserves_frame_on_invalid_input
 
     STORM_CHECK(SceneRenderer2D::render(scene, camera, canvas, background, entity_color).ok());
     STORM_CHECK(canvas.pixels()[15U * 80U + 25U] == entity_color);
-    STORM_CHECK(canvas.pixels()[25U * 80U + 62U] == entity_color);
+    constexpr Rgba8 tinted_entity_color{36U, 194U, 82U, 255U};
+    STORM_CHECK(canvas.pixels()[25U * 80U + 62U] == tinted_entity_color);
+    // This pixel is covered only because Renderable2D widens the local quad beyond unit size.
+    STORM_CHECK(canvas.pixels()[25U * 80U + 66U] == tinted_entity_color);
+    STORM_CHECK(canvas.pixels()[25U * 80U + 68U] == background);
     STORM_CHECK(canvas.pixels()[5U * 80U + 5U] == background);
     STORM_CHECK(canvas.pixels()[55U * 80U + 75U] == background);
     // Logic-only entities do not implicitly become visible geometry.
@@ -1260,6 +1292,15 @@ void test_scene_renderer2d_renders_entities_and_preserves_frame_on_invalid_input
                     scene_3d, camera, canvas, Rgba8{0U, 0U, 0U, 255U}, entity_color)
                     .code() == ErrorCode::Unsupported);
     STORM_CHECK(canvas.pixels()[15U * 80U + 25U] == entity_color);
+    StableId entity_3d_id;
+    STORM_CHECK(scene_3d.create_entity("3D actor", entity_3d_id).ok());
+    auto* entity_3d = scene_3d.find_entity(entity_3d_id);
+    STORM_CHECK(entity_3d != nullptr);
+    if (entity_3d != nullptr) {
+        STORM_CHECK(entity_3d->set_renderable2d(Renderable2D{}).code() ==
+                    ErrorCode::InvalidArgument);
+        STORM_CHECK(entity_3d->renderable2d() == nullptr);
+    }
 
     // Finite local values can still overflow when combined with the camera's pixel scale.
     Transform2D overflowing_transform;
