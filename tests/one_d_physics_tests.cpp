@@ -185,7 +185,7 @@ using Storm::Physics::OneD::PhysicsWorld1DConfig;
     EXPECT(fixed_state);
     EXPECT(moving_state);
     EXPECT(fixed_state.value().position == 10.0);
-    EXPECT(moving_state.value().position == 0.6);
+    EXPECT(std::abs(moving_state.value().position - 0.6) < 1e-12);
     return std::nullopt;
 }
 
