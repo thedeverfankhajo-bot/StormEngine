@@ -100,7 +100,6 @@ public:
 private:
     struct Slot final {
         bool alive{false};
-        bool retired{false};
         std::uint32_t generation{1U};
         BodyDefinition1D definition{};
         double position{0.0};

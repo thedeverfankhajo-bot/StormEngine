@@ -4,6 +4,7 @@
 #include <cmath>
 #include <cstdlib>
 #include <iostream>
+#include <iterator>
 #include <limits>
 #include <optional>
 #include <string>
@@ -250,6 +251,38 @@ using Storm::Physics::OneD::PhysicsWorld1DConfig;
     return std::nullopt;
 }
 
+[[nodiscard]] std::optional<std::string> test_touching_bodies_resolve_closing_velocity() {
+    auto world_result = PhysicsWorld1D::create();
+    EXPECT(world_result);
+    auto world = std::move(world_result).value();
+
+    auto left = world.create_body(BodyDefinition1D{
+        .position = 0.0,
+        .velocity = 1.0,
+        .restitution = 0.0,
+    });
+    auto right = world.create_body(BodyDefinition1D{
+        .position = 1.25,
+        .velocity = -1.0,
+        .restitution = 0.0,
+    });
+    EXPECT(left);
+    EXPECT(right);
+
+    auto stepped = world.step(0.125);
+    EXPECT(stepped);
+    EXPECT(stepped.value().contacts.size() == 1U);
+    EXPECT(stepped.value().contacts[0].penetration_depth == 0.0);
+
+    auto left_state = world.body_snapshot(left.value());
+    auto right_state = world.body_snapshot(right.value());
+    EXPECT(left_state);
+    EXPECT(right_state);
+    EXPECT(std::abs(left_state.value().velocity) < 1e-12);
+    EXPECT(std::abs(right_state.value().velocity) < 1e-12);
+    return std::nullopt;
+}
+
 [[nodiscard]] std::optional<std::string> test_trigger_overlap_reports_contact_without_resolution() {
     auto world_result = PhysicsWorld1D::create();
     EXPECT(world_result);
@@ -448,6 +481,7 @@ int main() {
         TestCase{"kinematic_moves_and_static_remains_fixed", &test_kinematic_moves_and_static_remains_fixed},
         TestCase{"inelastic_collision_separates_equal_masses", &test_inelastic_collision_separates_equal_masses},
         TestCase{"elastic_collision_exchanges_equal_mass_velocities", &test_elastic_collision_exchanges_equal_mass_velocities},
+        TestCase{"touching_bodies_resolve_closing_velocity", &test_touching_bodies_resolve_closing_velocity},
         TestCase{"trigger_overlap_reports_contact_without_resolution", &test_trigger_overlap_reports_contact_without_resolution},
         TestCase{"collision_masks_filter_pairs", &test_collision_masks_filter_pairs},
         TestCase{"body_capacity_is_enforced_and_reusable", &test_body_capacity_is_enforced_and_reusable},

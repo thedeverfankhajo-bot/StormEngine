@@ -5,6 +5,7 @@
 #include <cmath>
 #include <limits>
 #include <new>
+#include <optional>
 #include <utility>
 
 namespace Storm::Physics::OneD {
@@ -50,7 +51,7 @@ std::atomic<std::uint64_t> next_world_id{1U};
     return false;
 }
 
-[[nodiscard]] Error validate_definition(const BodyDefinition1D& definition) {
+[[nodiscard]] std::optional<Error> validate_definition(const BodyDefinition1D& definition) {
     if (!is_valid_body_type(definition.type)) {
         return Error::make(ErrorCode::InvalidArgument, "Body type is not supported");
     }
@@ -73,17 +74,19 @@ std::atomic<std::uint64_t> next_world_id{1U};
             ErrorCode::InvalidArgument,
             "Restitution must be within the inclusive range [0, 1]");
     }
-    if (definition.type == BodyType1D::Dynamic && definition.mass <= 0.0) {
-        return Error::make(
-            ErrorCode::InvalidArgument,
-            "A dynamic body must have a positive finite mass");
+    if (definition.type == BodyType1D::Dynamic) {
+        if (definition.mass <= 0.0 || !is_finite(1.0 / definition.mass)) {
+            return Error::make(
+                ErrorCode::InvalidArgument,
+                "A dynamic body mass must be positive, finite, and have a representable inverse");
+        }
     }
     if (definition.type == BodyType1D::Static && definition.velocity != 0.0) {
         return Error::make(
             ErrorCode::InvalidArgument,
             "A static body cannot have a non-zero velocity");
     }
-    return Error::make(ErrorCode::Internal, "");
+    return std::nullopt;
 }
 
 } // namespace
@@ -165,9 +168,9 @@ Result<BodyHandle1D> PhysicsWorld1D::create_body(
             "A moved-from PhysicsWorld1D cannot create bodies"));
     }
 
-    const Error validation_error = validate_definition(definition);
-    if (!validation_error.message.empty()) {
-        return Result<BodyHandle1D>::failure(validation_error);
+    const std::optional<Error> validation_error = validate_definition(definition);
+    if (validation_error.has_value()) {
+        return Result<BodyHandle1D>::failure(*validation_error);
     }
     if (body_count_ >= config_.maximum_bodies) {
         return Result<BodyHandle1D>::failure(Error::make(
@@ -196,8 +199,7 @@ Result<BodyHandle1D> PhysicsWorld1D::create_body(
         slot.velocity = definition.velocity;
         slot.accumulated_force = 0.0;
         slot.alive = true;
-        slot.retired = false;
-        if (!free_slots_.empty() && free_slots_.back() == index) {
+            if (!free_slots_.empty() && free_slots_.back() == index) {
             free_slots_.pop_back();
         }
         ++body_count_;
@@ -224,8 +226,6 @@ Result<void> PhysicsWorld1D::destroy_body(BodyHandle1D handle) {
                 "Could not allocate a reusable body slot"));
         }
         ++slot->generation;
-    } else {
-        slot->retired = true;
     }
 
     slot->alive = false;
@@ -473,7 +473,7 @@ Result<StepResult1D> PhysicsWorld1D::step(
                     .is_trigger = trigger,
                 });
 
-                if (trigger || penetration == 0.0) {
+                if (trigger) {
                     continue;
                 }
 
@@ -487,13 +487,25 @@ Result<StepResult1D> PhysicsWorld1D::step(
                         : 0.0;
                 const double inverse_mass_sum =
                     first_inverse_mass + second_inverse_mass;
+                if (!is_finite(inverse_mass_sum)) {
+                    return Result<StepResult1D>::failure(Error::make(
+                        ErrorCode::ResourceExhausted,
+                        "Combined inverse body mass exceeded the supported numeric range"));
+                }
                 if (inverse_mass_sum <= 0.0) {
                     continue;
                 }
 
-                const double correction = penetration / inverse_mass_sum;
-                first.position -= normal * correction * first_inverse_mass;
-                second.position += normal * correction * second_inverse_mass;
+                if (penetration > 0.0) {
+                    const double correction = penetration / inverse_mass_sum;
+                    if (!is_finite(correction)) {
+                        return Result<StepResult1D>::failure(Error::make(
+                            ErrorCode::ResourceExhausted,
+                            "Collision correction exceeded the supported numeric range"));
+                    }
+                    first.position -= normal * correction * first_inverse_mass;
+                    second.position += normal * correction * second_inverse_mass;
+                }
 
                 const double relative_normal_velocity =
                     (second.velocity - first.velocity) * normal;
