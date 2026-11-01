@@ -74,7 +74,9 @@ if(STORMENGINE_BUILD_TESTS)
         add_executable(stormengine_foundation_tests
             tests/foundation_tests.cpp
         )
-        target_link_libraries(stormengine_foundation_tests PRIVATE Storm::Core Storm::Foundation Storm::Platform)
+        # Core and Platform expose Foundation transitively; linking it again
+        # here duplicates the static library on some linkers.
+        target_link_libraries(stormengine_foundation_tests PRIVATE Storm::Core Storm::Platform)
         target_compile_features(stormengine_foundation_tests PRIVATE cxx_std_20)
         stormengine_apply_warnings(stormengine_foundation_tests)
         add_test(NAME stormengine_foundation_tests COMMAND stormengine_foundation_tests)
