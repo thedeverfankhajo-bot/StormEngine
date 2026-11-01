@@ -55,6 +55,7 @@ add_library(storm_core STATIC
     engine/core/src/engine.cpp
     engine/core/src/fixed_step_scheduler.cpp
     engine/core/src/game_loop.cpp
+    engine/core/src/scene.cpp
 )
 add_library(Storm::Core ALIAS storm_core)
 target_include_directories(storm_core
@@ -213,5 +214,13 @@ if(STORMENGINE_BUILD_TESTS)
         target_compile_features(stormengine_event_dispatcher_tests PRIVATE cxx_std_20)
         stormengine_apply_warnings(stormengine_event_dispatcher_tests)
         add_test(NAME stormengine_event_dispatcher_tests COMMAND stormengine_event_dispatcher_tests)
+
+        add_executable(stormengine_scene_tests
+            tests/scene_tests.cpp
+        )
+        target_link_libraries(stormengine_scene_tests PRIVATE Storm::Core)
+        target_compile_features(stormengine_scene_tests PRIVATE cxx_std_20)
+        stormengine_apply_warnings(stormengine_scene_tests)
+        add_test(NAME stormengine_scene_tests COMMAND stormengine_scene_tests)
     endif()
 endif()

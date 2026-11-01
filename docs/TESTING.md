@@ -2,7 +2,7 @@
 
 ## Current automated coverage
 
-The host test suite contains 64 named test cases across eight CTest executables. All eight executables passed in the successful six-job CI run [41307026111](https://github.com/thedeverfankhajo-bot/StormEngine/actions/runs/41307026111) for commit `4a3515c8cd8da92012edd018ed1a51045bad9269`. The GCC, Clang, Clang ASan/UBSan, and Apple Clang host jobs each configured, built, and ran the complete CTest suite:
+The host test suite is being extended from 64 named test cases across eight CTest executables; the Scene change adds eight cases in a ninth executable and requires the next CI run for validation. All eight executables passed in the successful six-job CI run [41307026111](https://github.com/thedeverfankhajo-bot/StormEngine/actions/runs/41307026111) for commit `4a3515c8cd8da92012edd018ed1a51045bad9269`. The GCC, Clang, Clang ASan/UBSan, and Apple Clang host jobs each configured, built, and ran the complete CTest suite:
 
 - stormengine_foundation_tests (11 cases):
   - Success and failure paths for typed Result<T> values.
@@ -58,6 +58,15 @@ The host test suite contains 64 named test cases across eight CTest executables.
   - Rejection of an empty std::function handler.
   - Safe subscription destruction after the dispatcher is gone.
   - Idempotent explicit disconnection.
+- stormengine_scene_tests (8 cases):
+  - Scene name validation and unique process identity.
+  - Entity creation, name access, rename, and active entity counts.
+  - Rejection of handles from another Scene.
+  - Stale-handle invalidation and generation changes on entity-slot reuse.
+  - Type-safe, scene-local component storage and const access.
+  - Duplicate component and missing component error paths.
+  - Component cleanup on removal and entity destruction.
+  - Scene move ownership and moved-from invalidation.
 - stormengine_mobile_frame_driver_tests (11 cases):
   - Invalid GameLoop configuration rejection.
   - Suppression of every game callback while lifecycle is inactive.
@@ -85,7 +94,7 @@ A direct CMake configure/build/test flow is also supported and documented in the
 
 ## GitHub Actions
 
-The Foundation workflow runs on pushes to main and on manual dispatch. The latest successful target-validation workflow run [41307026111](https://github.com/thedeverfankhajo-bot/StormEngine/actions/runs/41307026111) for commit `4a3515c8cd8da92012edd018ed1a51045bad9269` completed all six jobs successfully:
+The Foundation workflow runs on pushes to main and on manual dispatch. The latest successful target-validation workflow run before the Scene/Entity change [41307026111](https://github.com/thedeverfankhajo-bot/StormEngine/actions/runs/41307026111) for commit `4a3515c8cd8da92012edd018ed1a51045bad9269` completed all six jobs successfully:
 
 - Linux with GCC: configure, build, and run host CTest.
 - Linux with Clang: configure, build, and run host CTest.

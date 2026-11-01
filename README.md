@@ -12,7 +12,7 @@ StormEngine is an early-stage, mobile-only game-engine project targeting **Andro
 - All repository development is performed on main.
 - Platform and graphics capabilities are reported only after implementation and validation on real target devices.
 
-See [Mobile-only policy](docs/MOBILE-ONLY-POLICY.md), [Architecture](docs/ARCHITECTURE.md), [Engine Lifecycle](docs/ENGINE-LIFECYCLE.md), [Game Loop](docs/GAME-LOOP.md), [Mobile Runtime Frame Driver](docs/MOBILE-RUNTIME.md), [Event System](docs/EVENT-SYSTEM.md), [Compatibility](docs/COMPATIBILITY.md), [Testing](docs/TESTING.md), [Android NativeActivity bridge](docs/ANDROID-NATIVE-ACTIVITY.md), [iOS lifecycle adapter](docs/IOS-LIFECYCLE.md), [API versioning](docs/API-VERSIONING.md), and [Roadmap](docs/ROADMAP.md).
+See [Mobile-only policy](docs/MOBILE-ONLY-POLICY.md), [Architecture](docs/ARCHITECTURE.md), [Engine Lifecycle](docs/ENGINE-LIFECYCLE.md), [Game Loop](docs/GAME-LOOP.md), [Mobile Runtime Frame Driver](docs/MOBILE-RUNTIME.md), [Event System](docs/EVENT-SYSTEM.md), [Scene System](docs/SCENE-SYSTEM.md), [Compatibility](docs/COMPATIBILITY.md), [Testing](docs/TESTING.md), [Android NativeActivity bridge](docs/ANDROID-NATIVE-ACTIVITY.md), [iOS lifecycle adapter](docs/IOS-LIFECYCLE.md), [API versioning](docs/API-VERSIONING.md), and [Roadmap](docs/ROADMAP.md).
 
 ## Current foundation
 
@@ -25,6 +25,7 @@ See [Mobile-only policy](docs/MOBILE-ONLY-POLICY.md), [Architecture](docs/ARCHIT
 - A callback-driven Core game-loop coordinator with deterministic phase order: input, events, fixed updates, variable update, and render. It accepts elapsed time from its caller and remains independent of Android/iOS APIs.
 - A separate Runtime MobileFrameDriver that gates Core callbacks on foreground-active lifecycle and an attached surface, detects lifecycle revisions and surface generations, validates monotonic timestamps, and resets simulation timing after suspension or surface recreation.
 - A synchronous Core event dispatcher keyed by exact C++ event type, with ordered handlers, move-only RAII subscriptions, mutation-safe dispatch snapshots, and propagated handler errors.
+- An initial Core Scene/Entity system with non-reused Scene IDs, generation-checked entity handles, scene-local typed component storage, and automatic component cleanup on entity destruction. It is not yet an archetype ECS and has no hierarchy, reflection, scene serialization, or editor integration.
 - Explicit timing reset for lifecycle suspension/resume; the platform runtime must decide when a frame may run.
 - A platform-neutral lifecycle state machine with validated transitions.
 - A bounded, allocation-free, multi-producer/single-consumer lifecycle event queue with explicit full/closed results.
