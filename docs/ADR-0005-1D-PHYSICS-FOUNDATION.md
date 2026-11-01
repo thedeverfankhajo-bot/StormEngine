@@ -18,7 +18,7 @@ The initial slice includes world-scoped generation-checked body handles,
 Static/Kinematic/Dynamic body types, scalar position and velocity, accumulated
 force, impulse, gravity, interval overlap detection, trigger contacts,
 restitution-based one-axis impulse resolution, collision layer/mask filtering,
-read-only filtered closed-interval overlap queries, and explicit body/contact/time-step limits.
+read-only filtered closed-interval overlap queries, nearest-hit scalar raycasts with deterministic tie handling, and explicit body/contact/time-step limits.
 
 The world is stepped by the existing caller-owned fixed-update phase. Each
 successful step consumes accumulated forces. The step computes against staged
@@ -46,7 +46,9 @@ all configured limits succeed.
   contact phases, and Scene integration remain out of scope.
 - Host behavior tests and Android/iOS target compilation are required before
   reporting the implementation as tested. Physical-device validation remains a
-  separate requirement.
+  separate requirement. The scalar raycast contract accepts only unit directions
+  of -1 or +1 and returns the nearest interval entry; it does not add a 2D/3D
+  vector-ray API.
 
 ## Evidence
 

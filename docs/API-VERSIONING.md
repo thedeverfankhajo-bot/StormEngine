@@ -18,6 +18,17 @@ The `Storm::Serialization::BinaryWriter`, `BinaryReader`, and `SceneSerializer` 
 
 The `Storm::Math::Vector3`, `Quaternion`, `Matrix4`, and `Transform3D` types, together with `Storm::TransformSystem`, are development interfaces introduced in the initial 3D transform slice. Matrices are column-major and use column vectors; hierarchy composition is `parentWorld × local`. World matrices are evaluated on demand in O(depth) time and temporary memory. The API is not stable and does not provide caching, 2D planar constraints, scalar 1D transforms, or renderer integration. Transform3D persistence is provided by the separate Scene archive codec rather than by the math value type itself. See [Transform System](TRANSFORM-SYSTEM.md) and [ADR-0003](ADR-0003-TRANSFORM-CONVENTIONS.md).
 
+The `Storm::Physics::OneD::PhysicsWorld1D`, `OverlapQuery1D`, `RaycastQuery1D`,
+and `RaycastHit1D` interfaces are development APIs with no stability guarantee.
+Overlap queries operate on closed scalar intervals and return handles in
+body-slot order. Raycasts accept only a unit scalar direction of -1 or +1 and
+return the nearest hit as an optional value; maximum distance is inclusive,
+triggers and collision layers are filterable, and an origin inside or on an
+interval reports a zero-distance hit. Equal-distance hits are resolved by
+body-slot order. Both query operations are read-only and single-thread-affine.
+They do not establish a complete 1D gameplay runtime or a verified Android/iOS
+runtime feature. See [1D Game Development](1D-GAME-DEVELOPMENT.md).
+
 ## Intended policy before the first stable release
 
 - Use Semantic Versioning for published engine releases once a public compatibility baseline is declared.
