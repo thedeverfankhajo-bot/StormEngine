@@ -2,7 +2,7 @@
 
 StormEngine is an early-stage, mobile-only game-engine project targeting **Android and iOS**. Its intended game models are 1D, 2D, and 3D. The editor is also intended to run only on mobile devices.
 
-> **Current status: C++ foundation with an Android NativeActivity lifecycle bridge.** The platform-neutral C++ foundation cross-compiles for Android arm64 and iOS device arm64. An Android NativeActivity entry point now maps lifecycle and native-window metadata into the platform contracts and is compiled/linked as a shared library in CI. This remains compile-only evidence: the repository does not yet contain an installable Android/iOS application, game loop, renderer, physics engine, editor, asset importer, or Android/iOS export pipeline. Do not mistake the native shared library for a usable game engine or a mobile app.
+> **Current status: C++ foundation with an Android NativeActivity lifecycle bridge and a fixed-step timing utility.** The platform-neutral C++ foundation cross-compiles for Android arm64 and iOS device arm64. An Android NativeActivity entry point maps lifecycle and native-window metadata into the platform contracts and is compiled/linked as a shared library in CI. The Core module also provides a bounded fixed-step accumulator with explicit frame-delta clamping and catch-up limits. This remains compile-only evidence for mobile targets: the repository does not yet contain an installable Android/iOS application, integrated game loop, renderer, physics engine, editor, asset importer, or Android/iOS export pipeline. Do not mistake the native shared library or timing utility for a usable game engine or a mobile app.
 
 ## Product constraints
 
@@ -21,16 +21,17 @@ See [Mobile-only policy](docs/MOBILE-ONLY-POLICY.md), [Architecture](docs/ARCHIT
 - A platform-neutral, injectable logging interface.
 - An atomic byte-budget accounting utility. It accounts for reservations; it does not allocate memory.
 - A minimal engine initialization/shutdown state model. It does not start a game loop or initialize an operating-system runtime.
+- A fixed-step scheduler that accumulates elapsed nanoseconds, caps accepted frame deltas and per-frame catch-up work, reports discarded backlog, and provides a render interpolation alpha. It does not own a clock or invoke update callbacks.
 - A platform-neutral lifecycle state machine with validated transitions.
 - A bounded, allocation-free, multi-producer/single-consumer lifecycle event queue with explicit full/closed results.
 - A platform-neutral surface lifecycle contract with validated dimensions/scale and generation-based stale-callback rejection.
 - An Android NativeActivity adapter built with the NDK Native App Glue. It maps Activity lifecycle events and attaches/resizes/detaches surface metadata without retaining an ANativeWindow pointer.
-- Host tests for Foundation, surface lifecycle, and Android lifecycle event normalization.
+- Host tests for Foundation, fixed-step scheduling, surface lifecycle, and Android lifecycle event normalization.
 - CI cross-compilation of the Foundation, Core, and Platform static libraries for Android arm64-v8a and iOS device arm64, plus Android NativeActivity shared-library compilation/linking.
 
 The Android CI job uses ANDROID_PLATFORM=android-21 as its native compilation target. This is not yet a declared product minimum SDK. The iOS CI job uses the iPhoneOS Device SDK and does not create an Xcode application, archive, or IPA.
 
-The Android bridge is only an event/lifecycle adapter. It does not provide frame scheduling, rendering, touch input, sensor access, low-memory policy, Java/Kotlin UI, or a packageable app module. iOS native lifecycle integration is not implemented. Neither target has physical-device runtime validation.
+The Android bridge is only an event/lifecycle adapter. It does not provide frame pacing, rendering, touch input, sensor access, low-memory policy, Java/Kotlin UI, or a packageable app module. The fixed-step scheduler is not yet connected to a clock, application loop, or physics system. iOS native lifecycle integration is not implemented. Neither target has physical-device runtime validation.
 
 ## Build and test the host foundation
 

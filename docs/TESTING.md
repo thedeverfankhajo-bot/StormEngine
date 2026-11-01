@@ -2,7 +2,7 @@
 
 ## Current automated coverage
 
-The host test suite contains 20 named test cases across three CTest executables:
+The host test suite contains 27 named test cases across four CTest executables:
 
 - stormengine_foundation_tests (11 cases):
   - Success and failure paths for typed Result<T> values.
@@ -22,8 +22,16 @@ The host test suite contains 20 named test cases across three CTest executables:
   - Focus recovery when a separate RESUME event is absent.
   - Idempotent duplicate lifecycle events.
   - Terminal destroy behavior and invalid event rejection.
+- stormengine_fixed_step_scheduler_tests (7 cases):
+  - Invalid step, frame-delta limit, and catch-up budget configuration.
+  - Partial frame accumulation and fixed-step emission.
+  - Frame-delta clamping.
+  - Catch-up budget enforcement while preserving the fractional remainder.
+  - Negative-delta rejection without mutating scheduler state.
+  - Explicit accumulator reset.
+  - Duration-overflow reporting without mutating scheduler state.
 
-These are host-side tests of the platform-neutral Android event policy. They do not invoke Android framework callbacks or establish Android runtime compatibility.
+These are host-side tests. The Android lifecycle cases test the platform-neutral event policy; they do not invoke Android framework callbacks. None of these tests establishes physical-device runtime compatibility.
 
 ## Local host workflow
 
@@ -54,7 +62,7 @@ The sanitizer job runs the same host tests with leak detection enabled and Undef
 
 ## Validation boundaries
 
-- A green host CI run proves only that the tested Foundation configuration built and its host tests passed on those runners.
+- A green host CI run proves only that the tested Foundation/Core configuration built and its host tests passed on those runners.
 - Android/iOS cross-compilation proves that the current C++ targets compile for the selected target architecture and SDK/toolchain. The Android shared-library link also checks the NativeActivity bridge's NDK symbols. Neither check proves OS callback behavior, app packaging, installability, runtime behavior, graphics availability, or device compatibility.
 - AddressSanitizer can detect classes of memory errors on exercised paths; UndefinedBehaviorSanitizer can detect supported forms of undefined behavior on exercised paths. Neither proves the absence of all memory-safety or correctness defects.
 - The current workflow does not run ThreadSanitizer, static analysis, dependency vulnerability scanning, fuzz tests, Android instrumentation tests, or iOS simulator/device tests.

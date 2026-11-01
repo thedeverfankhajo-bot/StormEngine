@@ -46,6 +46,7 @@ stormengine_apply_warnings(storm_foundation)
 
 add_library(storm_core STATIC
     engine/core/src/engine.cpp
+    engine/core/src/fixed_step_scheduler.cpp
 )
 add_library(Storm::Core ALIAS storm_core)
 target_include_directories(storm_core
@@ -135,5 +136,13 @@ if(STORMENGINE_BUILD_TESTS)
         target_compile_features(stormengine_android_lifecycle_tests PRIVATE cxx_std_20)
         stormengine_apply_warnings(stormengine_android_lifecycle_tests)
         add_test(NAME stormengine_android_lifecycle_tests COMMAND stormengine_android_lifecycle_tests)
+
+        add_executable(stormengine_fixed_step_scheduler_tests
+            tests/fixed_step_scheduler_tests.cpp
+        )
+        target_link_libraries(stormengine_fixed_step_scheduler_tests PRIVATE Storm::Core)
+        target_compile_features(stormengine_fixed_step_scheduler_tests PRIVATE cxx_std_20)
+        stormengine_apply_warnings(stormengine_fixed_step_scheduler_tests)
+        add_test(NAME stormengine_fixed_step_scheduler_tests COMMAND stormengine_fixed_step_scheduler_tests)
     endif()
 endif()
