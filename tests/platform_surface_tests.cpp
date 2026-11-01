@@ -132,6 +132,58 @@ namespace {
     return std::nullopt;
 }
 
+
+[[nodiscard]] std::optional<std::string> test_logical_size_to_pixel_extent() {
+    using Storm::Platform::surface_extent_from_logical_size;
+
+    const auto retina = surface_extent_from_logical_size(393.0, 852.0, 3.0);
+    EXPECT(retina);
+    EXPECT(retina.value().width == 1179U);
+    EXPECT(retina.value().height == 2556U);
+
+    const auto rounded = surface_extent_from_logical_size(10.25, 5.25, 2.0);
+    EXPECT(rounded);
+    EXPECT(rounded.value().width == 21U);
+    EXPECT(rounded.value().height == 11U);
+    return std::nullopt;
+}
+
+[[nodiscard]] std::optional<std::string> test_logical_size_conversion_rejects_invalid_values() {
+    using Storm::Platform::surface_extent_from_logical_size;
+
+    const auto zero_width = surface_extent_from_logical_size(0.0, 100.0, 2.0);
+    EXPECT(!zero_width);
+    EXPECT(zero_width.error().code == Storm::ErrorCode::InvalidArgument);
+
+    const auto negative_height = surface_extent_from_logical_size(100.0, -1.0, 2.0);
+    EXPECT(!negative_height);
+    EXPECT(negative_height.error().code == Storm::ErrorCode::InvalidArgument);
+
+    const auto non_finite_width = surface_extent_from_logical_size(
+        std::numeric_limits<double>::infinity(), 100.0, 2.0);
+    EXPECT(!non_finite_width);
+    EXPECT(non_finite_width.error().code == Storm::ErrorCode::InvalidArgument);
+
+    const auto invalid_scale = surface_extent_from_logical_size(100.0, 100.0, 0.0);
+    EXPECT(!invalid_scale);
+    EXPECT(invalid_scale.error().code == Storm::ErrorCode::InvalidArgument);
+
+    const auto empty_pixel_extent = surface_extent_from_logical_size(0.1, 1.0, 0.1);
+    EXPECT(!empty_pixel_extent);
+    EXPECT(empty_pixel_extent.error().code == Storm::ErrorCode::InvalidArgument);
+    return std::nullopt;
+}
+
+[[nodiscard]] std::optional<std::string> test_logical_size_conversion_rejects_overflow() {
+    using Storm::Platform::surface_extent_from_logical_size;
+
+    const auto overflow = surface_extent_from_logical_size(
+        std::numeric_limits<double>::max(), 100.0, 2.0);
+    EXPECT(!overflow);
+    EXPECT(overflow.error().code == Storm::ErrorCode::ResourceExhausted);
+    return std::nullopt;
+}
+
 struct TestCase final {
     const char* name;
     std::optional<std::string> (*run)();
@@ -145,6 +197,9 @@ int main() {
         {"resize_preserves_generation", &test_resize_preserves_generation},
         {"detach_and_recreation_reject_stale_callbacks", &test_detach_and_recreation_reject_stale_callbacks},
         {"operations_without_surface_fail", &test_operations_without_surface_fail},
+        {"logical_size_to_pixel_extent", &test_logical_size_to_pixel_extent},
+        {"logical_size_conversion_rejects_invalid_values", &test_logical_size_conversion_rejects_invalid_values},
+        {"logical_size_conversion_rejects_overflow", &test_logical_size_conversion_rejects_overflow},
     };
 
     std::size_t failures = 0U;

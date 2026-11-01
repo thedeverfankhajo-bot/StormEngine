@@ -5,7 +5,7 @@
 The current implementation contains:
 - `foundation`: typed errors/results, logging contracts, and memory-budget accounting.
 - `core`: a minimal engine lifecycle model, fixed-step time accumulator, callback-driven frame coordinator, synchronous typed event dispatcher, and an initial move-only Scene owner with generation-checked entity handles and scene-local typed component storage; and a hierarchy-aware TransformSystem backed by the platform-neutral Math target.
-- `platform`: platform-neutral lifecycle and surface contracts, Android NativeActivity lifecycle normalization, and iOS UIKit scene lifecycle integration.
+- `platform`: platform-neutral lifecycle and surface contracts, Android NativeActivity lifecycle normalization, and iOS UIKit scene lifecycle integration. The iOS host view maps logical bounds and display scale to validated surface metadata without introducing UIKit types into the platform-neutral contract.
 - `runtime`: a mobile frame driver that gates Core callbacks on active lifecycle and surface readiness, with lifecycle-revision and surface-generation based timing resets.
 - `serialization`: a separate bounded archive layer that depends on Core and Math, with little-endian binary primitives, a versioned Scene archive, stable component codec IDs, and per-component schema versions. Core does not depend on Serialization.
 - `physics`: an optional `Storm::Physics1D` target depending only on Foundation. Its initial scalar world provides 1D dynamic integration, interval contacts, triggers, filters, and one-axis resolution; it does not depend on Scene, Transform3D, Platform, or Rendering.
@@ -13,7 +13,7 @@ The current implementation contains:
 
 The initial Scene/Entity implementation is a correctness-oriented, type-indexed component registry with generation-safe parent/child identity links, bidirectional reparent bookkeeping, cycle rejection, and child orphaning when a parent is destroyed. It provides optional local Transform3D components and iterative on-demand world-matrix composition, but not transform caching, multi-component queries, reflection, or scene transitions. Deterministic entity/component iteration and a separate versioned Scene archive layer are implemented. See [Scene and Entity System](SCENE-SYSTEM.md) and [Transform System](TRANSFORM-SYSTEM.md).
 
-The Runtime driver accepts monotonic timestamps from its caller; it does not yet own Android Choreographer/iOS CADisplayLink integration, a native frame pump, a renderer, or physics. The Android NativeActivity event pump and iOS scene delegate are not yet wired to the frame driver or an installable app target.
+The Runtime driver accepts monotonic timestamps from its caller; it does not yet own Android Choreographer/iOS CADisplayLink integration, a native frame pump, a renderer, or physics. The Android NativeActivity event pump and iOS scene delegate are not yet wired to the frame driver. The iOS host now provides UIView surface metadata, but that metadata is not yet consumed by a renderer or the Runtime frame driver.
 
 ## Dependency direction
 

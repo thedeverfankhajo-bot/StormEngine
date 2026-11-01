@@ -2,7 +2,7 @@
 
 ## Current automated coverage
 
-The host test suite contains 150 named test cases across thirteen CTest executables. All thirteen executables passed in the successful seven-job CI run [41330980892](https://github.com/thedeverfankhajo-bot/StormEngine/actions/runs/41330980892) for commit `e3cfa7b2366f6e14fddbf1304e99c97e82428e8c`. The GCC, Clang, Clang ASan/UBSan, and Apple Clang host jobs each configured, built, and ran the complete CTest suite:
+The host test suite contains 153 named test cases across thirteen CTest executables after adding the surface-metric conversion cases. The full C++ host suite is run by the GCC, Clang, Clang ASan/UBSan, and Apple Clang jobs in [Foundation CI](https://github.com/thedeverfankhajo-bot/StormEngine/actions/workflows/foundation-ci.yml):
 
 - stormengine_foundation_tests (11 cases):
   - Success and failure paths for typed Result<T> values.
@@ -11,11 +11,14 @@ The host test suite contains 150 named test cases across thirteen CTest executab
   - Engine initialization and shutdown lifecycle.
   - Platform lifecycle transitions, invalid transitions, and background launch.
   - Lifecycle event queue FIFO ordering, capacity/close behavior, and concurrent multi-producer delivery.
-- stormengine_platform_surface_tests (4 cases):
+- stormengine_platform_surface_tests (7 cases):
   - Surface attach validation and monotonically increasing generations.
   - Resize validation and generation preservation.
   - Detach/recreation behavior and stale-callback rejection.
   - Invalid resize/detach operations when no surface is attached.
+  - Logical point dimensions and display scale converted to rounded pixel extents.
+  - Rejection of zero, negative, non-finite, or sub-pixel-empty dimensions and invalid scales.
+  - Overflow rejection when a logical size cannot fit a 32-bit pixel extent.
 - stormengine_android_lifecycle_tests (5 cases):
   - START/RESUME/FOCUS/PAUSE/STOP event normalization.
   - STOP from an active state with an explicit inactive transition.

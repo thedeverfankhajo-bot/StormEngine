@@ -14,6 +14,13 @@ struct SurfaceExtent final {
     std::uint32_t height{0U};
 };
 
+// Converts a logical point size to a checked pixel extent. Dimensions are
+// rounded to the nearest pixel; invalid and unrepresentable sizes are rejected.
+[[nodiscard]] Result<SurfaceExtent> surface_extent_from_logical_size(
+    double logical_width,
+    double logical_height,
+    double pixels_per_logical_unit);
+
 // A non-owning description of one native presentation surface lifetime.
 // native_id is an opaque identity token, never a raw native pointer or handle.
 struct SurfaceDescriptor final {
