@@ -53,6 +53,22 @@ Contact normals are directed from the first handle to the second and are always
 the positional correction. Contacts are returned deterministically in ascending
 body-slot pair order.
 
+The step also returns persistent `ContactEvent1D` transitions:
+
+- `Begin`: the pair was not overlapping during the previous successful step.
+- `Stay`: the same generation-checked pair is still overlapping.
+- `End`: a previously overlapping pair is absent from the current step.
+
+Triggers participate in the same phase sequence and retain `is_trigger` in the
+event contact. An End event contains the last contact geometry reported for the
+pair; its handles are historical and may already be stale after body destruction.
+If a slot is reused before the next successful step, the old pair emits End and
+the new generation emits Begin, in that order. Events are deterministic by
+ascending body-slot pair order.
+
+Contact history advances only when the entire step succeeds. A failed step
+leaves body state, accumulated forces, and the previous contact set unchanged.
+
 The default world limits are 256 bodies, 4096 contacts per step, and a maximum
 step delta of 0.25 seconds. They are configurable. Exceeding the body/contact
 budget returns a typed error rather than silently dropping bodies or contacts.
@@ -103,8 +119,10 @@ the origin.
   tunneling prevention for fast-moving bodies.
 - Bodies use one-dimensional intervals only. There are no rotations, surfaces,
   tangent friction, angular motion, joints, or 2D/3D colliders.
-- Contacts are per-step results. Persistent Begin/Stay/End contact tracking,
-  sleeping, and a full event integration layer are future work.
+- Begin/Stay/End contact phases are available from successful PhysicsWorld1D
+  steps, but they are not yet dispatched through the Core EventDispatcher or
+  integrated with Scene components. Sleeping and a higher-level gameplay event
+  integration layer remain future work.
 - PhysicsWorld1D is single-thread-affine and currently does not mutate Scene
   components automatically.
 - No Android/iOS device runtime, frame pacing, rendering, input, or packaging

@@ -102,7 +102,8 @@ PhysicsWorld1D::PhysicsWorld1D(PhysicsWorld1D&& other) noexcept
       world_id_(std::exchange(other.world_id_, 0U)),
       body_count_(std::exchange(other.body_count_, 0U)),
       slots_(std::move(other.slots_)),
-      free_slots_(std::move(other.free_slots_)) {}
+      free_slots_(std::move(other.free_slots_)),
+      previous_contacts_(std::move(other.previous_contacts_)) {}
 
 Result<PhysicsWorld1D> PhysicsWorld1D::create(PhysicsWorld1DConfig config) {
     if (config.maximum_bodies == 0U ||
@@ -199,7 +200,7 @@ Result<BodyHandle1D> PhysicsWorld1D::create_body(
         slot.velocity = definition.velocity;
         slot.accumulated_force = 0.0;
         slot.alive = true;
-            if (!free_slots_.empty() && free_slots_.back() == index) {
+        if (!free_slots_.empty() && free_slots_.back() == index) {
             free_slots_.pop_back();
         }
         ++body_count_;
@@ -681,7 +682,77 @@ Result<StepResult1D> PhysicsWorld1D::step(
             }
         }
 
-        // Commit only after integration, collision detection, and all limits succeed.
+        // Derive deterministic contact transitions by merging the slot-ordered
+        // current and previous pair lists. A generation change is an End + Begin.
+        const auto pair_less = [](const Contact1D& left, const Contact1D& right) noexcept {
+            if (left.first.slot_index != right.first.slot_index) {
+                return left.first.slot_index < right.first.slot_index;
+            }
+            return left.second.slot_index < right.second.slot_index;
+        };
+        const auto append_event = [&result](
+                                      ContactPhase1D phase,
+                                      const Contact1D& contact) {
+            result.contact_events.push_back(ContactEvent1D{
+                .phase = phase,
+                .contact = contact,
+            });
+        };
+
+        if (result.contacts.size() >
+            result.contact_events.max_size() - previous_contacts_.size()) {
+            return Result<StepResult1D>::failure(Error::make(
+                ErrorCode::ResourceExhausted,
+                "Contact transition count exceeds the supported result capacity"));
+        }
+        result.contact_events.reserve(
+            result.contacts.size() + previous_contacts_.size());
+
+        std::size_t current_index = 0U;
+        std::size_t previous_index = 0U;
+        while (current_index < result.contacts.size() &&
+               previous_index < previous_contacts_.size()) {
+            const Contact1D& current = result.contacts[current_index];
+            const Contact1D& previous = previous_contacts_[previous_index];
+
+            if (pair_less(current, previous)) {
+                append_event(ContactPhase1D::Begin, current);
+                ++current_index;
+                continue;
+            }
+            if (pair_less(previous, current)) {
+                append_event(ContactPhase1D::End, previous);
+                ++previous_index;
+                continue;
+            }
+
+            if (current.first == previous.first &&
+                current.second == previous.second) {
+                append_event(ContactPhase1D::Stay, current);
+            } else {
+                append_event(ContactPhase1D::End, previous);
+                append_event(ContactPhase1D::Begin, current);
+            }
+            ++current_index;
+            ++previous_index;
+        }
+
+        while (current_index < result.contacts.size()) {
+            append_event(ContactPhase1D::Begin, result.contacts[current_index]);
+            ++current_index;
+        }
+        while (previous_index < previous_contacts_.size()) {
+            append_event(ContactPhase1D::End, previous_contacts_[previous_index]);
+            ++previous_index;
+        }
+
+        // Prepare persistent history before mutating body state. If allocation
+        // fails, the entire step (including contact phases) remains unchanged.
+        std::vector<Contact1D> next_previous_contacts = result.contacts;
+
+        // Commit only after integration, collision detection, transitions, and
+        // all limits succeed. Swapping contact history is non-throwing.
+        previous_contacts_.swap(next_previous_contacts);
         for (std::size_t index = 0U; index < slots_.size(); ++index) {
             if (!slots_[index].alive) {
                 continue;

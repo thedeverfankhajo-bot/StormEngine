@@ -84,9 +84,23 @@ struct RaycastHit1D final {
     bool is_trigger{false};
 };
 
+enum class ContactPhase1D : std::uint8_t {
+    Begin,
+    Stay,
+    End,
+};
+
+struct ContactEvent1D final {
+    ContactPhase1D phase{ContactPhase1D::Begin};
+    Contact1D contact{};
+};
+
 struct StepResult1D final {
     double delta_seconds{0.0};
+    // Contacts detected during this step, in ascending body-slot pair order.
     std::vector<Contact1D> contacts;
+    // Begin/Stay/End transitions, deterministically ordered by body-slot pair.
+    std::vector<ContactEvent1D> contact_events;
 };
 
 struct PhysicsWorld1DConfig final {
@@ -158,6 +172,8 @@ private:
     std::size_t body_count_{0U};
     std::vector<Slot> slots_;
     std::vector<std::uint32_t> free_slots_;
+    // Contact pairs from the most recent successful step, in slot-pair order.
+    std::vector<Contact1D> previous_contacts_;
 };
 
 } // namespace Storm::Physics::OneD
