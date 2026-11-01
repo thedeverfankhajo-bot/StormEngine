@@ -129,6 +129,8 @@ Result<EntityHandle> Scene::create_entity(std::string name) {
             .generation = 1U,
             .alive = true,
             .name = std::move(name),
+            .parent = std::nullopt,
+            .children = {},
         });
     } catch (const std::bad_alloc&) {
         return Result<EntityHandle>::failure(Error::make(

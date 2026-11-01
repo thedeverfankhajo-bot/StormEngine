@@ -2,7 +2,7 @@
 
 ## Current automated coverage
 
-The host test suite contains 72 named test cases across nine CTest executables. All nine executables passed in the successful six-job CI run [41318394662](https://github.com/thedeverfankhajo-bot/StormEngine/actions/runs/41318394662) for commit `17fe82183862b9209a992e4df47b2b17a62e8b13`. The GCC, Clang, Clang ASan/UBSan, and Apple Clang host jobs each configured, built, and ran the complete CTest suite:
+The host test suite contains 80 named test cases across nine CTest executables. All nine executables passed in the successful six-job CI run [41319287741](https://github.com/thedeverfankhajo-bot/StormEngine/actions/runs/41319287741) for the Scene hierarchy commit. The GCC, Clang, Clang ASan/UBSan, and Apple Clang host jobs each configured, built, and ran the complete CTest suite:
 
 - stormengine_foundation_tests (11 cases):
   - Success and failure paths for typed Result<T> values.
@@ -58,7 +58,7 @@ The host test suite contains 72 named test cases across nine CTest executables. 
   - Rejection of an empty std::function handler.
   - Safe subscription destruction after the dispatcher is gone.
   - Idempotent explicit disconnection.
-- stormengine_scene_tests (8 cases):
+- stormengine_scene_tests (16 cases):
   - Scene name validation and unique process identity.
   - Entity creation, name access, rename, and active entity counts.
   - Rejection of handles from another Scene.
@@ -67,6 +67,14 @@ The host test suite contains 72 named test cases across nine CTest executables. 
   - Duplicate component and missing component error paths.
   - Component cleanup on removal and entity destruction.
   - Scene move ownership and moved-from invalidation.
+  - Parent assignment and ordered direct-child lookup.
+  - Reparent consistency and idempotent parent assignment.
+  - Detach behavior and sibling order preservation.
+  - Self-parent and ancestry-cycle rejection.
+  - Foreign and stale parent-handle rejection.
+  - Parent destruction orphaning direct children while preserving subtrees.
+  - Child destruction unlinking and clean entity-slot reuse.
+  - Hierarchy and handles preserved across Scene moves.
 - stormengine_mobile_frame_driver_tests (11 cases):
   - Invalid GameLoop configuration rejection.
   - Suppression of every game callback while lifecycle is inactive.
@@ -107,7 +115,7 @@ The Android and iOS jobs disable host test executables because those binaries ca
 
 The iOS job uses CMake's Xcode generator and the iPhoneOS Device SDK. In the latest successful run, the build compiled `platforms/ios/scene_lifecycle_delegate.mm` as Objective-C++, `engine/core/src/scene.cpp` as C++, and `engine/runtime/src/mobile_frame_driver.cpp` as C++ against iPhoneOS 18.5, producing `libstorm_core.a`, `libstorm_platform.a`, and `libstorm_runtime.a` for arm64. The Android job cross-compiled Runtime and linked the NativeActivity shared library for arm64-v8a. These successful target builds do not create an iOS application archive or signed IPA, or an Android APK/AAB.
 
-All nine CTest executables passed in GCC, Clang, Clang ASan/UBSan, and Apple Clang host jobs. The new Runtime suite validates orchestration contracts on the host; it does not call Android or UIKit frame sources, and the iOS lifecycle suite does not invoke UIKit.
+All nine CTest executables (80 named cases) passed in GCC, Clang, Clang ASan/UBSan, and Apple Clang host jobs in run [41319287741](https://github.com/thedeverfankhajo-bot/StormEngine/actions/runs/41319287741). The new Runtime suite validates orchestration contracts on the host; it does not call Android or UIKit frame sources, and the iOS lifecycle suite does not invoke UIKit.
 
 The sanitizer job runs the same host tests with leak detection enabled and UndefinedBehaviorSanitizer configured to halt on the first reported issue. Sanitizer coverage increases confidence in tested code paths but is not a substitute for a security audit, fuzzing, or device testing.
 

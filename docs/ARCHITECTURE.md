@@ -9,7 +9,7 @@ The current implementation contains:
 - `runtime`: a mobile frame driver that gates Core callbacks on active lifecycle and surface readiness, with lifecycle-revision and surface-generation based timing resets.
 - Host CTest executables covering the implemented contracts.
 
-The initial Scene/Entity implementation is a correctness-oriented, type-indexed component registry. It does not yet provide hierarchy, transform propagation, iteration/query APIs, reflection, scene transitions, or serialization. See [Scene and Entity System](SCENE-SYSTEM.md).
+The initial Scene/Entity implementation is a correctness-oriented, type-indexed component registry with generation-safe parent/child identity links, bidirectional reparent bookkeeping, cycle rejection, and child orphaning when a parent is destroyed. It does not yet provide transform propagation, iteration/query APIs, reflection, scene transitions, or serialization. See [Scene and Entity System](SCENE-SYSTEM.md).
 
 The Runtime driver accepts monotonic timestamps from its caller; it does not yet own Android Choreographer/iOS CADisplayLink integration, a native frame pump, a renderer, or physics. The Android NativeActivity event pump and iOS scene delegate are not yet wired to the frame driver or an installable app target.
 
