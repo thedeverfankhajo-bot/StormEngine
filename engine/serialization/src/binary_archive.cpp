@@ -4,6 +4,7 @@
 #include <bit>
 #include <limits>
 #include <new>
+#include <stdexcept>
 #include <utility>
 
 namespace Storm::Serialization {

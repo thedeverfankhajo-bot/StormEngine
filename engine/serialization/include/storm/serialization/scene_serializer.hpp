@@ -7,8 +7,10 @@
 #include <algorithm>
 #include <array>
 #include <cstddef>
+#include <concepts>
 #include <cstdint>
 #include <limits>
+#include <iterator>
 #include <new>
 #include <optional>
 #include <span>
@@ -378,7 +380,7 @@ template <typename Component>
         }
 
         BinaryReader payload_reader(payload.value());
-        const Result<Component> decoded =
+        Result<Component> decoded =
             ComponentCodec<Component>::decode(schema_version, payload_reader);
         if (!decoded) {
             return Result<void>::failure(decoded.error());
@@ -895,14 +897,22 @@ private:
                 return Result<Scene>::failure(schema_version.error());
             }
 
-            const Result<void> decoded = decode_component_type<Components...>(
-                type_id.value(),
-                schema_version.value(),
-                reader,
-                scene,
-                handles,
-                limits,
-                total_component_records);
+            const Result<void> decoded = [&]() -> Result<void> {
+                if constexpr (sizeof...(Components) == 0U) {
+                    return Result<void>::failure(Error::make(
+                        ErrorCode::Unsupported,
+                        "The archive contains components but no component codecs were supplied"));
+                } else {
+                    return decode_component_type<Components...>(
+                        type_id.value(),
+                        schema_version.value(),
+                        reader,
+                        scene,
+                        handles,
+                        limits,
+                        total_component_records);
+                }
+            }();
             if (!decoded) {
                 return Result<Scene>::failure(decoded.error());
             }
