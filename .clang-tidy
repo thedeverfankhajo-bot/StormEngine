@@ -1,7 +1,7 @@
-# Clang 18 currently reports a false positive for Error copies returned from
-# std::variant-backed Result<T>; Error::code is explicitly initialized.
-# Keep all other Clang Static Analyzer checks enabled and promoted to errors.
-Checks: '-*,clang-analyzer-*,-clang-analyzer-core.uninitialized.Assign'
+# Clang 18 reports a false positive on Error copies through std::variant-backed Result.
+# EnumCastOutOfRange also flags tests that intentionally pass unknown enum values
+# to verify API-boundary validation; scoped enums have a fixed underlying type.
+Checks: '-*,clang-analyzer-*,-clang-analyzer-core.uninitialized.Assign,-clang-analyzer-optin.core.EnumCastOutOfRange'
 WarningsAsErrors: 'clang-analyzer-*'
 HeaderFilterRegex: '.*(engine|platforms|tests)/.*'
 FormatStyle: none
