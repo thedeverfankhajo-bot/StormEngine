@@ -5,7 +5,7 @@ Statuses are evidence-based. Planned means not implemented. Implemented means co
 | Phase | Scope | Current status |
 |---|---|---|
 | 0 | Repository audit and project bootstrap | Implemented (empty repository confirmed and main initialized) |
-| 1 | CMake, C++20 foundation, errors/results, logging contract, memory budget utility, minimal lifecycle, normalized platform lifecycle contract, bounded lifecycle event queue, host tests | In progress; implemented subset passes GCC/Clang and sanitizer host tests; native platform adapters and other abstraction services remain planned; Foundation CI configured |
+| 1 | CMake, C++20 foundation, errors/results, logging contract, memory budget utility, minimal lifecycle, normalized platform lifecycle contract, bounded lifecycle event queue, generation-checked surface lifecycle contract, host tests | In progress; implemented subset passes GCC/Clang host tests; native platform adapters and other abstraction services remain planned; Foundation CI configured |
 | 2 | Android/iOS platform adapters and native lifecycle | Planned |
 | 3 | Game loop, events, scene/entity/component and serialization systems | Planned |
 | 4 | True 1D gameplay and physics model | Planned |

@@ -2,7 +2,7 @@
 
 ## Current implementation boundary
 
-The current implementation contains `foundation`, a minimal `core` lifecycle model, and a platform-neutral lifecycle state machine. It has no native platform entry point or callback adapter, game loop, renderer, scene system, physics implementation, editor, or export tooling.
+The current implementation contains `foundation`, a minimal `core` lifecycle model, and platform-neutral contracts for application/presentation lifecycle events and render-surface lifetime. It has no native platform entry point or callback adapter, game loop, renderer, scene system, physics implementation, editor, or export tooling.
 
 ## Dependency direction
 
@@ -16,9 +16,9 @@ The intended dependency direction is inward-to-outward:
 6. **Mobile editor** — a mobile application that edits project data through stable engine/editor services. Editor UI must not become a dependency of the game runtime.
 7. **Export tooling** — Android and iOS packaging/signing workflows with platform-specific validation.
 
-No dependency on a specific editor framework or GPU API is introduced into Foundation. The current `engine/platform` module depends only on Foundation and defines a normalized lifecycle state contract plus a bounded event queue for forwarding native callbacks to the engine thread; it does not include Android or Apple SDK headers.
+No dependency on a specific editor framework or GPU API is introduced into Foundation. The current `engine/platform` module depends only on Foundation and defines a normalized lifecycle state contract, a bounded event queue for forwarding native lifecycle callbacks to the engine thread, and a generation-checked surface lifecycle contract. It does not include Android or Apple SDK headers and does not own native surface handles.
 
-See [Engine Lifecycle](ENGINE-LIFECYCLE.md) for state semantics, transition rules, native callback mapping guidelines, and threading constraints.
+See [Engine Lifecycle](ENGINE-LIFECYCLE.md) for state semantics, transition rules, surface identity/generation rules, native callback mapping guidelines, and threading constraints.
 
 ## Rendering direction
 

@@ -56,6 +56,7 @@ stormengine_apply_warnings(storm_core)
 add_library(storm_platform STATIC
     engine/platform/src/lifecycle.cpp
     engine/platform/src/lifecycle_event_queue.cpp
+    engine/platform/src/surface_lifecycle.cpp
 )
 add_library(Storm::Platform ALIAS storm_platform)
 target_include_directories(storm_platform
@@ -77,5 +78,13 @@ if(STORMENGINE_BUILD_TESTS)
         target_compile_features(stormengine_foundation_tests PRIVATE cxx_std_20)
         stormengine_apply_warnings(stormengine_foundation_tests)
         add_test(NAME stormengine_foundation_tests COMMAND stormengine_foundation_tests)
+
+        add_executable(stormengine_platform_surface_tests
+            tests/platform_surface_tests.cpp
+        )
+        target_link_libraries(stormengine_platform_surface_tests PRIVATE Storm::Platform)
+        target_compile_features(stormengine_platform_surface_tests PRIVATE cxx_std_20)
+        stormengine_apply_warnings(stormengine_platform_surface_tests)
+        add_test(NAME stormengine_platform_surface_tests COMMAND stormengine_platform_surface_tests)
     endif()
 endif()

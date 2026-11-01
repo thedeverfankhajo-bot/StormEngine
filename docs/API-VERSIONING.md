@@ -6,6 +6,8 @@ StormEngine has no released or stable public API yet. The 0.1.0 value in CMake i
 
 The currently exposed C++ headers are development interfaces and may change while the foundation is being established. No package or binary compatibility promise is made at this stage.
 
+The platform-neutral `Storm::Platform::SurfaceLifecycle` interface is a development API added during the foundation stage. It models one surface identity/generation stream; it does not own native handles, synchronize GPU work, or establish Android/iOS support. It is not a stable API guarantee.
+
 ## Intended policy before the first stable release
 
 - Use Semantic Versioning for published engine releases once a public compatibility baseline is declared.

@@ -10,6 +10,7 @@ Statuses distinguish source implementation from target-platform validation. Host
 | Engine initialization/shutdown model | Planned | Planned | None | Implemented | Tested on Linux host | Lifecycle model only; no OS integration or game loop |
 | Normalized lifecycle state machine | Not verified | Not verified | Platform-neutral C++ | Implemented | Tested on Linux host | Per-presentation state contract; native Android/iOS callback adapters remain unimplemented |
 | Lifecycle event queue | Not verified | Not verified | Platform-neutral C++ | Implemented | Tested on Linux host | Bounded 64-event FIFO queue; native adapters must handle Full explicitly |
+| Surface lifecycle contract | Not verified | Not verified | Platform-neutral C++ | Implemented | Tested on Linux host | Validates attach/resize/detach and rejects stale surface generations; no native handle ownership or GPU synchronization |
 | Android native lifecycle | Planned | N/A | Android SDK / NDK | Planned | Not tested | Android SDK and NDK were unavailable in the current build environment |
 | iOS native lifecycle | N/A | Planned | iOS SDK / Xcode | Planned | Not tested | Xcode was unavailable in the current build environment |
 | Rendering | Planned | Planned | TBD; native candidates differ by platform | Planned | Not tested | No backend or device rendering test exists |

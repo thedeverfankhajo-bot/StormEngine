@@ -63,18 +63,33 @@ The engine thread should dequeue each event and pass it to `LifecycleStateMachin
 
 `LifecycleStateMachine` is intentionally not internally synchronized. Native adapters should enqueue callback-derived state changes instead of calling the state machine concurrently. The queue serializes producers and is designed for one consumer on the engine thread. If more than one consumer is introduced, ordering and ownership semantics must be redesigned and tested explicitly.
 
+## Surface lifecycle contract
+
+`Storm::Platform::SurfaceLifecycle` is a separate, platform-neutral contract for one render-surface stream. It deliberately does not change `LifecycleStateMachine`: an application can remain active while a native surface is destroyed and recreated.
+
+A `SurfaceDescriptor` contains:
+
+- A non-zero opaque `native_id` supplied by the adapter. The descriptor does not own a native object and must never contain a borrowed raw pointer.
+- A monotonically increasing `generation` for each successful attach on this lifecycle instance.
+- A pixel `width` and `height`, both greater than zero.
+- A finite positive `pixels_per_logical_unit` value for display-density conversion.
+
+`attach()` rejects invalid descriptors and a second attach while a surface is already active. `resize()` updates extent and scale without changing the generation. `detach()` clears the active descriptor only when both identity and generation match. A callback with an old identity or generation is rejected with `ErrorCode::InvalidState`, so a delayed callback from a destroyed surface cannot mutate a replacement surface. Generation exhaustion is reported as `ErrorCode::ResourceExhausted` rather than wrapping.
+
+The contract is single-thread-affine, like the lifecycle state machine. A native adapter must serialize its surface callbacks before calling it. The adapter remains responsible for native handle ownership and must stop using a surface after detach. The generation is a stale-callback guard, not a GPU-resource synchronization primitive; render-backend fences and resource retirement still need a separate design.
+
+A platform integration should create one surface lifecycle instance per independently managed presentation surface. On recreation it must detach the old identity before attaching the new one. It must not infer that a valid surface exists merely because the app lifecycle is foreground-active.
+
 ## Separate concerns
 
-The following are not lifecycle states and will have separate contracts when implemented:
+The following remain separate contracts or future integrations:
 
-- Window or render-surface created, resized, lost, and recreated.
 - Memory pressure and low-memory notifications.
-- Orientation and display metrics changes.
+- Orientation and display metrics changes beyond the extent and scale reported through surface callbacks.
 - Audio interruptions and audio-focus changes.
 - Device termination and process death diagnostics.
-
-A surface can be recreated while the application remains active. Therefore surface/resource lifetime must not be inferred solely from this application/presentation lifecycle state.
+- GPU resource fences, surface-loss recovery, and swapchain/drawable recreation.
 
 ## Current validation
 
-The state machine and queue are covered by host unit tests, including FIFO behavior, full/closed handling, and concurrent multi-producer delivery (16,000 enqueued events in the stress test). GCC 14.2 and Clang 17 builds, and a Clang AddressSanitizer/UndefinedBehaviorSanitizer test build, passed in the current engineering environment. No Android SDK/NDK or Xcode/UIKit adapter build has been run; neither Android nor iOS compatibility is verified.
+The lifecycle state machine and event queue are covered by the foundation host tests, including FIFO behavior, full/closed handling, and concurrent multi-producer delivery (16,000 enqueued events in the stress test). The surface lifecycle contract has a separate host test executable covering attach validation, generation changes, resize, detach, recreation, and stale callbacks. GCC 14.2 and Clang 17 host builds passed. No Android SDK/NDK or Xcode/UIKit adapter build has been run; neither Android nor iOS compatibility is verified.

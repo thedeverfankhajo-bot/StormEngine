@@ -23,6 +23,7 @@ See [Mobile-only policy](docs/MOBILE-ONLY-POLICY.md), [Architecture](docs/ARCHIT
 - A minimal engine initialization/shutdown state model. It does not start a game loop or initialize an operating-system runtime.
 - A platform-neutral lifecycle state machine with validated transitions.
 - A bounded, allocation-free, multi-producer/single-consumer lifecycle event queue with explicit full/closed results.
+- A platform-neutral surface lifecycle contract with validated dimensions/scale and generation-based stale-callback rejection.
 - A small dependency-free host test executable.
 
 All of these are foundation-level capabilities only. No Android or iOS compatibility is claimed yet.
