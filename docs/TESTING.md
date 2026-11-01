@@ -186,3 +186,17 @@ See [Android NativeActivity Lifecycle Bridge](ANDROID-NATIVE-ACTIVITY.md), [Core
 
 
 The iOS target build verifies that the Objective-C++ scene delegate compiles against the selected iPhoneOS SDK and is included in the Platform static library. It does not instantiate the delegate, run UIKit lifecycle callbacks, build an app target, sign an application, or test on an iPhone. The host application must configure the delegate class in its UISceneConfiguration and provide a non-blocking transition-hook implementation that connects to its runtime.
+
+## Static analysis
+
+The `Linux / Clang static analysis` workflow job installs `clang-tidy`, configures
+the project with Clang, and runs the normal CMake build with
+`CMAKE_CXX_CLANG_TIDY` enabled. The repository-level `.clang-tidy` configuration
+currently enables the Clang Static Analyzer checks; findings from those checks
+are treated as errors. The analyzer runs on the translation units built by CMake
+and reports diagnostics in StormEngine source and test headers.
+
+This gate supplements, but does not replace, host unit tests, ASan/UBSan, code
+review, fuzzing, dependency auditing, or physical-device validation. It does not
+claim ThreadSanitizer coverage or prove the absence of defects outside the
+analyzed paths.

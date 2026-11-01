@@ -67,6 +67,33 @@ jobs:
           UBSAN_OPTIONS: print_stacktrace=1:halt_on_error=1
         run: ctest --test-dir build-sanitized --output-on-failure
 
+  static-analysis:
+    name: Linux / Clang static analysis
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+
+      - name: Install clang-tidy
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends -y clang-tidy
+
+      - name: Configure with clang-tidy
+        env:
+          CXX: clang++
+        run: >-
+          cmake -S . -B build-analysis -G Ninja
+          -DSTORMENGINE_BUILD_TESTS=ON
+          -DCMAKE_BUILD_TYPE=Debug
+          -DCMAKE_CXX_COMPILER="$CXX"
+          -DCMAKE_CXX_CLANG_TIDY=clang-tidy
+
+      - name: Build and run static analysis
+        run: cmake --build build-analysis --parallel
+
   android-arm64:
     name: Android NDK / arm64-v8a
     runs-on: ubuntu-24.04
