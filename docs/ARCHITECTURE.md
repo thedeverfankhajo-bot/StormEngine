@@ -8,6 +8,7 @@ The current implementation contains:
 - `platform`: platform-neutral lifecycle and surface contracts, Android NativeActivity lifecycle normalization, and iOS UIKit scene lifecycle integration.
 - `runtime`: a mobile frame driver that gates Core callbacks on active lifecycle and surface readiness, with lifecycle-revision and surface-generation based timing resets.
 - `serialization`: a separate bounded archive layer that depends on Core and Math, with little-endian binary primitives, a versioned Scene archive, stable component codec IDs, and per-component schema versions. Core does not depend on Serialization.
+- `physics`: an optional `Storm::Physics1D` target depending only on Foundation. Its initial scalar world provides 1D dynamic integration, interval contacts, triggers, filters, and one-axis resolution; it does not depend on Scene, Transform3D, Platform, or Rendering.
 - Host CTest executables covering the implemented contracts.
 
 The initial Scene/Entity implementation is a correctness-oriented, type-indexed component registry with generation-safe parent/child identity links, bidirectional reparent bookkeeping, cycle rejection, and child orphaning when a parent is destroyed. It provides optional local Transform3D components and iterative on-demand world-matrix composition, but not transform caching, multi-component queries, reflection, or scene transitions. Deterministic entity/component iteration and a separate versioned Scene archive layer are implemented. See [Scene and Entity System](SCENE-SYSTEM.md) and [Transform System](TRANSFORM-SYSTEM.md).
@@ -48,7 +49,7 @@ Rendering will use a backend interface rather than exposing API-specific handles
 
 ## Dimensional models
 
-1D, 2D, and 3D are distinct spatial/gameplay models. A 1D world uses scalar coordinates and one-axis physics. A 2D world uses planar coordinates and 2D collision/rendering systems. A 3D world uses vector transforms and 3D spatial systems. A 1D scene may use a 2D presentation layer without converting its gameplay model to 2D.
+1D, 2D, and 3D are distinct spatial/gameplay models. The initial 1D physics target uses scalar coordinates and one-axis interval collision. A 2D world will use planar coordinates and 2D collision/rendering systems. A 3D world uses vector transforms and 3D spatial systems. A 1D scene may use a 2D presentation layer without converting its gameplay model to 2D.
 
 ## Architectural decision records
 

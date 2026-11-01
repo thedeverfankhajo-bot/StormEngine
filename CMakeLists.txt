@@ -63,6 +63,18 @@ target_link_libraries(storm_math PUBLIC Storm::Foundation)
 target_compile_features(storm_math PUBLIC cxx_std_20)
 stormengine_apply_warnings(storm_math)
 
+add_library(storm_physics STATIC
+    engine/physics/src/one_d.cpp
+)
+add_library(Storm::Physics1D ALIAS storm_physics)
+target_include_directories(storm_physics
+    PUBLIC
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/engine/physics/include>
+)
+target_link_libraries(storm_physics PUBLIC Storm::Foundation)
+target_compile_features(storm_physics PUBLIC cxx_std_20)
+stormengine_apply_warnings(storm_physics)
+
 add_library(storm_core STATIC
     engine/core/src/engine.cpp
     engine/core/src/fixed_step_scheduler.cpp
@@ -272,5 +284,13 @@ if(STORMENGINE_BUILD_TESTS)
         target_compile_features(stormengine_scene_serialization_tests PRIVATE cxx_std_20)
         stormengine_apply_warnings(stormengine_scene_serialization_tests)
         add_test(NAME stormengine_scene_serialization_tests COMMAND stormengine_scene_serialization_tests)
+
+        add_executable(stormengine_one_d_physics_tests
+            tests/one_d_physics_tests.cpp
+        )
+        target_link_libraries(stormengine_one_d_physics_tests PRIVATE Storm::Physics1D)
+        target_compile_features(stormengine_one_d_physics_tests PRIVATE cxx_std_20)
+        stormengine_apply_warnings(stormengine_one_d_physics_tests)
+        add_test(NAME stormengine_one_d_physics_tests COMMAND stormengine_one_d_physics_tests)
     endif()
 endif()
