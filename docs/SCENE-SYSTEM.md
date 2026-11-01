@@ -62,7 +62,7 @@ Destroying a child removes its link from its parent. Destroying a parent invalid
 
 The span returned by children_of() is non-owning. Do not retain it across a hierarchy mutation, entity destruction, Scene move/assignment, or Scene destruction. Hierarchy changes are single-thread-affine, like the rest of Scene.
 
-This is an identity hierarchy only. It does not yet calculate local/world transforms, propagate matrices, provide sibling reordering, or integrate with a renderer or physics system.
+The hierarchy is consumed by the separate [Transform System](TRANSFORM-SYSTEM.md), which provides optional local Transform3D components and on-demand world matrices. It does not provide sibling reordering or integrate with a renderer or physics system.
 
 ## Identity and lifetime rules
 

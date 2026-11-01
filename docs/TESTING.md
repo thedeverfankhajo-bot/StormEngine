@@ -2,7 +2,7 @@
 
 ## Current automated coverage
 
-The host test suite contains 80 named test cases across nine CTest executables. All nine executables passed in the successful six-job CI run [41319287741](https://github.com/thedeverfankhajo-bot/StormEngine/actions/runs/41319287741) for the Scene hierarchy commit. The GCC, Clang, Clang ASan/UBSan, and Apple Clang host jobs each configured, built, and ran the complete CTest suite:
+The host test suite contains 102 named test cases across eleven CTest executables. All nine executables passed in the successful six-job CI run [41319287741](https://github.com/thedeverfankhajo-bot/StormEngine/actions/runs/41319287741) for the Scene hierarchy commit. The GCC, Clang, Clang ASan/UBSan, and Apple Clang host jobs each configured, built, and ran the complete CTest suite:
 
 - stormengine_foundation_tests (11 cases):
   - Success and failure paths for typed Result<T> values.
@@ -58,6 +58,29 @@ The host test suite contains 80 named test cases across nine CTest executables. 
   - Rejection of an empty std::function handler.
   - Safe subscription destruction after the dispatcher is gone.
   - Idempotent explicit disconnection.
+- stormengine_math_tests (10 cases):
+  - Vector and matrix finite-value checks and identity matrix values.
+  - Quaternion identity and normalization.
+  - Zero-quaternion rejection.
+  - Invalid axis-angle input rejection.
+  - Right-handed axis-angle rotation.
+  - Translation and scale matrix construction.
+  - TRS scale-before-rotation behavior.
+  - Parent-before-local matrix multiplication order.
+  - Bounds-checked matrix access.
+- stormengine_transform_system_tests (12 cases):
+  - Identity defaults for entities without Transform3D.
+  - Local Transform3D insertion, readback, and replacement.
+  - Rejection of stale and foreign EntityHandles.
+  - Rejection of non-finite transform values.
+  - Local transform world-matrix calculation.
+  - Parent/child translation composition.
+  - Parent rotation and scale inheritance.
+  - Identity behavior for grouping entities without transforms.
+  - Child transform behavior after parent destruction/orphaning.
+  - Iterative evaluation of a 512-entity deep hierarchy.
+  - Invalid stored Transform3D diagnostics.
+  - World-transform preservation across Scene moves.
 - stormengine_scene_tests (16 cases):
   - Scene name validation and unique process identity.
   - Entity creation, name access, rename, and active entity counts.
@@ -115,7 +138,7 @@ The Android and iOS jobs disable host test executables because those binaries ca
 
 The iOS job uses CMake's Xcode generator and the iPhoneOS Device SDK. In the latest successful run, the build compiled `platforms/ios/scene_lifecycle_delegate.mm` as Objective-C++, `engine/core/src/scene.cpp` as C++, and `engine/runtime/src/mobile_frame_driver.cpp` as C++ against iPhoneOS 18.5, producing `libstorm_core.a`, `libstorm_platform.a`, and `libstorm_runtime.a` for arm64. The Android job cross-compiled Runtime and linked the NativeActivity shared library for arm64-v8a. These successful target builds do not create an iOS application archive or signed IPA, or an Android APK/AAB.
 
-All nine CTest executables (80 named cases) passed in GCC, Clang, Clang ASan/UBSan, and Apple Clang host jobs in run [41319287741](https://github.com/thedeverfankhajo-bot/StormEngine/actions/runs/41319287741). The new Runtime suite validates orchestration contracts on the host; it does not call Android or UIKit frame sources, and the iOS lifecycle suite does not invoke UIKit.
+All nine CTest executables (102 named cases) passed in GCC, Clang, Clang ASan/UBSan, and Apple Clang host jobs in run [41319287741](https://github.com/thedeverfankhajo-bot/StormEngine/actions/runs/41319287741). The new Runtime suite validates orchestration contracts on the host; it does not call Android or UIKit frame sources, and the iOS lifecycle suite does not invoke UIKit.
 
 The sanitizer job runs the same host tests with leak detection enabled and UndefinedBehaviorSanitizer configured to halt on the first reported issue. Sanitizer coverage increases confidence in tested code paths but is not a substitute for a security audit, fuzzing, or device testing.
 

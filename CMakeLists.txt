@@ -51,18 +51,31 @@ target_include_directories(storm_foundation
 target_compile_features(storm_foundation PUBLIC cxx_std_20)
 stormengine_apply_warnings(storm_foundation)
 
+add_library(storm_math STATIC
+    engine/math/src/transform3d.cpp
+)
+add_library(Storm::Math ALIAS storm_math)
+target_include_directories(storm_math
+    PUBLIC
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/engine/math/include>
+)
+target_link_libraries(storm_math PUBLIC Storm::Foundation)
+target_compile_features(storm_math PUBLIC cxx_std_20)
+stormengine_apply_warnings(storm_math)
+
 add_library(storm_core STATIC
     engine/core/src/engine.cpp
     engine/core/src/fixed_step_scheduler.cpp
     engine/core/src/game_loop.cpp
     engine/core/src/scene.cpp
+    engine/core/src/transform_system.cpp
 )
 add_library(Storm::Core ALIAS storm_core)
 target_include_directories(storm_core
     PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/engine/core/include>
 )
-target_link_libraries(storm_core PUBLIC Storm::Foundation)
+target_link_libraries(storm_core PUBLIC Storm::Foundation Storm::Math)
 target_compile_features(storm_core PUBLIC cxx_std_20)
 stormengine_apply_warnings(storm_core)
 
@@ -214,6 +227,22 @@ if(STORMENGINE_BUILD_TESTS)
         target_compile_features(stormengine_event_dispatcher_tests PRIVATE cxx_std_20)
         stormengine_apply_warnings(stormengine_event_dispatcher_tests)
         add_test(NAME stormengine_event_dispatcher_tests COMMAND stormengine_event_dispatcher_tests)
+
+        add_executable(stormengine_math_tests
+            tests/math_tests.cpp
+        )
+        target_link_libraries(stormengine_math_tests PRIVATE Storm::Math)
+        target_compile_features(stormengine_math_tests PRIVATE cxx_std_20)
+        stormengine_apply_warnings(stormengine_math_tests)
+        add_test(NAME stormengine_math_tests COMMAND stormengine_math_tests)
+
+        add_executable(stormengine_transform_system_tests
+            tests/transform_system_tests.cpp
+        )
+        target_link_libraries(stormengine_transform_system_tests PRIVATE Storm::Core)
+        target_compile_features(stormengine_transform_system_tests PRIVATE cxx_std_20)
+        stormengine_apply_warnings(stormengine_transform_system_tests)
+        add_test(NAME stormengine_transform_system_tests COMMAND stormengine_transform_system_tests)
 
         add_executable(stormengine_scene_tests
             tests/scene_tests.cpp

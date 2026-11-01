@@ -4,12 +4,12 @@
 
 The current implementation contains:
 - `foundation`: typed errors/results, logging contracts, and memory-budget accounting.
-- `core`: a minimal engine lifecycle model, fixed-step time accumulator, callback-driven frame coordinator, synchronous typed event dispatcher, and an initial move-only Scene owner with generation-checked entity handles and scene-local typed component storage.
+- `core`: a minimal engine lifecycle model, fixed-step time accumulator, callback-driven frame coordinator, synchronous typed event dispatcher, and an initial move-only Scene owner with generation-checked entity handles and scene-local typed component storage; and a hierarchy-aware TransformSystem backed by the platform-neutral Math target.
 - `platform`: platform-neutral lifecycle and surface contracts, Android NativeActivity lifecycle normalization, and iOS UIKit scene lifecycle integration.
 - `runtime`: a mobile frame driver that gates Core callbacks on active lifecycle and surface readiness, with lifecycle-revision and surface-generation based timing resets.
 - Host CTest executables covering the implemented contracts.
 
-The initial Scene/Entity implementation is a correctness-oriented, type-indexed component registry with generation-safe parent/child identity links, bidirectional reparent bookkeeping, cycle rejection, and child orphaning when a parent is destroyed. It does not yet provide transform propagation, iteration/query APIs, reflection, scene transitions, or serialization. See [Scene and Entity System](SCENE-SYSTEM.md).
+The initial Scene/Entity implementation is a correctness-oriented, type-indexed component registry with generation-safe parent/child identity links, bidirectional reparent bookkeeping, cycle rejection, and child orphaning when a parent is destroyed. It provides optional local Transform3D components and iterative on-demand world-matrix composition, but not transform caching, iteration/query APIs, reflection, scene transitions, or serialization. See [Scene and Entity System](SCENE-SYSTEM.md) and [Transform System](TRANSFORM-SYSTEM.md).
 
 The Runtime driver accepts monotonic timestamps from its caller; it does not yet own Android Choreographer/iOS CADisplayLink integration, a native frame pump, a renderer, or physics. The Android NativeActivity event pump and iOS scene delegate are not yet wired to the frame driver or an installable app target.
 
@@ -52,3 +52,7 @@ Rendering will use a backend interface rather than exposing API-specific handles
 ## Architectural decision records
 
 Major choices (editor framework, rendering APIs, physics library, asset formats, scripting runtime, and export strategy) require an ADR recording context, alternatives, evidence, security/licensing impact, mobile constraints, and consequences. No such stack choice is locked by this bootstrap commit.
+
+## Math and transforms
+
+The independent `Storm::Math` target provides Vector3, Quaternion, and Matrix4 value types. Core's TransformSystem stores optional Transform3D components in Scene's typed component registry and composes world matrices iteratively using the documented column-major, column-vector convention. It intentionally computes on demand; no cache or renderer dependency exists. See [Transform System](TRANSFORM-SYSTEM.md) and [ADR-0003](ADR-0003-TRANSFORM-CONVENTIONS.md).
