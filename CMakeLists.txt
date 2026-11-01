@@ -79,6 +79,18 @@ target_link_libraries(storm_core PUBLIC Storm::Foundation Storm::Math)
 target_compile_features(storm_core PUBLIC cxx_std_20)
 stormengine_apply_warnings(storm_core)
 
+add_library(storm_serialization STATIC
+    engine/serialization/src/binary_archive.cpp
+)
+add_library(Storm::Serialization ALIAS storm_serialization)
+target_include_directories(storm_serialization
+    PUBLIC
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/engine/serialization/include>
+)
+target_link_libraries(storm_serialization PUBLIC Storm::Core Storm::Math)
+target_compile_features(storm_serialization PUBLIC cxx_std_20)
+stormengine_apply_warnings(storm_serialization)
+
 add_library(storm_platform STATIC
     engine/platform/src/lifecycle.cpp
     engine/platform/src/lifecycle_event_queue.cpp
@@ -251,5 +263,13 @@ if(STORMENGINE_BUILD_TESTS)
         target_compile_features(stormengine_scene_tests PRIVATE cxx_std_20)
         stormengine_apply_warnings(stormengine_scene_tests)
         add_test(NAME stormengine_scene_tests COMMAND stormengine_scene_tests)
+
+        add_executable(stormengine_scene_serialization_tests
+            tests/scene_serialization_tests.cpp
+        )
+        target_link_libraries(stormengine_scene_serialization_tests PRIVATE Storm::Serialization)
+        target_compile_features(stormengine_scene_serialization_tests PRIVATE cxx_std_20)
+        stormengine_apply_warnings(stormengine_scene_serialization_tests)
+        add_test(NAME stormengine_scene_serialization_tests COMMAND stormengine_scene_serialization_tests)
     endif()
 endif()

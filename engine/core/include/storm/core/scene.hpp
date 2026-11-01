@@ -48,6 +48,15 @@ public:
     [[nodiscard]] std::string_view name() const noexcept;
     [[nodiscard]] std::size_t entity_count() const noexcept;
 
+    // Counts only component types that currently have at least one live value.
+    [[nodiscard]] std::size_t component_type_count() const noexcept;
+
+    template <typename Component>
+    [[nodiscard]] bool has_component_storage() const noexcept {
+        const ComponentStorage<Component>* storage = find_storage<Component>();
+        return storage != nullptr && storage->size() != 0U;
+    }
+
     // Visits live entities in ascending slot-index order. The callback receives
     // a generation-checked handle and a non-owning name view.
     template <typename Callback>
@@ -303,6 +312,7 @@ private:
     struct ComponentStorageBase {
         virtual ~ComponentStorageBase() = default;
         virtual void erase(EntityIndex entity) noexcept = 0;
+        [[nodiscard]] virtual std::size_t size() const noexcept = 0;
     };
 
     template <typename Component>
@@ -311,6 +321,10 @@ private:
 
         void erase(EntityIndex entity) noexcept override {
             static_cast<void>(values.erase(entity));
+        }
+
+        [[nodiscard]] std::size_t size() const noexcept override {
+            return values.size();
         }
     };
 

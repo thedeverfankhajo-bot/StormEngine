@@ -93,6 +93,17 @@ std::size_t Scene::entity_count() const noexcept {
     return count;
 }
 
+std::size_t Scene::component_type_count() const noexcept {
+    std::size_t count = 0U;
+    for (const auto& [component_type, storage] : component_storages_) {
+        static_cast<void>(component_type);
+        if (storage->size() != 0U) {
+            ++count;
+        }
+    }
+    return count;
+}
+
 Result<EntityHandle> Scene::create_entity(std::string name) {
     if (scene_id_ == 0U) {
         return Result<EntityHandle>::failure(Error::make(
