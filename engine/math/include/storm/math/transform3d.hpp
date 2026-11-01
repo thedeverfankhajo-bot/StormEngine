@@ -38,7 +38,7 @@ public:
     [[nodiscard]] float at(std::size_t row, std::size_t column) const;
     [[nodiscard]] bool is_finite() const noexcept;
 
-    [[nodiscard]] friend Matrix4 operator*(
+    friend Matrix4 operator*(
         const Matrix4& lhs,
         const Matrix4& rhs) noexcept;
 

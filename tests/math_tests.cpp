@@ -23,9 +23,9 @@ namespace {
 }
 
 [[nodiscard]] std::optional<std::string> test_vector_and_matrix_finiteness() {
-    EXPECT(Storm::Math::Vector3{1.0F, -2.0F, 3.0F}.is_finite());
-    EXPECT(!Storm::Math::Vector3{
-        std::numeric_limits<float>::infinity(), 0.0F, 0.0F}.is_finite());
+    EXPECT((Storm::Math::Vector3{1.0F, -2.0F, 3.0F}.is_finite()));
+    EXPECT((!Storm::Math::Vector3{
+        std::numeric_limits<float>::infinity(), 0.0F, 0.0F}.is_finite()));
 
     const auto identity = Storm::Math::Matrix4::identity();
     EXPECT(identity.is_finite());
