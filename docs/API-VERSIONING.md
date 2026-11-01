@@ -10,6 +10,8 @@ The platform-neutral Storm::Platform::SurfaceLifecycle interface is a developmen
 
 The Storm::Platform::Android::apply_activity_event function and ActivityEvent enum are also development interfaces. Their transition policy is host-tested, but they are not a stable public API and do not prove Android framework runtime compatibility.
 
+The `Storm::EventDispatcher`, its `Subscription` handle, and the `subscribe<Event>()` / `dispatch()` methods are development interfaces added to Core. They are not stable API guarantees. Dispatch is synchronous and single-thread-affine; handler errors stop dispatch, and callback exceptions propagate.
+
 ## Intended policy before the first stable release
 
 - Use Semantic Versioning for published engine releases once a public compatibility baseline is declared.

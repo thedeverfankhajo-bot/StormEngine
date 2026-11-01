@@ -153,5 +153,13 @@ if(STORMENGINE_BUILD_TESTS)
         target_compile_features(stormengine_game_loop_tests PRIVATE cxx_std_20)
         stormengine_apply_warnings(stormengine_game_loop_tests)
         add_test(NAME stormengine_game_loop_tests COMMAND stormengine_game_loop_tests)
+
+        add_executable(stormengine_event_dispatcher_tests
+            tests/event_dispatcher_tests.cpp
+        )
+        target_link_libraries(stormengine_event_dispatcher_tests PRIVATE Storm::Core)
+        target_compile_features(stormengine_event_dispatcher_tests PRIVATE cxx_std_20)
+        stormengine_apply_warnings(stormengine_event_dispatcher_tests)
+        add_test(NAME stormengine_event_dispatcher_tests COMMAND stormengine_event_dispatcher_tests)
     endif()
 endif()

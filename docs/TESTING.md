@@ -2,7 +2,7 @@
 
 ## Current automated coverage
 
-The host test suite contains 36 named test cases across five CTest executables:
+The host test sources contain 46 named test cases across six CTest executables. The EventDispatcher test executable was added in the current change; its CI result is pending until the corresponding workflow completes:
 
 - stormengine_foundation_tests (11 cases):
   - Success and failure paths for typed Result<T> values.
@@ -39,6 +39,17 @@ The host test suite contains 36 named test cases across five CTest executables:
   - Early termination on input failure.
   - Negative-delta rejection before callbacks.
   - Timing reset across suspension.
+- stormengine_event_dispatcher_tests (10 cases):
+  - Subscription-order dispatch and exact event-type matching.
+  - Successful dispatch with no listeners.
+  - RAII disconnection and move-only subscription behavior.
+  - Immediate skip after disconnecting a pending listener during dispatch.
+  - New listeners taking effect on the next dispatch.
+  - Clearing all listeners during an active dispatch.
+  - Handler error propagation and early termination.
+  - Rejection of an empty std::function handler.
+  - Safe subscription destruction after the dispatcher is gone.
+  - Idempotent explicit disconnection.
 
 These are host-side tests. The Android lifecycle cases test the platform-neutral event policy; they do not invoke Android framework callbacks. The GameLoop tests do not exercise an Android/iOS clock, native lifecycle gate, GPU, or physical device.
 
@@ -77,4 +88,4 @@ The sanitizer job runs the same host tests with leak detection enabled and Undef
 - The current workflow does not run ThreadSanitizer, static analysis, dependency vulnerability scanning, fuzz tests, Android instrumentation tests, or iOS simulator/device tests.
 - Android/iOS runtime compatibility requires installable native application targets, platform lifecycle integration, target-specific tests, and real-device evidence.
 
-See [Android NativeActivity Lifecycle Bridge](ANDROID-NATIVE-ACTIVITY.md) and [Core Game Loop](GAME-LOOP.md) for the exact implementation scope and limitations.
+See [Android NativeActivity Lifecycle Bridge](ANDROID-NATIVE-ACTIVITY.md), [Core Game Loop](GAME-LOOP.md), and [Core Event System](EVENT-SYSTEM.md) for the exact implementation scope and limitations.

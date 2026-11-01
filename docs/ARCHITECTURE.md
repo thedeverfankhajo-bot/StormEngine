@@ -4,7 +4,7 @@
 
 The current implementation contains:
 - `foundation`: typed errors/results, logging contracts, and memory-budget accounting.
-- `core`: a minimal engine lifecycle model, fixed-step time accumulator, and callback-driven frame coordinator.
+- `core`: a minimal engine lifecycle model, fixed-step time accumulator, callback-driven frame coordinator, and synchronous typed event dispatcher.
 - `platform`: platform-neutral lifecycle and surface contracts, plus Android NativeActivity lifecycle normalization.
 - Host CTest executables covering the implemented contracts.
 
@@ -31,6 +31,8 @@ No dependency on a specific editor framework or GPU API is introduced into Found
 The loop receives elapsed time from its caller and does not create threads or read clocks. Platform lifecycle gating remains outside Core: the native runtime calls the loop only while foreground/active and resets timing across suspension so background duration is not simulated. Callback failures abort the current frame and are returned with phase context; the caller owns runtime failure recovery.
 
 See [Core Game Loop](GAME-LOOP.md) for the exact callback and failure contract.
+
+The Core `EventDispatcher` routes events by exact C++ type and invokes handlers synchronously in subscription order. Its move-only RAII subscriptions disconnect safely, while snapshot semantics make registration and disconnection during dispatch deterministic. Handler failures stop the current dispatch and return a typed error. The dispatcher is single-thread-affine and is not a replacement for the bounded platform lifecycle queue or a future cross-thread game-event transport. See [Core Event System](EVENT-SYSTEM.md).
 
 ## Platform boundaries
 
