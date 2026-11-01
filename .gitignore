@@ -45,3 +45,10 @@ build/
 *.o
 *.a
 *.lib
+
+
+# Android Gradle / externalNativeBuild output
+.gradle/
+.cxx/
+platforms/android/.gradle/
+platforms/android/app/build/

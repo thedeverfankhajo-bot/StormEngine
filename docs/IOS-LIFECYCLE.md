@@ -4,7 +4,7 @@
 
 The platform-neutral iOS lifecycle event adapter is implemented in Storm::Platform::IOS. It normalizes UIKit scene lifecycle events into the shared LifecycleStateMachine contract.
 
-The repository now includes StormEngineSceneDelegate, an Objective-C++ UIWindowSceneDelegate adapter available on iOS 13+ and compiled only for iOS. It owns one LifecycleStateMachine per scene and forwards normalized state transitions through an overridable method. This is a native scene-lifecycle integration component, not a complete iOS application: the repository still has no UIApplicationDelegate, app target, runtime event consumer, signed app, or physical-device lifecycle test.
+The repository now includes StormEngineSceneDelegate, an Objective-C++ UIWindowSceneDelegate adapter available on iOS 13+ and compiled only for iOS. It owns one LifecycleStateMachine per scene and forwards normalized state transitions through an overridable method. This is a native scene-lifecycle integration component, not a complete iOS application: the repository now has a minimal UIApplicationDelegate app target and an unsigned device app bundle, but no integrated runtime consumer, signed app, or physical-device lifecycle test.
 
 ## Scene ownership
 

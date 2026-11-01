@@ -146,6 +146,35 @@ if(CMAKE_SYSTEM_NAME STREQUAL "iOS")
     # The host application selects StormEngineSceneDelegate by class name in
     # its scene configuration; -ObjC loads the class object from this archive.
     target_link_options(storm_platform INTERFACE "-ObjC")
+
+    # Minimal iOS host application. This links the UIKit lifecycle adapter
+    # but does not claim to implement a renderer or game runtime.
+    add_executable(storm_ios_app MACOSX_BUNDLE
+        platforms/ios/app/main.mm
+        platforms/ios/app/app_delegate.mm
+    )
+    target_include_directories(storm_ios_app PRIVATE
+        platforms/ios/include
+    )
+    target_link_libraries(storm_ios_app PRIVATE
+        Storm::Runtime
+        Storm::Serialization
+        Storm::Physics1D
+        Storm::Platform
+    )
+    set_target_properties(storm_ios_app PROPERTIES
+        MACOSX_BUNDLE TRUE
+        MACOSX_BUNDLE_GUI_IDENTIFIER "com.stormengine.runtime"
+        MACOSX_BUNDLE_BUNDLE_NAME "StormEngine"
+        MACOSX_BUNDLE_BUNDLE_VERSION "1"
+        MACOSX_BUNDLE_SHORT_VERSION_STRING "${PROJECT_VERSION}"
+        MACOSX_BUNDLE_INFO_PLIST "${CMAKE_CURRENT_SOURCE_DIR}/platforms/ios/app/Info.plist"
+        XCODE_ATTRIBUTE_IPHONEOS_DEPLOYMENT_TARGET "13.0"
+        XCODE_ATTRIBUTE_TARGETED_DEVICE_FAMILY "1,2"
+        XCODE_ATTRIBUTE_CODE_SIGNING_ALLOWED "NO"
+        XCODE_ATTRIBUTE_CODE_SIGNING_REQUIRED "NO"
+        XCODE_ATTRIBUTE_CLANG_ENABLE_OBJC_ARC "NO"
+    )
 endif()
 
 if(ANDROID)

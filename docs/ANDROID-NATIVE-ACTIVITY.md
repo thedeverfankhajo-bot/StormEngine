@@ -39,7 +39,7 @@ A consuming Android application can merge an activity declaration equivalent to:
 </activity>
 ~~~
 
-The consuming application remains responsible for its Gradle application module, applicationId, SDK configuration, icons, labels, packaging, signing, and distribution. This repository does not yet generate an APK or AAB.
+The repository now includes a Gradle application module that packages this NativeActivity bridge into an arm64 debug APK. It does not yet generate an AAB, configure release signing, or provide a game/renderer implementation. See [Mobile App Hosts](MOBILE-APP-HOSTS.md).
 
 ## Build behavior
 

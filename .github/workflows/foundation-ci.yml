@@ -136,6 +136,34 @@ jobs:
           test -s build-android-arm64/libstorm_runtime.a
           test -s build-android-arm64/libstorm_android_native_activity.so
 
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Gradle 9.6
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "9.6.0"
+
+      - name: Install Android application SDK packages
+        run: |
+          sdkmanager --install \
+            "platforms;android-36" \
+            "build-tools;36.0.0" \
+            "cmake;3.31.0" \
+            "ndk;28.2.13676358"
+
+      - name: Assemble Android arm64 debug APK
+        run: gradle -p platforms/android :app:assembleDebug
+
+      - name: Verify Android APK and native library packaging
+        run: |
+          test -s platforms/android/app/build/outputs/apk/debug/app-debug.apk
+          unzip -l platforms/android/app/build/outputs/apk/debug/app-debug.apk | \
+            grep -F "lib/arm64-v8a/libstorm_android_native_activity.so"
+
   ios-arm64:
     name: iOS Device SDK / arm64
     runs-on: macos-15
@@ -153,13 +181,14 @@ jobs:
           cmake -S . -B build-ios-arm64 -G Xcode
           -DCMAKE_SYSTEM_NAME=iOS
           -DCMAKE_OSX_ARCHITECTURES=arm64
+          -DCMAKE_OSX_DEPLOYMENT_TARGET=13.0
           -DSTORMENGINE_BUILD_TESTS=OFF
           -DCMAKE_BUILD_TYPE=Release
 
       - name: Build iOS device target libraries
         run: >-
           cmake --build build-ios-arm64 --config Release
-          --target storm_foundation storm_math storm_physics storm_core storm_serialization storm_platform storm_runtime
+          --target storm_foundation storm_math storm_physics storm_core storm_serialization storm_platform storm_runtime storm_ios_app
           --parallel
 
       - name: Verify iOS artifacts
@@ -171,6 +200,7 @@ jobs:
           test -s build-ios-arm64/Release-iphoneos/libstorm_serialization.a
           test -s build-ios-arm64/Release-iphoneos/libstorm_platform.a
           test -s build-ios-arm64/Release-iphoneos/libstorm_runtime.a
+          test -d build-ios-arm64/Release-iphoneos/storm_ios_app.app
 
   macos:
     name: macOS / Apple Clang host tests
