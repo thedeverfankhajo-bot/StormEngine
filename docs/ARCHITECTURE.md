@@ -2,7 +2,7 @@
 
 ## Current implementation boundary
 
-The current implementation contains only \`foundation\` and a minimal \`core\` lifecycle model. It has no native platform entry point, game loop, renderer, scene system, physics implementation, editor, or export tooling.
+The current implementation contains only `foundation` and a minimal `core` lifecycle model. It has no native platform entry point, game loop, renderer, scene system, physics implementation, editor, or export tooling.
 
 ## Dependency direction
 

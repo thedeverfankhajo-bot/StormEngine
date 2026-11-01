@@ -1,6 +1,6 @@
 # StormEngine Roadmap
 
-Statuses are evidence-based. \`Planned\` means not implemented. \`Implemented\` means code exists. \`Tested\` means an applicable automated test has passed. \`Verified\` requires the appropriate target-device or platform validation.
+Statuses are evidence-based. `Planned` means not implemented. `Implemented` means code exists. `Tested` means an applicable automated test has passed. `Verified` requires the appropriate target-device or platform validation.
 
 | Phase | Scope | Current status |
 |---|---|---|
