@@ -9,15 +9,15 @@ StormEngine is an early-stage, mobile-only game-engine project targeting **Andro
 - Runtime targets: Android and iOS only.
 - Editor targets: Android and iOS only.
 - Host operating systems may be used for engineering, CI, and tests; they are not product targets.
-- All repository development is performed on `main`.
+- All repository development is performed on main.
 - Platform and graphics capabilities are reported only after implementation and validation on real target devices.
 
-See [Mobile-only policy](docs/MOBILE-ONLY-POLICY.md), [Architecture](docs/ARCHITECTURE.md), and [Roadmap](docs/ROADMAP.md).
+See [Mobile-only policy](docs/MOBILE-ONLY-POLICY.md), [Architecture](docs/ARCHITECTURE.md), [Compatibility](docs/COMPATIBILITY.md), [Testing](docs/TESTING.md), [API versioning](docs/API-VERSIONING.md), and [Roadmap](docs/ROADMAP.md).
 
 ## Current foundation
 
 - C++20 and CMake project configuration.
-- Typed `Error` and `Result<T>` value types.
+- Typed Error and Result<T> value types.
 - A platform-neutral, injectable logging interface.
 - An atomic byte-budget accounting utility. It accounts for reservations; it does not allocate memory.
 - A minimal engine initialization/shutdown state model. It does not start a game loop or initialize an operating-system runtime.
