@@ -2,7 +2,7 @@
 
 ## Current automated coverage
 
-The host test suite contains 102 named test cases across eleven CTest executables. All eleven executables passed in the successful six-job CI run [41320280070](https://github.com/thedeverfankhajo-bot/StormEngine/actions/runs/41320280070) for the Math and TransformSystem implementation. The GCC, Clang, Clang ASan/UBSan, and Apple Clang host jobs each configured, built, and ran the complete CTest suite:
+The host test suite contains 104 named test cases across eleven CTest executables. All eleven executables passed in the successful six-job CI run [41320785197](https://github.com/thedeverfankhajo-bot/StormEngine/actions/runs/41320785197) for the deterministic Scene entity/component iteration implementation. The GCC, Clang, Clang ASan/UBSan, and Apple Clang host jobs each configured, built, and ran the complete CTest suite:
 
 - stormengine_foundation_tests (11 cases):
   - Success and failure paths for typed Result<T> values.
@@ -81,7 +81,7 @@ The host test suite contains 102 named test cases across eleven CTest executable
   - Iterative evaluation of a 512-entity deep hierarchy.
   - Invalid stored Transform3D diagnostics.
   - World-transform preservation across Scene moves.
-- stormengine_scene_tests (16 cases):
+- stormengine_scene_tests (18 cases):
   - Scene name validation and unique process identity.
   - Entity creation, name access, rename, and active entity counts.
   - Rejection of handles from another Scene.
@@ -98,6 +98,8 @@ The host test suite contains 102 named test cases across eleven CTest executable
   - Parent destruction orphaning direct children while preserving subtrees.
   - Child destruction unlinking and clean entity-slot reuse.
   - Hierarchy and handles preserved across Scene moves.
+  - Deterministic live-entity iteration and stale-slot skipping.
+  - Mutable/const typed component iteration, slot ordering, and empty-store behavior.
 - stormengine_mobile_frame_driver_tests (11 cases):
   - Invalid GameLoop configuration rejection.
   - Suppression of every game callback while lifecycle is inactive.
@@ -125,7 +127,7 @@ A direct CMake configure/build/test flow is also supported and documented in the
 
 ## GitHub Actions
 
-The Foundation workflow runs on pushes to main and on manual dispatch. The latest successful target-validation workflow run [41318394662](https://github.com/thedeverfankhajo-bot/StormEngine/actions/runs/41318394662) for commit `17fe82183862b9209a992e4df47b2b17a62e8b13` completed all six jobs successfully:
+The Foundation workflow runs on pushes to main and on manual dispatch. The latest successful six-job workflow run [41320785197](https://github.com/thedeverfankhajo-bot/StormEngine/actions/runs/41320785197) for commit `6c8736aeea529a3ffb8282acdcc13d68f2aed7db` completed all six jobs successfully:
 
 - Linux with GCC: configure, build, and run host CTest.
 - Linux with Clang: configure, build, and run host CTest.
@@ -138,7 +140,7 @@ The Android and iOS jobs disable host test executables because those binaries ca
 
 The iOS job uses CMake's Xcode generator and the iPhoneOS Device SDK. In the latest successful run, the build compiled `platforms/ios/scene_lifecycle_delegate.mm` as Objective-C++, `engine/core/src/scene.cpp` as C++, and `engine/runtime/src/mobile_frame_driver.cpp` as C++ against iPhoneOS 18.5, producing `libstorm_core.a`, `libstorm_platform.a`, and `libstorm_runtime.a` for arm64. The Android job cross-compiled Runtime and linked the NativeActivity shared library for arm64-v8a. These successful target builds do not create an iOS application archive or signed IPA, or an Android APK/AAB.
 
-All eleven CTest executables (102 named cases) passed in GCC, Clang, Clang ASan/UBSan, and Apple Clang host jobs in run [41320280070](https://github.com/thedeverfankhajo-bot/StormEngine/actions/runs/41320280070). The Math and Transform suites validate platform-neutral numerical and hierarchy contracts on the host; they do not exercise a graphics backend or real mobile device. The Runtime suite does not call Android or UIKit frame sources, and the iOS lifecycle suite does not invoke UIKit.
+All eleven CTest executables (104 named cases) passed in GCC, Clang, Clang ASan/UBSan, and Apple Clang host jobs in run [41320785197](https://github.com/thedeverfankhajo-bot/StormEngine/actions/runs/41320785197). The Math, Transform, and Scene iteration suites validate platform-neutral contracts on the host; they do not exercise a graphics backend or real mobile device. The Runtime suite does not call Android or UIKit frame sources, and the iOS lifecycle suite does not invoke UIKit.
 
 The sanitizer job runs the same host tests with leak detection enabled and UndefinedBehaviorSanitizer configured to halt on the first reported issue. Sanitizer coverage increases confidence in tested code paths but is not a substitute for a security audit, fuzzing, or device testing.
 
