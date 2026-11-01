@@ -33,6 +33,31 @@ Result<MobileFrameDriver> MobileFrameDriver::create(
 Result<MobileFrameResult> MobileFrameDriver::tick(
     TimePoint now,
     IGameLoopCallbacks& callbacks) {
+    // Convert the clock epoch to nanoseconds before passing it to the shared
+    // timestamp path. Use an exclusive upper bound because 2^63 is not a
+    // representable int64_t value, even on platforms where long double has
+    // only double precision.
+    const std::chrono::duration<long double, std::nano> timestamp_nanoseconds{
+        now.time_since_epoch()};
+    const long double timestamp_count = timestamp_nanoseconds.count();
+    const long double signed_limit = std::ldexp(1.0L, 63);
+    if (!std::isfinite(timestamp_count) ||
+        timestamp_count < -signed_limit ||
+        timestamp_count >= signed_limit) {
+        reset_timing();
+        return Result<MobileFrameResult>::failure(Storm::Error::make(
+            Storm::ErrorCode::ResourceExhausted,
+            "MobileFrameDriver timestamp exceeds nanosecond range"));
+    }
+
+    return tick_at_monotonic_nanoseconds(
+        static_cast<MonotonicNanoseconds>(timestamp_count),
+        callbacks);
+}
+
+Result<MobileFrameResult> MobileFrameDriver::tick_at_monotonic_nanoseconds(
+    MonotonicNanoseconds timestamp_nanoseconds,
+    IGameLoopCallbacks& callbacks) {
     if (!lifecycle_.can_run_game_loop()) {
         reset_timing();
         return Result<MobileFrameResult>::success(MobileFrameResult{
@@ -61,45 +86,37 @@ Result<MobileFrameResult> MobileFrameDriver::tick(
 
     if (environment_changed) {
         game_loop_.reset_timing();
-        previous_frame_time_.reset();
+        previous_frame_timestamp_ns_.reset();
     }
 
     std::chrono::nanoseconds frame_delta{0};
-    if (previous_frame_time_.has_value()) {
-        if (now < *previous_frame_time_) {
+    if (previous_frame_timestamp_ns_.has_value()) {
+        const MonotonicNanoseconds previous =
+            *previous_frame_timestamp_ns_;
+        if (timestamp_nanoseconds < previous) {
             reset_timing();
             return Result<MobileFrameResult>::failure(Storm::Error::make(
                 Storm::ErrorCode::InvalidArgument,
                 "MobileFrameDriver received a non-monotonic timestamp"));
         }
 
-        // Convert each epoch duration before subtraction. Subtracting two
-        // extreme steady_clock durations directly could overflow their native
-        // representation before a range check gets a chance to run.
-        const std::chrono::duration<long double, std::nano> now_nanoseconds{
-            now.time_since_epoch()};
-        const std::chrono::duration<long double, std::nano> previous_nanoseconds{
-            previous_frame_time_->time_since_epoch()};
-        const long double elapsed_count =
-            now_nanoseconds.count() - previous_nanoseconds.count();
-        const long double maximum_count = static_cast<long double>(
-            std::numeric_limits<std::chrono::nanoseconds::rep>::max());
-        if (!std::isfinite(elapsed_count) ||
-            elapsed_count < 0.0L ||
-            elapsed_count > maximum_count) {
+        constexpr MonotonicNanoseconds maximum =
+            std::numeric_limits<MonotonicNanoseconds>::max();
+        if (previous < 0 && timestamp_nanoseconds > maximum + previous) {
             reset_timing();
             return Result<MobileFrameResult>::failure(Storm::Error::make(
                 Storm::ErrorCode::ResourceExhausted,
                 "MobileFrameDriver elapsed time exceeds nanosecond range"));
         }
 
+        // The range check above makes this signed subtraction safe.
         frame_delta = std::chrono::nanoseconds{
-            static_cast<std::chrono::nanoseconds::rep>(elapsed_count)};
+            timestamp_nanoseconds - previous};
     }
 
     // Record the attempted frame before invoking callbacks. A failed frame is
     // never replayed with the same elapsed duration on the next call.
-    previous_frame_time_ = now;
+    previous_frame_timestamp_ns_ = timestamp_nanoseconds;
     previous_lifecycle_revision_ = lifecycle_revision;
     previous_surface_generation_ = surface_generation;
 
@@ -116,7 +133,7 @@ Result<MobileFrameResult> MobileFrameDriver::tick(
 
 void MobileFrameDriver::reset_timing() noexcept {
     game_loop_.reset_timing();
-    previous_frame_time_.reset();
+    previous_frame_timestamp_ns_.reset();
     previous_lifecycle_revision_.reset();
     previous_surface_generation_.reset();
 }

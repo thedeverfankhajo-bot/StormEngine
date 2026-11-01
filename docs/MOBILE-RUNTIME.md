@@ -23,9 +23,13 @@ The first eligible frame uses a zero duration. The driver also resets timing whe
 - A new surface generation. `SurfaceLifecycle` increments its generation on each successful attach; a detach/re-attach is therefore detected even if no frame ran while the surface was absent.
 - An explicit `reset_timing()` call from the owning runtime.
 
-A resize that keeps the same surface generation does not reset the simulation clock. The caller must continue to provide monotonic `std::chrono::steady_clock::time_point` values. A timestamp regression returns `InvalidArgument` and resets the timing state; an elapsed interval that cannot be represented as nanoseconds returns `ResourceExhausted` and also resets timing.
+A resize that keeps the same surface generation does not reset the simulation clock. The caller may use either `tick()` with `std::chrono::steady_clock::time_point` or `tick_at_monotonic_nanoseconds()` with a platform-native monotonic timestamp. The native overload deliberately treats the clock epoch as opaque; timestamps must be non-decreasing and must come from one clock source for the duration of an active timing period. Do not mix native clock sources or wall-clock timestamps without first calling `reset_timing()`. Timestamp regressions return `InvalidArgument`; intervals that cannot fit in signed nanoseconds return `ResourceExhausted`, and both errors reset timing.
 
 The timestamp is recorded before game callbacks run. A callback failure is returned unchanged from Core and that elapsed frame interval is not replayed by the next call.
+
+## Native timestamp boundary
+
+`tick_at_monotonic_nanoseconds()` allows a native frame callback to pass its own monotonic timestamp without converting its clock epoch to `std::chrono::steady_clock`. For example, Android's `AChoreographer_frameCallback64` supplies `frameTimeNanos` in the `CLOCK_MONOTONIC` time base, while iOS `CADisplayLink` supplies monotonic Core Animation timestamps that can be converted to nanoseconds. The caller remains responsible for acquiring and scheduling those callbacks. This API does not create or register an Android Choreographer or iOS CADisplayLink source, and neither native adapter is connected yet.
 
 ## Ownership and threading
 

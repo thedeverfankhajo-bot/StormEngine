@@ -28,6 +28,7 @@ class MobileFrameDriver final {
 public:
     using Clock = std::chrono::steady_clock;
     using TimePoint = Clock::time_point;
+    using MonotonicNanoseconds = std::int64_t;
 
     [[nodiscard]] static Result<MobileFrameDriver> create(
         FixedStepConfig config,
@@ -43,6 +44,13 @@ public:
         TimePoint now,
         IGameLoopCallbacks& callbacks);
 
+    // Accepts a monotonic timestamp from a native frame source. The timestamp
+    // epoch is opaque; values must be non-decreasing and from one clock source
+    // until timing is reset by lifecycle/surface changes or reset_timing().
+    [[nodiscard]] Result<MobileFrameResult> tick_at_monotonic_nanoseconds(
+        MonotonicNanoseconds timestamp_nanoseconds,
+        IGameLoopCallbacks& callbacks);
+
     void reset_timing() noexcept;
 
 private:
@@ -54,7 +62,7 @@ private:
     GameLoop game_loop_;
     Platform::LifecycleStateMachine& lifecycle_;
     Platform::SurfaceLifecycle& surface_;
-    std::optional<TimePoint> previous_frame_time_;
+    std::optional<MonotonicNanoseconds> previous_frame_timestamp_ns_;
     std::optional<std::uint64_t> previous_lifecycle_revision_;
     std::optional<std::uint64_t> previous_surface_generation_;
 };

@@ -4,6 +4,7 @@
 #include <chrono>
 #include <cstdlib>
 #include <iostream>
+#include <limits>
 #include <iterator>
 #include <optional>
 #include <string>
@@ -328,6 +329,90 @@ public:
     return std::nullopt;
 }
 
+[[nodiscard]] std::optional<std::string> test_native_monotonic_nanoseconds_drive_fixed_updates() {
+    Storm::Platform::LifecycleStateMachine lifecycle;
+    Storm::Platform::SurfaceLifecycle surface;
+    EXPECT(make_active(lifecycle));
+    EXPECT(surface.attach(1U, {320U, 640U}, 1.0));
+    auto created = Driver::create(test_config(), lifecycle, surface);
+    EXPECT(created);
+    auto driver = std::move(created).value();
+    RecordingCallbacks callbacks;
+
+    constexpr Driver::MonotonicNanoseconds start = 8'000'000'000LL;
+    const auto first = driver.tick_at_monotonic_nanoseconds(start, callbacks);
+    EXPECT(first);
+    EXPECT(first.value().timing.step_count == 0U);
+    EXPECT(callbacks.variable_delta == 0ns);
+
+    callbacks.clear_counts();
+    const auto next = driver.tick_at_monotonic_nanoseconds(
+        start + 25'000'000LL,
+        callbacks);
+    EXPECT(next);
+    EXPECT(next.value().timing.step_count == 2U);
+    EXPECT(next.value().timing.interpolation_alpha == 0.5);
+    EXPECT(callbacks.variable_delta == 25ms);
+    EXPECT(callbacks.fixed_deltas.size() == 2U);
+    return std::nullopt;
+}
+
+[[nodiscard]] std::optional<std::string> test_native_timestamp_regression_is_rejected_and_recovers() {
+    Storm::Platform::LifecycleStateMachine lifecycle;
+    Storm::Platform::SurfaceLifecycle surface;
+    EXPECT(make_active(lifecycle));
+    EXPECT(surface.attach(1U, {320U, 640U}, 1.0));
+    auto created = Driver::create(test_config(), lifecycle, surface);
+    EXPECT(created);
+    auto driver = std::move(created).value();
+    RecordingCallbacks callbacks;
+
+    EXPECT(driver.tick_at_monotonic_nanoseconds(10'000'000'000LL, callbacks));
+    callbacks.clear_counts();
+    const auto backwards = driver.tick_at_monotonic_nanoseconds(
+        9'000'000'000LL,
+        callbacks);
+    EXPECT(!backwards);
+    EXPECT(backwards.error().code == Storm::ErrorCode::InvalidArgument);
+    EXPECT(callbacks.input_count == 0U);
+
+    const auto recovered = driver.tick_at_monotonic_nanoseconds(
+        11'000'000'000LL,
+        callbacks);
+    EXPECT(recovered);
+    EXPECT(recovered.value().timing.step_count == 0U);
+    EXPECT(callbacks.variable_delta == 0ns);
+    return std::nullopt;
+}
+
+[[nodiscard]] std::optional<std::string> test_native_timestamp_delta_overflow_is_rejected_and_recovers() {
+    Storm::Platform::LifecycleStateMachine lifecycle;
+    Storm::Platform::SurfaceLifecycle surface;
+    EXPECT(make_active(lifecycle));
+    EXPECT(surface.attach(1U, {320U, 640U}, 1.0));
+    auto created = Driver::create(test_config(), lifecycle, surface);
+    EXPECT(created);
+    auto driver = std::move(created).value();
+    RecordingCallbacks callbacks;
+
+    EXPECT(driver.tick_at_monotonic_nanoseconds(
+        std::numeric_limits<Driver::MonotonicNanoseconds>::min(),
+        callbacks));
+    callbacks.clear_counts();
+    const auto overflow = driver.tick_at_monotonic_nanoseconds(
+        std::numeric_limits<Driver::MonotonicNanoseconds>::max(),
+        callbacks);
+    EXPECT(!overflow);
+    EXPECT(overflow.error().code == Storm::ErrorCode::ResourceExhausted);
+    EXPECT(callbacks.input_count == 0U);
+
+    const auto recovered = driver.tick_at_monotonic_nanoseconds(42, callbacks);
+    EXPECT(recovered);
+    EXPECT(recovered.value().timing.step_count == 0U);
+    EXPECT(callbacks.variable_delta == 0ns);
+    return std::nullopt;
+}
+
 struct TestCase final {
     const char* name;
     std::optional<std::string> (*run)();
@@ -348,6 +433,9 @@ int main() {
         TestCase{"failed_frame_delta_is_not_replayed", &test_failed_frame_delta_is_not_replayed},
         TestCase{"surface_resize_preserves_frame_timing", &test_surface_resize_preserves_frame_timing},
         TestCase{"lifecycle_revision_only_changes_for_real_transitions", &test_lifecycle_revision_only_changes_for_real_transitions},
+        TestCase{"native_monotonic_nanoseconds_drive_fixed_updates", &test_native_monotonic_nanoseconds_drive_fixed_updates},
+        TestCase{"native_timestamp_regression_is_rejected_and_recovers", &test_native_timestamp_regression_is_rejected_and_recovers},
+        TestCase{"native_timestamp_delta_overflow_is_rejected_and_recovers", &test_native_timestamp_delta_overflow_is_rejected_and_recovers},
     };
 
     std::size_t failures = 0U;
