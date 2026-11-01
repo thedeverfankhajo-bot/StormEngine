@@ -88,14 +88,15 @@ Component iteration currently scans the entity-slot array and performs a compone
 
 Components are ordinary C++ object types with non-throwing destructors. Their constructors may accept arbitrary forwarded arguments. A Scene stores one component of each concrete C++ type per entity. Different Scene instances keep separate component stores.
 
-The current implementation uses type-indexed storage and hash maps. It is an initial correctness-oriented component registry, not a cache-optimized archetype ECS. Multi-component queries, system scheduling, component serialization, reflection, and editor metadata are not implemented.
+The current implementation uses type-indexed storage and hash maps. It is an initial correctness-oriented component registry, not a cache-optimized archetype ECS. Multi-component queries, system scheduling, reflection, and editor metadata are not implemented. Component values can be persisted through the separate [Scene Serialization](SCENE-SERIALIZATION.md) module only when an explicit stable-ID/versioned codec is supplied.
 
 ## Explicit non-goals
 
 This change does not implement:
 
-- Transform propagation or scene serialization.
+- Transform caching or dirty propagation.
 - Scene loading/unloading, activation, or transitions.
+- Direct filesystem I/O, atomic file replacement, or automatic component-schema migration.
 - 1D, 2D, or 3D math/physics/rendering.
 - Component reflection, dynamic component types, or editor inspectors.
 - Thread-safe concurrent Scene mutation.
