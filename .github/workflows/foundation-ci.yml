@@ -86,7 +86,7 @@ jobs:
           CXX: clang++
         run: >-
           cmake -S . -B build-analysis -G Ninja
-          -DSTORMENGINE_BUILD_TESTS=ON
+          -DSTORMENGINE_BUILD_TESTS=OFF
           -DCMAKE_BUILD_TYPE=Debug
           -DCMAKE_CXX_COMPILER="$CXX"
           -DCMAKE_CXX_CLANG_TIDY=clang-tidy

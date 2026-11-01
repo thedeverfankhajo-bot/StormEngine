@@ -1,7 +1,5 @@
 # Clang 18 reports a false positive on Error copies through std::variant-backed Result.
-# EnumCastOutOfRange also flags tests that intentionally pass unknown enum values
-# to verify API-boundary validation; scoped enums have a fixed underlying type.
-Checks: '-*,clang-analyzer-*,-clang-analyzer-core.uninitialized.Assign,-clang-analyzer-optin.core.EnumCastOutOfRange'
+Checks: '-*,clang-analyzer-*,-clang-analyzer-core.uninitialized.Assign'
 WarningsAsErrors: 'clang-analyzer-*'
-HeaderFilterRegex: '.*(engine|platforms|tests)/.*'
+HeaderFilterRegex: '.*(engine|platforms)/.*'
 FormatStyle: none

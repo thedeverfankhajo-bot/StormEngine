@@ -187,22 +187,26 @@ See [Android NativeActivity Lifecycle Bridge](ANDROID-NATIVE-ACTIVITY.md), [Core
 
 The iOS target build verifies that the Objective-C++ scene delegate compiles against the selected iPhoneOS SDK and is included in the Platform static library. It does not instantiate the delegate, run UIKit lifecycle callbacks, build an app target, sign an application, or test on an iPhone. The host application must configure the delegate class in its UISceneConfiguration and provide a non-blocking transition-hook implementation that connects to its runtime.
 
+
 ## Static analysis
 
-The `Linux / Clang static analysis` workflow job installs `clang-tidy`, configures
-the project with Clang, and runs the normal CMake build with
-`CMAKE_CXX_CLANG_TIDY` enabled. The repository-level `.clang-tidy` configuration
-enables the Clang Static Analyzer checks; findings from enabled checks are
-treated as errors. The analyzer runs on the translation units built by CMake
-and reports diagnostics in StormEngine source and test headers. Two checks are explicitly excluded for now. Clang 18.1.3 reports a
-false positive for `clang-analyzer-core.uninitialized.Assign` when copying
-the initialized `Storm::Error` value out of the `std::variant` used by
-`Result<T>`; `Error::code` has a default member initializer and
-`Error::make` initializes both aggregate fields. The opt-in
-`clang-analyzer-optin.core.EnumCastOutOfRange` check flags the lifecycle tests
-that intentionally construct unknown scoped-enum values to verify API-boundary
-validation. Keep those negative tests intact. Revisit both exclusions when the
-analyzer is upgraded or the affected code/tests change.
+The `Linux / Clang static analysis` workflow job installs `clang-tidy`,
+configures the project with Clang, and builds the production CMake libraries
+with `CMAKE_CXX_CLANG_TIDY` enabled and test executables disabled. The
+repository-level `.clang-tidy` configuration enables Clang Static Analyzer
+checks; findings from enabled checks are treated as errors. Diagnostics are
+reported for StormEngine implementation sources and their engine/platform
+headers. Host test executables are built and run in the separate compiler and
+sanitizer jobs; they are intentionally not analyzed by this job because some
+negative tests deliberately exercise moved-from objects and invalid enum
+sentinels as part of the documented API contract.
+
+The `clang-analyzer-core.uninitialized.Assign` check is explicitly excluded
+for now: Clang 18.1.3 reports a false positive when copying the initialized
+`Storm::Error` value out of the `std::variant` used by `Result<T>`.
+`Error::code` has a default member initializer, and `Error::make`
+initializes both aggregate fields. Revisit this exclusion when the analyzer is
+upgraded or the Result representation changes.
 
 This gate supplements, but does not replace, host unit tests, ASan/UBSan, code
 review, fuzzing, dependency auditing, or physical-device validation. It does not
