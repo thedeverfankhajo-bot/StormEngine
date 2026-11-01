@@ -41,16 +41,18 @@ namespace {
 @implementation StormEngineSceneDelegate
 
 - (instancetype)init {
+    LifecycleStateMachine *machine = new (std::nothrow) LifecycleStateMachine();
+    if (machine == nullptr) {
+        return nil;
+    }
+
     self = [super init];
     if (self == nil) {
+        delete machine;
         return nil;
     }
 
-    _stormEngineLifecycleStorage = new (std::nothrow) LifecycleStateMachine();
-    if (_stormEngineLifecycleStorage == nullptr) {
-        return nil;
-    }
-
+    _stormEngineLifecycleStorage = machine;
     [[NSNotificationCenter defaultCenter]
         addObserver:self
            selector:@selector(_applicationWillTerminate:)
@@ -63,6 +65,7 @@ namespace {
     [[NSNotificationCenter defaultCenter] removeObserver:self];
     delete static_cast<LifecycleStateMachine *>(_stormEngineLifecycleStorage);
     _stormEngineLifecycleStorage = nullptr;
+    [super dealloc];
 }
 
 - (LifecycleStateMachine *)_stormLifecycleMachine {

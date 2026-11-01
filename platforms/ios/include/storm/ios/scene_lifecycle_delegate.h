@@ -14,8 +14,7 @@ typedef NS_ENUM(NSInteger, StormEngineLifecycleState) {
 // Configure this class (or a subclass) in the host application's
 // UISceneConfiguration. Each instance owns independent lifecycle state.
 // Available from iOS 13.0. All callbacks run on the UIKit main thread.
-@interface StormEngineSceneDelegate : UIResponder <UIWindowSceneDelegate>
-    API_AVAILABLE(ios(13.0)) {
+@interface StormEngineSceneDelegate : UIResponder <UIWindowSceneDelegate> {
 @private
     void *_stormEngineLifecycleStorage;
 }

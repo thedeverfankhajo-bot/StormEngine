@@ -92,9 +92,6 @@ if(CMAKE_SYSTEM_NAME STREQUAL "iOS")
             $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/platforms/ios/include>
     )
     target_link_libraries(storm_platform PUBLIC "${STORMENGINE_UIKIT_FRAMEWORK}")
-    target_compile_options(storm_platform PRIVATE
-        $<$<COMPILE_LANGUAGE:OBJCXX>:-fobjc-arc>
-    )
     # The host application selects StormEngineSceneDelegate by class name in
     # its scene configuration; -ObjC loads the class object from this archive.
     target_link_options(storm_platform INTERFACE "-ObjC")
