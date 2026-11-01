@@ -6,7 +6,9 @@ StormEngine has no released or stable public API yet. The 0.1.0 value in CMake i
 
 The currently exposed C++ headers are development interfaces and may change while the foundation is being established. No package or binary compatibility promise is made at this stage.
 
-The platform-neutral `Storm::Platform::SurfaceLifecycle` interface is a development API added during the foundation stage. It models one surface identity/generation stream; it does not own native handles, synchronize GPU work, or establish Android/iOS support. It is not a stable API guarantee.
+The platform-neutral Storm::Platform::SurfaceLifecycle interface is a development API added during the foundation stage. It models one surface identity/generation stream; it does not own native handles, synchronize GPU work, or establish Android/iOS support. It is not a stable API guarantee.
+
+The Storm::Platform::Android::apply_activity_event function and ActivityEvent enum are also development interfaces. Their transition policy is host-tested, but they are not a stable public API and do not prove Android framework runtime compatibility.
 
 ## Intended policy before the first stable release
 
@@ -15,7 +17,7 @@ The platform-neutral `Storm::Platform::SurfaceLifecycle` interface is a developm
 - Mark experimental interfaces explicitly and keep them out of stable compatibility guarantees.
 - Record breaking changes and provide migration notes for affected public APIs.
 - Deprecate an established public API before removal whenever technically and safely practical.
-- Keep platform-specific implementation details out of portable public headers.
+- Keep platform-specific implementation details out of portable public headers. Android NDK types remain isolated in the Android platform target.
 
 ## Release checklist
 

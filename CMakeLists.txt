@@ -57,6 +57,7 @@ add_library(storm_platform STATIC
     engine/platform/src/lifecycle.cpp
     engine/platform/src/lifecycle_event_queue.cpp
     engine/platform/src/surface_lifecycle.cpp
+    engine/platform/src/android_lifecycle_adapter.cpp
 )
 add_library(Storm::Platform ALIAS storm_platform)
 target_include_directories(storm_platform
@@ -66,6 +67,41 @@ target_include_directories(storm_platform
 target_link_libraries(storm_platform PUBLIC Storm::Foundation)
 target_compile_features(storm_platform PUBLIC cxx_std_20)
 stormengine_apply_warnings(storm_platform)
+
+if(ANDROID)
+    # The NDK's Native App Glue is C source shipped with the selected NDK.
+    # Enabling C only for Android keeps the host/iOS project surface minimal.
+    enable_language(C)
+
+    if(NOT CMAKE_ANDROID_NDK)
+        message(FATAL_ERROR "CMAKE_ANDROID_NDK is required for the Android NativeActivity target")
+    endif()
+
+    set(STORM_ANDROID_NATIVE_APP_GLUE_DIR
+        "${CMAKE_ANDROID_NDK}/sources/android/native_app_glue")
+    if(NOT EXISTS "${STORM_ANDROID_NATIVE_APP_GLUE_DIR}/android_native_app_glue.h" OR
+       NOT EXISTS "${STORM_ANDROID_NATIVE_APP_GLUE_DIR}/android_native_app_glue.c")
+        message(FATAL_ERROR
+            "The selected Android NDK does not contain sources/android/native_app_glue")
+    endif()
+
+    add_library(storm_android_native_activity SHARED
+        platforms/android/native_activity.cpp
+        "${STORM_ANDROID_NATIVE_APP_GLUE_DIR}/android_native_app_glue.c"
+    )
+    target_include_directories(storm_android_native_activity
+        PRIVATE
+            "${STORM_ANDROID_NATIVE_APP_GLUE_DIR}"
+    )
+    target_link_libraries(storm_android_native_activity
+        PRIVATE
+            Storm::Platform
+            android
+            log
+    )
+    target_compile_features(storm_android_native_activity PRIVATE cxx_std_20)
+    stormengine_apply_warnings(storm_android_native_activity)
+endif()
 
 if(STORMENGINE_BUILD_TESTS)
     if(ANDROID OR CMAKE_SYSTEM_NAME STREQUAL "iOS")
@@ -88,5 +124,13 @@ if(STORMENGINE_BUILD_TESTS)
         target_compile_features(stormengine_platform_surface_tests PRIVATE cxx_std_20)
         stormengine_apply_warnings(stormengine_platform_surface_tests)
         add_test(NAME stormengine_platform_surface_tests COMMAND stormengine_platform_surface_tests)
+
+        add_executable(stormengine_android_lifecycle_tests
+            tests/android_lifecycle_tests.cpp
+        )
+        target_link_libraries(stormengine_android_lifecycle_tests PRIVATE Storm::Platform)
+        target_compile_features(stormengine_android_lifecycle_tests PRIVATE cxx_std_20)
+        stormengine_apply_warnings(stormengine_android_lifecycle_tests)
+        add_test(NAME stormengine_android_lifecycle_tests COMMAND stormengine_android_lifecycle_tests)
     endif()
 endif()
