@@ -463,6 +463,129 @@ using Storm::Physics::OneD::PhysicsWorld1DConfig;
     return std::nullopt;
 }
 
+
+[[nodiscard]] std::optional<std::string> test_overlap_query_returns_hits_in_stable_slot_order() {
+    auto world_result = PhysicsWorld1D::create();
+    EXPECT(world_result);
+    auto world = std::move(world_result).value();
+
+    auto first = world.create_body(BodyDefinition1D{.position = 0.75});
+    auto second = world.create_body(BodyDefinition1D{.position = 0.0});
+    auto outside = world.create_body(BodyDefinition1D{.position = 3.0});
+    EXPECT(first);
+    EXPECT(second);
+    EXPECT(outside);
+
+    const auto hits = world.overlap_query(Storm::Physics::OneD::OverlapQuery1D{
+        .position = 0.4,
+        .half_extent = 0.25,
+    });
+    EXPECT(hits);
+    EXPECT(hits.value().size() == 2U);
+    EXPECT(hits.value()[0] == first.value());
+    EXPECT(hits.value()[1] == second.value());
+    return std::nullopt;
+}
+
+[[nodiscard]] std::optional<std::string> test_overlap_query_filters_layers_and_triggers() {
+    auto world_result = PhysicsWorld1D::create();
+    EXPECT(world_result);
+    auto world = std::move(world_result).value();
+
+    auto layer_one = world.create_body(BodyDefinition1D{
+        .position = 0.0,
+        .collision_layer = 0x1U,
+    });
+    auto trigger = world.create_body(BodyDefinition1D{
+        .position = 0.0,
+        .is_trigger = true,
+        .collision_layer = 0x2U,
+    });
+    auto layer_two = world.create_body(BodyDefinition1D{
+        .position = 0.0,
+        .collision_layer = 0x2U,
+    });
+    EXPECT(layer_one);
+    EXPECT(trigger);
+    EXPECT(layer_two);
+
+    const auto with_triggers = world.overlap_query(Storm::Physics::OneD::OverlapQuery1D{
+        .collision_mask = 0x2U,
+    });
+    EXPECT(with_triggers);
+    EXPECT(with_triggers.value().size() == 2U);
+    EXPECT(with_triggers.value()[0] == trigger.value());
+    EXPECT(with_triggers.value()[1] == layer_two.value());
+
+    const auto without_triggers = world.overlap_query(Storm::Physics::OneD::OverlapQuery1D{
+        .collision_mask = 0x2U,
+        .include_triggers = false,
+    });
+    EXPECT(without_triggers);
+    EXPECT(without_triggers.value().size() == 1U);
+    EXPECT(without_triggers.value()[0] == layer_two.value());
+
+    const auto other_layer = world.overlap_query(Storm::Physics::OneD::OverlapQuery1D{
+        .collision_mask = 0x1U,
+    });
+    EXPECT(other_layer);
+    EXPECT(other_layer.value().size() == 1U);
+    EXPECT(other_layer.value()[0] == layer_one.value());
+    return std::nullopt;
+}
+
+[[nodiscard]] std::optional<std::string> test_overlap_query_includes_touching_point_bounds() {
+    auto world_result = PhysicsWorld1D::create();
+    EXPECT(world_result);
+    auto world = std::move(world_result).value();
+
+    auto body = world.create_body(BodyDefinition1D{
+        .position = 1.0,
+        .half_extent = 0.5,
+    });
+    EXPECT(body);
+
+    const auto hits = world.overlap_query(Storm::Physics::OneD::OverlapQuery1D{
+        .position = 0.5,
+        .half_extent = 0.0,
+    });
+    EXPECT(hits);
+    EXPECT(hits.value().size() == 1U);
+    EXPECT(hits.value()[0] == body.value());
+    return std::nullopt;
+}
+
+[[nodiscard]] std::optional<std::string> test_overlap_query_rejects_invalid_input_and_moved_from_world() {
+    auto world_result = PhysicsWorld1D::create();
+    EXPECT(world_result);
+    auto world = std::move(world_result).value();
+
+    auto invalid = world.overlap_query(Storm::Physics::OneD::OverlapQuery1D{
+        .position = std::numeric_limits<double>::quiet_NaN(),
+    });
+    EXPECT(!invalid);
+    EXPECT(invalid.error().code == Storm::ErrorCode::InvalidArgument);
+
+    invalid = world.overlap_query(Storm::Physics::OneD::OverlapQuery1D{
+        .half_extent = -1.0,
+    });
+    EXPECT(!invalid);
+    EXPECT(invalid.error().code == Storm::ErrorCode::InvalidArgument);
+
+    invalid = world.overlap_query(Storm::Physics::OneD::OverlapQuery1D{
+        .position = std::numeric_limits<double>::max(),
+        .half_extent = std::numeric_limits<double>::max(),
+    });
+    EXPECT(!invalid);
+    EXPECT(invalid.error().code == Storm::ErrorCode::InvalidArgument);
+
+    PhysicsWorld1D moved(std::move(world));
+    const auto moved_from_query = world.overlap_query({});
+    EXPECT(!moved_from_query);
+    EXPECT(moved_from_query.error().code == Storm::ErrorCode::InvalidState);
+    return std::nullopt;
+}
+
 struct TestCase final {
     const char* name;
     std::optional<std::string> (*run)();
@@ -489,6 +612,10 @@ int main() {
         TestCase{"invalid_step_is_transactional", &test_invalid_step_is_transactional},
         TestCase{"contact_limit_failure_preserves_all_body_state_and_forces", &test_contact_limit_failure_preserves_all_body_state_and_forces},
         TestCase{"contacts_are_reported_in_stable_slot_order", &test_contacts_are_reported_in_stable_slot_order},
+        TestCase{"overlap_query_returns_hits_in_stable_slot_order", &test_overlap_query_returns_hits_in_stable_slot_order},
+        TestCase{"overlap_query_filters_layers_and_triggers", &test_overlap_query_filters_layers_and_triggers},
+        TestCase{"overlap_query_includes_touching_point_bounds", &test_overlap_query_includes_touching_point_bounds},
+        TestCase{"overlap_query_rejects_invalid_input_and_moved_from_world", &test_overlap_query_rejects_invalid_input_and_moved_from_world},
     };
 
     std::size_t failures = 0U;

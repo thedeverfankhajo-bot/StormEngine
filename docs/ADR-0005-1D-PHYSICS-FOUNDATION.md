@@ -18,7 +18,7 @@ The initial slice includes world-scoped generation-checked body handles,
 Static/Kinematic/Dynamic body types, scalar position and velocity, accumulated
 force, impulse, gravity, interval overlap detection, trigger contacts,
 restitution-based one-axis impulse resolution, collision layer/mask filtering,
-and explicit body/contact/time-step limits.
+read-only filtered closed-interval overlap queries, and explicit body/contact/time-step limits.
 
 The world is stepped by the existing caller-owned fixed-update phase. Each
 successful step consumes accumulated forces. The step computes against staged

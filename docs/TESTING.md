@@ -2,7 +2,7 @@
 
 ## Current automated coverage
 
-The host test suite contains 134 named test cases across thirteen CTest executables. All thirteen executables passed in the successful six-job CI run [41324124061](https://github.com/thedeverfankhajo-bot/StormEngine/actions/runs/41324124061) for the initial scalar 1D physics slice. The GCC, Clang, Clang ASan/UBSan, and Apple Clang host jobs each configured, built, and ran the complete CTest suite:
+The host test suite contains 138 named test cases across thirteen CTest executables. All thirteen executables passed in the successful six-job CI run [41324124061](https://github.com/thedeverfankhajo-bot/StormEngine/actions/runs/41324124061) for the initial scalar 1D physics slice. The GCC, Clang, Clang ASan/UBSan, and Apple Clang host jobs each configured, built, and ran the complete CTest suite:
 
 - stormengine_foundation_tests (11 cases):
   - Success and failure paths for typed Result<T> values.
@@ -126,7 +126,7 @@ The host test suite contains 134 named test cases across thirteen CTest executab
   - Preservation of timing across a resize with the same surface generation.
   - Lifecycle revision changes only for non-idempotent transitions.
 
-- stormengine_one_d_physics_tests (17 cases):
+- stormengine_one_d_physics_tests (21 cases):
   - World configuration validation and unique world identities.
   - Body definition validation, including finite values, positive interval extent, valid restitution, and dynamic mass.
   - World-scoped generation-checked body handles, stale-handle rejection, and slot reuse.

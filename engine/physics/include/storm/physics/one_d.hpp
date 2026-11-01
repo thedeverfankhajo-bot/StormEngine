@@ -58,6 +58,13 @@ struct Contact1D final {
     bool is_trigger{false};
 };
 
+struct OverlapQuery1D final {
+    double position{0.0};
+    double half_extent{0.0};
+    std::uint32_t collision_mask{0xFFFFFFFFU};
+    bool include_triggers{true};
+};
+
 struct StepResult1D final {
     double delta_seconds{0.0};
     std::vector<Contact1D> contacts;
@@ -87,6 +94,8 @@ public:
     [[nodiscard]] Result<void> apply_force(BodyHandle1D handle, double force);
     [[nodiscard]] Result<void> apply_impulse(BodyHandle1D handle, double impulse);
     [[nodiscard]] Result<BodySnapshot1D> body_snapshot(BodyHandle1D handle) const;
+    [[nodiscard]] Result<std::vector<BodyHandle1D>> overlap_query(
+        const OverlapQuery1D& query) const;
 
     // Call from the engine's fixed-update phase. Forces are consumed by one
     // successful step; a failed step leaves body state and forces unchanged.

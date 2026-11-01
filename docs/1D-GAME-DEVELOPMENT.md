@@ -57,6 +57,25 @@ The default world limits are 256 bodies, 4096 contacts per step, and a maximum
 step delta of 0.25 seconds. They are configurable. Exceeding the body/contact
 budget returns a typed error rather than silently dropping bodies or contacts.
 
+## Overlap queries
+
+PhysicsWorld1D::overlap_query() performs a read-only query against the current
+scalar body intervals and returns generation-checked BodyHandle1D values.
+Query intervals are closed: a body that only touches a query boundary is
+included. A zero half-extent is valid and represents a point query.
+
+OverlapQuery1D::collision_mask is matched against each body's collision_layer;
+a body's collision mask is used for body-to-body simulation filtering and is
+not consulted by this query. Triggers are included by default and can be
+excluded with include_triggers = false. Results are returned in ascending
+body-slot order, independent of body position. The query does not mutate the
+world and remains single-thread-affine.
+
+Non-finite positions, negative/non-finite half-extents, and query bounds outside
+the supported numeric range return typed errors. A stored body whose collider
+bounds are outside the supported numeric range also causes an explicit error;
+the query never silently omits that body.
+
 ## Deliberate limitations
 
 - The first broadphase is a bounded O(n²) pair scan. It is a correctness-first

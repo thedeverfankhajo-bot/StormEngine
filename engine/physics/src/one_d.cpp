@@ -345,6 +345,67 @@ Result<BodySnapshot1D> PhysicsWorld1D::body_snapshot(BodyHandle1D handle) const 
     });
 }
 
+Result<std::vector<BodyHandle1D>> PhysicsWorld1D::overlap_query(
+    const OverlapQuery1D& query) const {
+    if (world_id_ == 0U) {
+        return Result<std::vector<BodyHandle1D>>::failure(Error::make(
+            ErrorCode::InvalidState,
+            "A moved-from PhysicsWorld1D cannot execute overlap queries"));
+    }
+    if (!is_finite(query.position) ||
+        !is_finite(query.half_extent) ||
+        query.half_extent < 0.0) {
+        return Result<std::vector<BodyHandle1D>>::failure(Error::make(
+            ErrorCode::InvalidArgument,
+            "An overlap query requires a finite position and non-negative finite half-extent"));
+    }
+
+    const double query_min = query.position - query.half_extent;
+    const double query_max = query.position + query.half_extent;
+    if (!is_finite(query_min) || !is_finite(query_max)) {
+        return Result<std::vector<BodyHandle1D>>::failure(Error::make(
+            ErrorCode::InvalidArgument,
+            "Overlap query bounds exceed the supported numeric range"));
+    }
+
+    std::vector<BodyHandle1D> matches;
+    if (query.collision_mask == 0U || body_count_ == 0U) {
+        return Result<std::vector<BodyHandle1D>>::success(std::move(matches));
+    }
+
+    try {
+        matches.reserve(body_count_);
+        for (std::size_t index = 0U; index < slots_.size(); ++index) {
+            const Slot& slot = slots_[index];
+            if (!slot.alive ||
+                (!query.include_triggers && slot.definition.is_trigger) ||
+                (query.collision_mask & slot.definition.collision_layer) == 0U) {
+                continue;
+            }
+
+            const double body_min = slot.position - slot.definition.half_extent;
+            const double body_max = slot.position + slot.definition.half_extent;
+            if (!is_finite(body_min) || !is_finite(body_max)) {
+                return Result<std::vector<BodyHandle1D>>::failure(Error::make(
+                    ErrorCode::ResourceExhausted,
+                    "A stored 1D collider bound exceeds the supported numeric range"));
+            }
+            if (query_max < body_min || body_max < query_min) {
+                continue;
+            }
+
+            matches.push_back(make_handle(
+                static_cast<std::uint32_t>(index),
+                slot));
+        }
+        return Result<std::vector<BodyHandle1D>>::success(std::move(matches));
+    } catch (const std::bad_alloc&) {
+        return Result<std::vector<BodyHandle1D>>::failure(Error::make(
+            ErrorCode::ResourceExhausted,
+            "Could not allocate results for a 1D overlap query"));
+    }
+}
+
 Result<StepResult1D> PhysicsWorld1D::step(
     double delta_seconds,
     double gravity) {
