@@ -31,6 +31,18 @@ The timestamp is recorded before game callbacks run. A callback failure is retur
 
 `tick_at_monotonic_nanoseconds()` allows a native frame callback to pass its own monotonic timestamp without converting its clock epoch to `std::chrono::steady_clock`. For example, Android's `AChoreographer_frameCallback64` supplies `frameTimeNanos` in the `CLOCK_MONOTONIC` time base, while iOS `CADisplayLink` supplies monotonic Core Animation timestamps that can be converted to nanoseconds. The caller remains responsible for acquiring and scheduling those callbacks. This API does not create or register an Android Choreographer or iOS CADisplayLink source, and neither native adapter is connected yet.
 
+## Accepted native frame-source design
+
+The platform scheduling direction is recorded in [ADR-0008](ADR-0008-NATIVE-FRAME-SOURCES.md). It is an architectural decision, not an implementation claim.
+
+- Android API 24 and newer: use the NDK `AChoreographer` from the NativeActivity app thread, which is already the thread servicing the native looper. Resolve API-24+ symbols at runtime so the minSdk 21 binary does not acquire an unconditional API-24 link dependency. Prefer the 64-bit callback on API 29 and newer. The current Android package is arm64-v8a only; any future 32-bit ABI requires explicit handling of the legacy callback timestamp width before it can be enabled.
+- Android API 21–23: preserve the minSdk with a monotonic-deadline fallback integrated into `ALooper_pollOnce`. This is timer-paced and is explicitly not VSync. Its nominal period is configurable; the initial fallback target is 60 Hz, not a device-wide frame-rate guarantee.
+- iOS 13+: use `CADisplayLink` registered on the main run loop in common modes. Keep the platform callbacks, lifecycle state, surface contract, and first Runtime consumer on the same thread. Treat frame-rate preferences as advisory; use the system's supported cadence by default.
+- Both sources are one-shot/re-arm or run-loop driven. They are active only while the app is foreground-active and a surface is attached. When eligibility ends, stop requesting additional frames and reset `MobileFrameDriver` timing before resumption.
+- Feed one consistent monotonic time base into `tick_at_monotonic_nanoseconds()`. Do not mix wall-clock timestamps or switch clock sources during an active timing period.
+
+No native frame source, callback registration, renderer, or GameLoop integration is added by this decision record. The existing Android event pump and iOS host remain unconnected to `MobileFrameDriver` until the platform adapters and an application-owned `IGameLoopCallbacks` implementation are added and tested.
+
 ## Ownership and threading
 
 The lifecycle state machine and surface contract remain owned by the platform/runtime host and must outlive the driver. The driver owns its `GameLoop` and stores non-owning references to those contracts. It is single-thread-affine: lifecycle/surface updates and `tick()` must be serialized on the same owning thread. A future dedicated render/engine thread must receive those changes through an explicitly bounded handoff rather than concurrently reading these unsynchronized contracts.
