@@ -699,8 +699,9 @@ Result<StepResult1D> PhysicsWorld1D::step(
             });
         };
 
-        if (result.contacts.size() >
-            result.contact_events.max_size() - previous_contacts_.size()) {
+        const std::size_t maximum_event_count = result.contact_events.max_size();
+        if (result.contacts.size() > maximum_event_count ||
+            previous_contacts_.size() > maximum_event_count - result.contacts.size()) {
             return Result<StepResult1D>::failure(Error::make(
                 ErrorCode::ResourceExhausted,
                 "Contact transition count exceeds the supported result capacity"));
