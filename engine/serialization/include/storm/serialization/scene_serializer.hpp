@@ -14,6 +14,7 @@
 #include <new>
 #include <optional>
 #include <span>
+#include <stdexcept>
 #include <string>
 #include <string_view>
 #include <type_traits>
@@ -903,7 +904,7 @@ private:
                         ErrorCode::Unsupported,
                         "The archive contains components but no component codecs were supplied"));
                 } else {
-                    return decode_component_type<Components...>(
+                    return detail::decode_component_type<Components...>(
                         type_id.value(),
                         schema_version.value(),
                         reader,

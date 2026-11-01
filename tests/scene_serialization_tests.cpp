@@ -250,7 +250,7 @@ struct RawEntity final {
         Storm::Math::Transform3D>(scene);
     EXPECT(archive);
 
-    const auto restored_result = SceneSerializer::deserialize<
+    auto restored_result = SceneSerializer::deserialize<
         TestComponents::Position,
         TestComponents::Velocity,
         Storm::Math::Transform3D>(archive.value());
