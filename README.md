@@ -30,7 +30,7 @@ See [Mobile-only policy](docs/MOBILE-ONLY-POLICY.md), [Architecture](docs/ARCHIT
 - A platform-neutral surface lifecycle contract with validated dimensions/scale and generation-based stale-callback rejection.
 - An Android NativeActivity adapter built with the NDK Native App Glue. It maps Activity lifecycle events and attaches/resizes/detaches surface metadata without retaining an ANativeWindow pointer.
 - A platform-neutral iOS scene-event adapter that maps UIKit lifecycle semantics into one lifecycle state machine per scene. UIKit delegate integration remains unimplemented.
-- Host tests for Foundation, fixed-step scheduling, frame orchestration, typed event dispatch, surface lifecycle, and Android/iOS lifecycle event normalization. The seven-case iOS suite is added in the current change and awaits CI.
+- Host tests for Foundation, fixed-step scheduling, frame orchestration, typed event dispatch, surface lifecycle, and Android/iOS lifecycle event normalization. All 53 named cases across seven CTest executables now pass in GCC, Clang, Apple Clang, and Clang ASan/UBSan host CI.
 - CI cross-compilation of the Foundation, Core, and Platform static libraries for Android arm64-v8a and iOS device arm64, plus Android NativeActivity shared-library compilation/linking.
 
 The Android CI job uses ANDROID_PLATFORM=android-21 as its native compilation target. This is not yet a declared product minimum SDK. The iOS CI job uses the iPhoneOS Device SDK and does not create an Xcode application, archive, or IPA.

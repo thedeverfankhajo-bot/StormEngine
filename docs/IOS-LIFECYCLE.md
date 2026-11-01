@@ -34,6 +34,6 @@ The app-scoped applicationWillTerminate(_:) notification can be forwarded to eac
 
 ## Validation
 
-The dedicated host test executable stormengine_ios_lifecycle_tests contains seven cases covering the foreground/background sequence, recovery from background, launch into background, idempotent callbacks, independent scene state, terminal app shutdown, and invalid events.
+The dedicated host test executable stormengine_ios_lifecycle_tests contains seven cases covering the foreground/background sequence, recovery from background, launch into background, idempotent callbacks, independent scene state, terminal app shutdown, and invalid events. All seven cases passed in GCC, Clang, Apple Clang, and Clang ASan/UBSan in CI run 41304250865. The Platform library, including this adapter, also cross-compiled for Android arm64-v8a and iOS device arm64 in that workflow.
 
 These tests validate the C++ event-normalization policy only. They do not invoke UIKit, create a UIScene, validate callback delivery order from iOS, or establish physical-device compatibility.

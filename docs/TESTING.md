@@ -2,7 +2,7 @@
 
 ## Current automated coverage
 
-The existing host test suite contains 46 named test cases across six CTest executables. All six executables passed in the latest successful Foundation CI run for commit `56f0607856d548a00c06a1b6741f2d178a2ddf0d`. The current change adds a seventh CTest executable with seven iOS lifecycle-policy cases; that new suite's CI result is pending. The previous six-job result remains the evidence for the existing six executables:
+The host test suite contains 53 named test cases across seven CTest executables. All seven executables passed in the successful six-job Foundation CI run [41304250865](https://github.com/thedeverfankhajo-bot/StormEngine/actions/runs/41304250865) for commit `5a90b128cdf3ff57a094dda0a30929fe9a4a3e4e`. The GCC, Clang, Clang ASan/UBSan, and Apple Clang host jobs each configured, built, and ran the complete CTest suite:
 
 - stormengine_foundation_tests (11 cases):
   - Success and failure paths for typed Result<T> values.
@@ -22,7 +22,7 @@ The existing host test suite contains 46 named test cases across six CTest execu
   - Focus recovery when a separate RESUME event is absent.
   - Idempotent duplicate lifecycle events.
   - Terminal destroy behavior and invalid event rejection.
-- stormengine_ios_lifecycle_tests (7 cases; current CI pending):
+- stormengine_ios_lifecycle_tests (7 cases):
   - Foreground/background callback sequence.
   - Active callback recovery from background.
   - Background launch and repeated background delivery.
@@ -73,7 +73,7 @@ A direct CMake configure/build/test flow is also supported and documented in the
 
 ## GitHub Actions
 
-The Foundation workflow runs on pushes to main and on manual dispatch. The successful target-validation workflow run [41303432277](https://github.com/thedeverfankhajo-bot/StormEngine/actions/runs/41303432277) for commit `56f0607856d548a00c06a1b6741f2d178a2ddf0d` completed all six jobs successfully:
+The Foundation workflow runs on pushes to main and on manual dispatch. The successful target-validation workflow run [41304250865](https://github.com/thedeverfankhajo-bot/StormEngine/actions/runs/41304250865) for commit `5a90b128cdf3ff57a094dda0a30929fe9a4a3e4e` completed all six jobs successfully:
 
 - Linux with GCC: configure, build, and run host CTest.
 - Linux with Clang: configure, build, and run host CTest.
@@ -84,7 +84,9 @@ The Foundation workflow runs on pushes to main and on manual dispatch. The succe
 
 The Android and iOS jobs disable host test executables because those binaries cannot be run as ordinary host programs from the target toolchains. They validate compilation and linking only; they do not build APK/AAB/IPA packages, invoke Android callbacks, deploy to devices, or run on physical hardware. The Android API 21 value is a CI compilation target, not a declared product minimum SDK.
 
-The iOS job uses CMake's Xcode generator and the iPhoneOS Device SDK. A successful static-library build is not an iOS application archive or signed IPA.
+The iOS job uses CMake's Xcode generator and the iPhoneOS Device SDK. The Platform target compiled the new iOS scene-event policy in this run. A successful static-library build is not an iOS application archive or signed IPA.
+
+All seven CTest executables, including the new iOS lifecycle-policy suite, passed in GCC, Clang, Clang ASan/UBSan, and Apple Clang host jobs. The iOS suite validates event normalization only; it does not invoke UIKit.
 
 The sanitizer job runs the same host tests with leak detection enabled and UndefinedBehaviorSanitizer configured to halt on the first reported issue. Sanitizer coverage increases confidence in tested code paths but is not a substitute for a security audit, fuzzing, or device testing.
 
