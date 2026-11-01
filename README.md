@@ -2,13 +2,13 @@
 
 StormEngine is an early-stage, mobile-only game-engine project targeting **Android and iOS**. Its intended game models are 1D, 2D, and 3D. The editor is also intended to run only on mobile devices.
 
-> **Current status: Foundation bootstrap.** This repository does not yet contain a mobile runtime, renderer, physics engine, editor, asset importer, or Android/iOS export pipeline. The current code is a small, host-testable C++ foundation and must not be mistaken for a usable game engine.
+> **Current status: Foundation bootstrap with target-architecture cross-builds.** The C++ foundation has compiled for Android arm64 and iOS device arm64 in CI. This is compile-only evidence: the repository does not yet contain native Android/iOS application adapters, a runnable mobile runtime, a renderer, physics engine, editor, asset importer, or Android/iOS export pipeline. Do not mistake these static libraries for a usable game engine or a mobile app.
 
 ## Product constraints
 
 - Runtime targets: Android and iOS only.
 - Editor targets: Android and iOS only.
-- Host operating systems may be used for engineering, CI, and tests; they are not product targets.
+- Host operating systems may be used for engineering, CI, cross-compilation, and host-side tests; they are not product targets.
 - All repository development is performed on main.
 - Platform and graphics capabilities are reported only after implementation and validation on real target devices.
 
@@ -24,13 +24,16 @@ See [Mobile-only policy](docs/MOBILE-ONLY-POLICY.md), [Architecture](docs/ARCHIT
 - A platform-neutral lifecycle state machine with validated transitions.
 - A bounded, allocation-free, multi-producer/single-consumer lifecycle event queue with explicit full/closed results.
 - A platform-neutral surface lifecycle contract with validated dimensions/scale and generation-based stale-callback rejection.
-- A small dependency-free host test executable.
+- Host tests for the current Foundation and Platform contracts.
+- CI cross-compilation of the three static C++ libraries for Android `arm64-v8a` and iOS device `arm64`.
 
-All of these are foundation-level capabilities only. No Android or iOS compatibility is claimed yet.
+The Android CI job uses `ANDROID_PLATFORM=android-21` as its native compilation target. This is not yet a declared product minimum SDK. The iOS CI job uses the iPhoneOS Device SDK and does not create an Xcode application, archive, or IPA.
 
-## Build and test the foundation
+The current code is still foundation-only. Android/iOS lifecycle callbacks, native surface ownership, GPU rendering, app packaging, deployment, and physical-device runtime validation remain unimplemented.
 
-Requirements: CMake 3.24 or newer and a C++20 compiler.
+## Build and test the host foundation
+
+Requirements: CMake 3.24 or newer, Ninja for the preset workflow, and a C++20 compiler.
 
 ```sh
 cmake -S . -B build -DSTORMENGINE_BUILD_TESTS=ON

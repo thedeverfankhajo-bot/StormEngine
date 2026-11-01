@@ -79,7 +79,8 @@ jobs:
       - name: Verify Android NDK toolchain
         run: |
           test -f "$ANDROID_NDK_HOME/build/cmake/android.toolchain.cmake"
-          "$ANDROID_NDK_HOME/ndk-build" --version
+          test -f "$ANDROID_NDK_HOME/source.properties"
+          grep -E '^Pkg.Revision[[:space:]]*=' "$ANDROID_NDK_HOME/source.properties"
 
       - name: Configure Android target libraries
         run: |
