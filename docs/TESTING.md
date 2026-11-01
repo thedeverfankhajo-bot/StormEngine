@@ -2,7 +2,7 @@
 
 ## Current automated coverage
 
-The host test suite contains 53 named test cases across seven CTest executables. All seven executables passed in the successful six-job CI run [41305339039](https://github.com/thedeverfankhajo-bot/StormEngine/actions/runs/41305339039) for commit `809b990c2fc5f2a245e3dbf04893637f1595a49d`. The GCC, Clang, Clang ASan/UBSan, and Apple Clang host jobs each configured, built, and ran the complete CTest suite:
+The host test suite contains 64 named test cases across eight CTest executables. All eight executables passed in the successful six-job CI run [41307026111](https://github.com/thedeverfankhajo-bot/StormEngine/actions/runs/41307026111) for commit `4a3515c8cd8da92012edd018ed1a51045bad9269`. The GCC, Clang, Clang ASan/UBSan, and Apple Clang host jobs each configured, built, and ran the complete CTest suite:
 
 - stormengine_foundation_tests (11 cases):
   - Success and failure paths for typed Result<T> values.
@@ -58,6 +58,18 @@ The host test suite contains 53 named test cases across seven CTest executables.
   - Rejection of an empty std::function handler.
   - Safe subscription destruction after the dispatcher is gone.
   - Idempotent explicit disconnection.
+- stormengine_mobile_frame_driver_tests (11 cases):
+  - Invalid GameLoop configuration rejection.
+  - Suppression of every game callback while lifecycle is inactive.
+  - Suppression of callbacks while no surface is attached.
+  - Zero-delta behavior for the first eligible frame.
+  - Caller-supplied monotonic timestamp and fixed-step scheduling.
+  - Detection of a background/resume sequence between frame calls.
+  - Detection of surface detach/reattach through generation changes.
+  - Rejection and recovery from a backward timestamp.
+  - Non-replay of elapsed time after a callback failure.
+  - Preservation of timing across a resize with the same surface generation.
+  - Lifecycle revision changes only for non-idempotent transitions.
 
 These are host-side tests. The Android and iOS lifecycle cases test platform-neutral event policies; they do not invoke Android framework or UIKit callbacks. The GameLoop tests do not exercise an Android/iOS clock, native lifecycle gate, GPU, or physical device.
 
@@ -73,20 +85,20 @@ A direct CMake configure/build/test flow is also supported and documented in the
 
 ## GitHub Actions
 
-The Foundation workflow runs on pushes to main and on manual dispatch. The latest successful target-validation workflow run [41305339039](https://github.com/thedeverfankhajo-bot/StormEngine/actions/runs/41305339039) for commit `809b990c2fc5f2a245e3dbf04893637f1595a49d` completed all six jobs successfully:
+The Foundation workflow runs on pushes to main and on manual dispatch. The latest successful target-validation workflow run [41307026111](https://github.com/thedeverfankhajo-bot/StormEngine/actions/runs/41307026111) for commit `4a3515c8cd8da92012edd018ed1a51045bad9269` completed all six jobs successfully:
 
 - Linux with GCC: configure, build, and run host CTest.
 - Linux with Clang: configure, build, and run host CTest.
 - Linux with Clang AddressSanitizer and UndefinedBehaviorSanitizer: build and run host CTest with leak detection enabled.
-- Android NDK: cross-compile Foundation, Core, and Platform for arm64-v8a, then compile and link the NativeActivity shared library against the NDK-provided Native App Glue, Android, and Log libraries. The CI configuration uses ANDROID_PLATFORM=android-21 for this compile job.
-- iOS Device SDK: cross-compile Foundation, Core, and Platform for arm64 using the iPhoneOS SDK and Xcode.
+- Android NDK: cross-compile Foundation, Core, Platform, and Runtime for arm64-v8a, then compile and link the NativeActivity shared library against the NDK-provided Native App Glue, Android, and Log libraries. The CI configuration uses ANDROID_PLATFORM=android-21 for this compile job.
+- iOS Device SDK: cross-compile Foundation, Core, Platform, and Runtime for arm64 using the iPhoneOS SDK and Xcode.
 - macOS with Apple Clang: configure, build, and run host CTest.
 
 The Android and iOS jobs disable host test executables because those binaries cannot be run as ordinary host programs from the target toolchains. They validate compilation and linking only; they do not build APK/AAB/IPA packages, invoke Android callbacks, deploy to devices, or run on physical hardware. The Android API 21 value is a CI compilation target, not a declared product minimum SDK.
 
-The iOS job uses CMake's Xcode generator and the iPhoneOS Device SDK. In the latest successful run, the build log explicitly compiled `platforms/ios/scene_lifecycle_delegate.mm` as Objective-C++ against iPhoneOS 18.5 and produced `libstorm_platform.a` for arm64. The Android job also compiled and linked the NativeActivity shared library for arm64-v8a. These successful target builds do not create an iOS application archive or signed IPA, or an Android APK/AAB.
+The iOS job uses CMake's Xcode generator and the iPhoneOS Device SDK. In the latest successful run, the build compiled `platforms/ios/scene_lifecycle_delegate.mm` as Objective-C++ and `engine/runtime/src/mobile_frame_driver.cpp` as C++ against iPhoneOS 18.5, producing `libstorm_platform.a` and `libstorm_runtime.a` for arm64. The Android job cross-compiled Runtime and linked the NativeActivity shared library for arm64-v8a. These successful target builds do not create an iOS application archive or signed IPA, or an Android APK/AAB.
 
-All seven CTest executables, including the new iOS lifecycle-policy suite, passed in GCC, Clang, Clang ASan/UBSan, and Apple Clang host jobs. The iOS suite validates event normalization only; it does not invoke UIKit.
+All eight CTest executables passed in GCC, Clang, Clang ASan/UBSan, and Apple Clang host jobs. The new Runtime suite validates orchestration contracts on the host; it does not call Android or UIKit frame sources, and the iOS lifecycle suite does not invoke UIKit.
 
 The sanitizer job runs the same host tests with leak detection enabled and UndefinedBehaviorSanitizer configured to halt on the first reported issue. Sanitizer coverage increases confidence in tested code paths but is not a substitute for a security audit, fuzzing, or device testing.
 
@@ -98,7 +110,7 @@ The sanitizer job runs the same host tests with leak detection enabled and Undef
 - The current workflow does not run ThreadSanitizer, static analysis, dependency vulnerability scanning, fuzz tests, Android instrumentation tests, or iOS simulator/device tests.
 - Android/iOS runtime compatibility requires installable native application targets, platform lifecycle integration, target-specific tests, and real-device evidence.
 
-See [Android NativeActivity Lifecycle Bridge](ANDROID-NATIVE-ACTIVITY.md), [Core Game Loop](GAME-LOOP.md), and [Core Event System](EVENT-SYSTEM.md) for the exact implementation scope and limitations.
+See [Android NativeActivity Lifecycle Bridge](ANDROID-NATIVE-ACTIVITY.md), [Core Game Loop](GAME-LOOP.md), [Mobile Runtime Frame Driver](MOBILE-RUNTIME.md), and [Core Event System](EVENT-SYSTEM.md) for the exact implementation scope and limitations.
 
 
 The iOS target build verifies that the Objective-C++ scene delegate compiles against the selected iPhoneOS SDK and is included in the Platform static library. It does not instantiate the delegate, run UIKit lifecycle callbacks, build an app target, sign an application, or test on an iPhone. The host application must configure the delegate class in its UISceneConfiguration and provide a non-blocking transition-hook implementation that connects to its runtime.

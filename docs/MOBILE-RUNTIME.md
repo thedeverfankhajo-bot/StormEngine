@@ -34,3 +34,7 @@ The lifecycle state machine and surface contract remain owned by the platform/ru
 ## Current integration limits
 
 The driver is an orchestration component, not yet wired into the Android NativeActivity event pump or the iOS delegate host application. The Android bridge still runs an event pump and the iOS delegate still exposes overridable lifecycle hooks. No Android Choreographer, iOS CADisplayLink, native frame pacing, renderer, physics, installable app target, or physical-device run is included by this component.
+
+## CI validation evidence
+
+The successful six-job workflow [41307026111](https://github.com/thedeverfankhajo-bot/StormEngine/actions/runs/41307026111) for commit `4a3515c8cd8da92012edd018ed1a51045bad9269` built the Runtime static library for Android arm64-v8a and iOS device arm64. Eleven dedicated host cases passed in the Runtime CTest executable under GCC, Clang, Apple Clang, and Clang ASan/UBSan. This verifies the orchestration contract and target compilation only; neither platform adapter calls this driver yet, and no native frame source or physical-device execution is included.

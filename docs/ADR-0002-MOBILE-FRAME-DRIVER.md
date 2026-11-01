@@ -36,3 +36,7 @@ The driver:
 - Unit tests for inactive/no-surface gating, fixed-step delta, lifecycle revision, surface generation, resize, timestamp regression, and callback failure.
 - Host CI builds and tests.
 - Android NDK and iOS Device SDK cross-compilation of the Runtime target.
+
+## Validation result
+
+The six-job workflow [41307026111](https://github.com/thedeverfankhajo-bot/StormEngine/actions/runs/41307026111) passed for commit `4a3515c8cd8da92012edd018ed1a51045bad9269`. The Runtime target cross-compiled for Android arm64-v8a and iOS device arm64, and all eleven new MobileFrameDriver host test cases passed in the eight-executable CTest suite. No native frame source or physical-device integration is claimed.
