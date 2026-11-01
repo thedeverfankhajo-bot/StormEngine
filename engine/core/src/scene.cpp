@@ -1,7 +1,10 @@
 #include "storm/core/scene.hpp"
 
+#include <algorithm>
 #include <atomic>
 #include <limits>
+#include <new>
+#include <stdexcept>
 #include <string>
 #include <utility>
 
@@ -100,10 +103,11 @@ Result<EntityHandle> Scene::create_entity(std::string name) {
     EntityIndex index = 0U;
     if (!free_entity_indices_.empty()) {
         index = free_entity_indices_.back();
-        free_entity_indices_.pop_back();
-
         EntitySlot& slot = entities_[index];
         slot.name = std::move(name);
+        slot.parent.reset();
+        slot.children.clear();
+        free_entity_indices_.pop_back();
         slot.alive = true;
         return Result<EntityHandle>::success(EntityHandle{
             .scene_id = scene_id_,
@@ -120,11 +124,17 @@ Result<EntityHandle> Scene::create_entity(std::string name) {
     }
 
     index = static_cast<EntityIndex>(entities_.size());
-    entities_.push_back(EntitySlot{
-        .generation = 1U,
-        .alive = true,
-        .name = std::move(name),
-    });
+    try {
+        entities_.push_back(EntitySlot{
+            .generation = 1U,
+            .alive = true,
+            .name = std::move(name),
+        });
+    } catch (const std::bad_alloc&) {
+        return Result<EntityHandle>::failure(Error::make(
+            ErrorCode::ResourceExhausted,
+            "The Scene could not allocate another entity slot"));
+    }
 
     return Result<EntityHandle>::success(EntityHandle{
         .scene_id = scene_id_,
@@ -142,11 +152,38 @@ Result<void> Scene::destroy_entity(EntityHandle entity) {
     const bool can_reuse = slot.generation !=
         std::numeric_limits<EntityGeneration>::max();
 
-    // Allocate free-list capacity before mutating the live entity. If the
-    // allocation fails, the entity remains fully usable.
+    // Reserve the free-list entry before mutating hierarchy or components.
     if (can_reuse) {
-        free_entity_indices_.push_back(entity.index);
+        try {
+            free_entity_indices_.push_back(entity.index);
+        } catch (const std::bad_alloc&) {
+            return Result<void>::failure(Error::make(
+                ErrorCode::ResourceExhausted,
+                "The Scene could not reserve an entity slot for reuse"));
+        }
     }
+
+    // Unlink this entity from its parent before invalidating the handle.
+    if (slot.parent.has_value() && owns(*slot.parent)) {
+        std::vector<EntityHandle>& siblings =
+            entities_[slot.parent->index].children;
+        const auto child_iterator = std::find(siblings.begin(), siblings.end(), entity);
+        if (child_iterator != siblings.end()) {
+            siblings.erase(child_iterator);
+        }
+    }
+
+    // Deleting a parent orphans its direct children; their own subtrees remain intact.
+    for (const EntityHandle child : slot.children) {
+        if (owns(child)) {
+            EntitySlot& child_slot = entities_[child.index];
+            if (child_slot.parent == entity) {
+                child_slot.parent.reset();
+            }
+        }
+    }
+    slot.parent.reset();
+    slot.children.clear();
 
     for (auto& [component_type, storage] : component_storages_) {
         static_cast<void>(component_type);
@@ -179,6 +216,99 @@ Result<void> Scene::rename_entity(EntityHandle entity, std::string name) {
     }
     entities_[entity.index].name = std::move(name);
     return Result<void>::success();
+}
+
+Result<void> Scene::set_parent(
+    EntityHandle child,
+    std::optional<EntityHandle> parent) {
+    if (!owns(child)) {
+        return Result<void>::failure(invalid_entity_error());
+    }
+    if (parent.has_value() && !owns(*parent)) {
+        return Result<void>::failure(invalid_entity_error());
+    }
+    if (parent.has_value() && *parent == child) {
+        return Result<void>::failure(Error::make(
+            ErrorCode::InvalidArgument,
+            "An entity cannot be its own parent"));
+    }
+
+    EntitySlot& child_slot = entities_[child.index];
+    if (child_slot.parent == parent) {
+        return Result<void>::success();
+    }
+
+    if (parent.has_value()) {
+        // Walk the proposed parent's ancestry before changing either side.
+        std::optional<EntityHandle> ancestor = parent;
+        std::size_t visited = 0U;
+        while (ancestor.has_value()) {
+            if (*ancestor == child) {
+                return Result<void>::failure(Error::make(
+                    ErrorCode::InvalidArgument,
+                    "Reparenting would create a hierarchy cycle"));
+            }
+            if (!owns(*ancestor)) {
+                return Result<void>::failure(Error::make(
+                    ErrorCode::InvalidState,
+                    "The existing hierarchy contains a stale parent handle"));
+            }
+            if (++visited > entities_.size()) {
+                return Result<void>::failure(Error::make(
+                    ErrorCode::InvalidState,
+                    "The existing hierarchy contains a cycle"));
+            }
+            ancestor = entities_[ancestor->index].parent;
+        }
+
+        std::vector<EntityHandle>& new_children =
+            entities_[parent->index].children;
+        const auto existing = std::find(
+            new_children.begin(), new_children.end(), child);
+        if (existing == new_children.end()) {
+            try {
+                new_children.push_back(child);
+            } catch (const std::bad_alloc&) {
+                return Result<void>::failure(Error::make(
+                    ErrorCode::ResourceExhausted,
+                    "The new parent could not reserve a child entry"));
+            } catch (const std::length_error&) {
+                return Result<void>::failure(Error::make(
+                    ErrorCode::ResourceExhausted,
+                    "The new parent has reached its child capacity"));
+            }
+        }
+    }
+
+    // All potentially allocating work is complete. The old edge can now be removed.
+    if (child_slot.parent.has_value() && owns(*child_slot.parent)) {
+        std::vector<EntityHandle>& old_children =
+            entities_[child_slot.parent->index].children;
+        const auto old_entry = std::find(
+            old_children.begin(), old_children.end(), child);
+        if (old_entry != old_children.end()) {
+            old_children.erase(old_entry);
+        }
+    }
+
+    child_slot.parent = parent;
+    return Result<void>::success();
+}
+
+Result<std::optional<EntityHandle>> Scene::parent_of(EntityHandle entity) const {
+    if (!owns(entity)) {
+        return Result<std::optional<EntityHandle>>::failure(invalid_entity_error());
+    }
+    return Result<std::optional<EntityHandle>>::success(entities_[entity.index].parent);
+}
+
+Result<std::span<const EntityHandle>> Scene::children_of(EntityHandle entity) const {
+    if (!owns(entity)) {
+        return Result<std::span<const EntityHandle>>::failure(invalid_entity_error());
+    }
+    const std::vector<EntityHandle>& children = entities_[entity.index].children;
+    return Result<std::span<const EntityHandle>>::success(
+        std::span<const EntityHandle>{children.data(), children.size()});
 }
 
 Error Scene::invalid_entity_error() const {

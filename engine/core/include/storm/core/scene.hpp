@@ -6,6 +6,8 @@
 #include <cstdint>
 #include <functional>
 #include <memory>
+#include <optional>
+#include <span>
 #include <string>
 #include <string_view>
 #include <type_traits>
@@ -30,7 +32,7 @@ struct EntityHandle final {
         const EntityHandle& rhs) noexcept = default;
 };
 
-// Owns entity identity and type-safe, scene-local component storage.
+// Owns entity identity, hierarchy and type-safe, scene-local component storage.
 // Handles remain valid across Scene moves, but not across entity destruction.
 class Scene final {
 public:
@@ -51,6 +53,16 @@ public:
     [[nodiscard]] bool is_alive(EntityHandle entity) const noexcept;
     [[nodiscard]] Result<std::string_view> entity_name(EntityHandle entity) const;
     [[nodiscard]] Result<void> rename_entity(EntityHandle entity, std::string name);
+
+    // A null parent detaches the entity. Reparenting rejects self-links and cycles.
+    [[nodiscard]] Result<void> set_parent(
+        EntityHandle child,
+        std::optional<EntityHandle> parent);
+    [[nodiscard]] Result<std::optional<EntityHandle>> parent_of(
+        EntityHandle entity) const;
+    // The returned view is invalidated by hierarchy changes or Scene destruction.
+    [[nodiscard]] Result<std::span<const EntityHandle>> children_of(
+        EntityHandle entity) const;
 
     template <typename Component, typename... Args>
     [[nodiscard]] Result<std::reference_wrapper<Component>> add_component(
@@ -153,6 +165,8 @@ private:
         EntityGeneration generation{1U};
         bool alive{false};
         std::string name;
+        std::optional<EntityHandle> parent;
+        std::vector<EntityHandle> children;
     };
 
     struct ComponentStorageBase {

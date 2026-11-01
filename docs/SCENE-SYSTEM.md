@@ -11,6 +11,11 @@ The initial Core scene slice provides:
 - Generation changes on destruction so stale handles cannot become valid when a slot is reused.
 - Scene-local, type-indexed component storage with typed add_component, try_get_component, and remove_component operations.
 - Automatic component removal when an entity is destroyed.
+- Explicit optional parent links and ordered direct-child lists.
+- Reparenting with self-parent and cycle rejection, including stale/cross-Scene handle validation.
+- Detaching by assigning a null parent.
+- Consistent two-way hierarchy updates when reparenting or destroying entities.
+- Parent destruction orphans direct children while preserving each child's own subtree.
 - Typed Result failures for invalid, stale, cross-scene, duplicate, and missing-component operations.
 
 ## Usage
@@ -47,6 +52,18 @@ position_result.value().get().value = 8.0F;
 
 try_get_component<T>() returns a non-owning pointer and returns nullptr when the handle is invalid or the component does not exist. A returned component pointer/reference remains valid until that component is removed, its entity is destroyed, or the Scene is destroyed. Do not retain it across those operations.
 
+## Entity hierarchy
+
+Use set_parent(child, parent) to attach or reparent an entity. Pass std::nullopt to detach it. parent_of(entity) returns an optional parent handle. children_of(entity) returns a read-only span of direct children in sibling insertion order.
+
+The implementation rejects self-parenting, ancestry cycles, stale handles, and handles from another Scene. Reparenting updates both the old and new parent's child lists. Repeating the current parent assignment is idempotent and does not duplicate the child.
+
+Destroying a child removes its link from its parent. Destroying a parent invalidates that parent, removes its link from its own parent, and detaches its direct children. Those children and their descendants remain alive; each direct child becomes a root while retaining its own subtree.
+
+The span returned by children_of() is non-owning. Do not retain it across a hierarchy mutation, entity destruction, Scene move/assignment, or Scene destruction. Hierarchy changes are single-thread-affine, like the rest of Scene.
+
+This is an identity hierarchy only. It does not yet calculate local/world transforms, propagate matrices, provide sibling reordering, or integrate with a renderer or physics system.
+
 ## Identity and lifetime rules
 
 - A handle is valid only for the Scene ID, entity slot, and generation that created it.
@@ -66,9 +83,8 @@ The current implementation uses type-indexed storage and hash maps. It is an ini
 
 This change does not implement:
 
-- Parent/child scene hierarchy or transforms.
+- Transform propagation or scene serialization.
 - Scene loading/unloading, activation, or transitions.
-- Scene serialization or project persistence.
 - 1D, 2D, or 3D math/physics/rendering.
 - Component reflection, dynamic component types, or editor inspectors.
 - Thread-safe concurrent Scene mutation.
@@ -78,4 +94,4 @@ The API is a development interface and may change. See API-VERSIONING.md.
 
 ## Validation
 
-stormengine_scene_tests covers Scene identity, entity count and names, cross-scene handle rejection, stale-handle invalidation, slot reuse with generation changes, typed component storage, duplicate/missing component errors, component cleanup, and move ownership. CI runs this executable with the existing GCC, Clang, Apple Clang, and Clang ASan/UBSan host configurations. Android and iOS target builds compile the same Core library, but this does not establish on-device behavior.
+stormengine_scene_tests covers Scene identity, entity count and names, cross-scene handle rejection, stale-handle invalidation, slot reuse with generation changes, typed component storage, duplicate/missing component errors, component cleanup, move ownership, parent/child consistency, reparenting, detach, cycle rejection, stale/foreign parents, destruction cleanup, and move-preserved hierarchy. CI runs this executable with the existing GCC, Clang, Apple Clang, and Clang ASan/UBSan host configurations. Android and iOS target builds compile the same Core library, but this does not establish on-device behavior.

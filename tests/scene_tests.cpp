@@ -204,6 +204,231 @@ struct Velocity final {
     return std::nullopt;
 }
 
+[[nodiscard]] std::optional<std::string> test_set_parent_and_read_hierarchy() {
+    auto result = Storm::Scene::create("Gameplay");
+    EXPECT(result);
+    auto scene = std::move(result).value();
+    auto parent = scene.create_entity("Parent");
+    auto child = scene.create_entity("Child");
+    EXPECT(parent);
+    EXPECT(child);
+
+    EXPECT(scene.set_parent(child.value(), parent.value()));
+    auto child_parent = scene.parent_of(child.value());
+    auto parent_children = scene.children_of(parent.value());
+    EXPECT(child_parent);
+    EXPECT(child_parent.value().has_value());
+    EXPECT(*child_parent.value() == parent.value());
+    EXPECT(parent_children);
+    EXPECT(parent_children.value().size() == 1U);
+    EXPECT(parent_children.value()[0] == child.value());
+
+    auto root_parent = scene.parent_of(parent.value());
+    EXPECT(root_parent);
+    EXPECT(!root_parent.value().has_value());
+    return std::nullopt;
+}
+
+[[nodiscard]] std::optional<std::string> test_reparent_updates_both_sides_and_is_idempotent() {
+    auto result = Storm::Scene::create("Gameplay");
+    EXPECT(result);
+    auto scene = std::move(result).value();
+    auto first_parent = scene.create_entity("First");
+    auto second_parent = scene.create_entity("Second");
+    auto child = scene.create_entity("Child");
+    EXPECT(first_parent);
+    EXPECT(second_parent);
+    EXPECT(child);
+
+    EXPECT(scene.set_parent(child.value(), first_parent.value()));
+    EXPECT(scene.set_parent(child.value(), second_parent.value()));
+    EXPECT(scene.set_parent(child.value(), second_parent.value()));
+
+    auto first_children = scene.children_of(first_parent.value());
+    auto second_children = scene.children_of(second_parent.value());
+    auto child_parent = scene.parent_of(child.value());
+    EXPECT(first_children);
+    EXPECT(first_children.value().empty());
+    EXPECT(second_children);
+    EXPECT(second_children.value().size() == 1U);
+    EXPECT(second_children.value()[0] == child.value());
+    EXPECT(child_parent);
+    EXPECT(child_parent.value() == std::optional<Storm::EntityHandle>{second_parent.value()});
+    return std::nullopt;
+}
+
+[[nodiscard]] std::optional<std::string> test_detach_preserves_remaining_sibling_order() {
+    auto result = Storm::Scene::create("Gameplay");
+    EXPECT(result);
+    auto scene = std::move(result).value();
+    auto parent = scene.create_entity("Parent");
+    auto first = scene.create_entity("First");
+    auto second = scene.create_entity("Second");
+    auto third = scene.create_entity("Third");
+    EXPECT(parent);
+    EXPECT(first);
+    EXPECT(second);
+    EXPECT(third);
+
+    EXPECT(scene.set_parent(first.value(), parent.value()));
+    EXPECT(scene.set_parent(second.value(), parent.value()));
+    EXPECT(scene.set_parent(third.value(), parent.value()));
+    EXPECT(scene.set_parent(second.value(), std::nullopt));
+
+    auto children = scene.children_of(parent.value());
+    auto detached_parent = scene.parent_of(second.value());
+    EXPECT(children);
+    EXPECT(children.value().size() == 2U);
+    EXPECT(children.value()[0] == first.value());
+    EXPECT(children.value()[1] == third.value());
+    EXPECT(detached_parent);
+    EXPECT(!detached_parent.value().has_value());
+    return std::nullopt;
+}
+
+[[nodiscard]] std::optional<std::string> test_reject_self_parent_and_hierarchy_cycles() {
+    auto result = Storm::Scene::create("Gameplay");
+    EXPECT(result);
+    auto scene = std::move(result).value();
+    auto root = scene.create_entity("Root");
+    auto child = scene.create_entity("Child");
+    auto grandchild = scene.create_entity("Grandchild");
+    EXPECT(root);
+    EXPECT(child);
+    EXPECT(grandchild);
+
+    auto self = scene.set_parent(root.value(), root.value());
+    EXPECT(!self);
+    EXPECT(self.error().code == Storm::ErrorCode::InvalidArgument);
+
+    EXPECT(scene.set_parent(child.value(), root.value()));
+    EXPECT(scene.set_parent(grandchild.value(), child.value()));
+    auto cycle = scene.set_parent(root.value(), grandchild.value());
+    EXPECT(!cycle);
+    EXPECT(cycle.error().code == Storm::ErrorCode::InvalidArgument);
+
+    auto root_parent = scene.parent_of(root.value());
+    auto child_parent = scene.parent_of(child.value());
+    auto grandchild_parent = scene.parent_of(grandchild.value());
+    EXPECT(root_parent);
+    EXPECT(!root_parent.value().has_value());
+    EXPECT(child_parent);
+    EXPECT(child_parent.value() == std::optional<Storm::EntityHandle>{root.value()});
+    EXPECT(grandchild_parent);
+    EXPECT(grandchild_parent.value() == std::optional<Storm::EntityHandle>{child.value()});
+    return std::nullopt;
+}
+
+[[nodiscard]] std::optional<std::string> test_reject_foreign_and_stale_parent_handles() {
+    auto first_result = Storm::Scene::create("First");
+    auto second_result = Storm::Scene::create("Second");
+    EXPECT(first_result);
+    EXPECT(second_result);
+    auto first = std::move(first_result).value();
+    auto second = std::move(second_result).value();
+
+    auto child = first.create_entity("Child");
+    auto foreign_parent = second.create_entity("ForeignParent");
+    EXPECT(child);
+    EXPECT(foreign_parent);
+    auto foreign = first.set_parent(child.value(), foreign_parent.value());
+    EXPECT(!foreign);
+    EXPECT(foreign.error().code == Storm::ErrorCode::InvalidState);
+
+    auto stale_parent = first.create_entity("StaleParent");
+    EXPECT(stale_parent);
+    const Storm::EntityHandle stale = stale_parent.value();
+    EXPECT(first.destroy_entity(stale));
+    auto stale_result = first.set_parent(child.value(), stale);
+    EXPECT(!stale_result);
+    EXPECT(stale_result.error().code == Storm::ErrorCode::InvalidState);
+    return std::nullopt;
+}
+
+[[nodiscard]] std::optional<std::string> test_destroying_parent_orphans_children_and_preserves_subtrees() {
+    auto result = Storm::Scene::create("Gameplay");
+    EXPECT(result);
+    auto scene = std::move(result).value();
+    auto parent = scene.create_entity("Parent");
+    auto child = scene.create_entity("Child");
+    auto grandchild = scene.create_entity("Grandchild");
+    EXPECT(parent);
+    EXPECT(child);
+    EXPECT(grandchild);
+
+    EXPECT(scene.set_parent(child.value(), parent.value()));
+    EXPECT(scene.set_parent(grandchild.value(), child.value()));
+    EXPECT(scene.destroy_entity(parent.value()));
+
+    auto child_parent = scene.parent_of(child.value());
+    auto grandchild_parent = scene.parent_of(grandchild.value());
+    auto child_children = scene.children_of(child.value());
+    EXPECT(child_parent);
+    EXPECT(!child_parent.value().has_value());
+    EXPECT(grandchild_parent);
+    EXPECT(grandchild_parent.value() == std::optional<Storm::EntityHandle>{child.value()});
+    EXPECT(child_children);
+    EXPECT(child_children.value().size() == 1U);
+    EXPECT(child_children.value()[0] == grandchild.value());
+    return std::nullopt;
+}
+
+[[nodiscard]] std::optional<std::string> test_destroying_child_removes_parent_link_before_slot_reuse() {
+    auto result = Storm::Scene::create("Gameplay");
+    EXPECT(result);
+    auto scene = std::move(result).value();
+    auto parent = scene.create_entity("Parent");
+    auto child = scene.create_entity("Child");
+    EXPECT(parent);
+    EXPECT(child);
+    EXPECT(scene.set_parent(child.value(), parent.value()));
+
+    const Storm::EntityHandle old_child = child.value();
+    EXPECT(scene.destroy_entity(old_child));
+    auto empty_children = scene.children_of(parent.value());
+    EXPECT(empty_children);
+    EXPECT(empty_children.value().empty());
+
+    auto replacement = scene.create_entity("Replacement");
+    EXPECT(replacement);
+    EXPECT(replacement.value().index == old_child.index);
+    EXPECT(replacement.value().generation != old_child.generation);
+    auto replacement_parent = scene.parent_of(replacement.value());
+    EXPECT(replacement_parent);
+    EXPECT(!replacement_parent.value().has_value());
+    auto children_after_reuse = scene.children_of(parent.value());
+    EXPECT(children_after_reuse);
+    EXPECT(children_after_reuse.value().empty());
+    return std::nullopt;
+}
+
+[[nodiscard]] std::optional<std::string> test_move_preserves_hierarchy_handles() {
+    auto result = Storm::Scene::create("Gameplay");
+    EXPECT(result);
+    auto source = std::move(result).value();
+    auto parent = source.create_entity("Parent");
+    auto child = source.create_entity("Child");
+    EXPECT(parent);
+    EXPECT(child);
+    EXPECT(source.set_parent(child.value(), parent.value()));
+
+    const Storm::EntityHandle parent_handle = parent.value();
+    const Storm::EntityHandle child_handle = child.value();
+    Storm::Scene destination(std::move(source));
+
+    EXPECT(destination.is_alive(parent_handle));
+    EXPECT(destination.is_alive(child_handle));
+    auto actual_parent = destination.parent_of(child_handle);
+    auto actual_children = destination.children_of(parent_handle);
+    EXPECT(actual_parent);
+    EXPECT(actual_parent.value() == std::optional<Storm::EntityHandle>{parent_handle});
+    EXPECT(actual_children);
+    EXPECT(actual_children.value().size() == 1U);
+    EXPECT(actual_children.value()[0] == child_handle);
+    EXPECT(!source.is_alive(child_handle));
+    return std::nullopt;
+}
+
 struct TestCase final {
     const char* name;
     std::optional<std::string> (*run)();
@@ -221,6 +446,14 @@ int main() {
         TestCase{"duplicate_and_missing_components_report_errors", &test_duplicate_and_missing_components_report_errors},
         TestCase{"component_remove_and_entity_destroy_release_storage", &test_component_remove_and_entity_destroy_release_storage},
         TestCase{"move_preserves_handles_and_invalidates_source", &test_move_preserves_handles_and_invalidates_source},
+        TestCase{"set_parent_and_read_hierarchy", &test_set_parent_and_read_hierarchy},
+        TestCase{"reparent_updates_both_sides_and_is_idempotent", &test_reparent_updates_both_sides_and_is_idempotent},
+        TestCase{"detach_preserves_remaining_sibling_order", &test_detach_preserves_remaining_sibling_order},
+        TestCase{"reject_self_parent_and_hierarchy_cycles", &test_reject_self_parent_and_hierarchy_cycles},
+        TestCase{"reject_foreign_and_stale_parent_handles", &test_reject_foreign_and_stale_parent_handles},
+        TestCase{"destroying_parent_orphans_children_and_preserves_subtrees", &test_destroying_parent_orphans_children_and_preserves_subtrees},
+        TestCase{"destroying_child_removes_parent_link_before_slot_reuse", &test_destroying_child_removes_parent_link_before_slot_reuse},
+        TestCase{"move_preserves_hierarchy_handles", &test_move_preserves_hierarchy_handles},
     };
 
     std::size_t failures = 0U;
