@@ -49,7 +49,7 @@ The scheduler intentionally separates time accounting from simulation. A future 
 
 ## Native callback mapping and implementation status
 
-Android lifecycle normalization is implemented in Storm::Platform::Android. iOS scene-event normalization is implemented in Storm::Platform::IOS; the actual UIKit delegate bridge remains planned. The mappings below distinguish event policy from OS callback integration.
+Android lifecycle normalization is implemented in Storm::Platform::Android. iOS scene-event normalization is implemented in Storm::Platform::IOS. An Objective-C++ UIWindowSceneDelegate bridge is implemented in platforms/ios and is compiled only for the iOS target. The mappings below distinguish event policy from OS callback integration.
 
 ### Android
 
@@ -64,7 +64,7 @@ For scene-based UIKit applications, create one lifecycle state machine per UISce
 - sceneWillResignActive -> SceneEvent::WillResignActive -> ForegroundInactive
 - sceneDidEnterBackground -> SceneEvent::DidEnterBackground -> Background
 
-For apps without scene support, map the corresponding app-delegate lifecycle notifications to one app-level instance. The current C++ adapter implements this normalization policy, but does not implement or register a UIKit delegate. See [iOS Lifecycle Event Adapter](IOS-LIFECYCLE.md).
+For apps without scene support, map the corresponding app-delegate lifecycle notifications to one app-level instance. The Objective-C++ StormEngineSceneDelegate forwards UIKit callbacks into the C++ normalization policy. The host application must select this class (or a subclass) in its UISceneConfiguration and override the transition hook to connect its runtime. See [iOS Lifecycle Event Adapter](IOS-LIFECYCLE.md).
 
 UIKit may launch a scene directly into the background for background event processing. Such an owner can begin with Created -> Background and later transition to the foreground. The app-scoped termination callback can be forwarded with apply_application_event(), but it is best-effort and must not be the only place where important state is saved or resources are made safe.
 
@@ -116,4 +116,4 @@ The following remain separate contracts or future integrations:
 
 The lifecycle state machine and event queue are covered by the foundation host tests, including FIFO behavior, full/closed handling, and concurrent multi-producer delivery (16,000 enqueued events in the stress test). The surface lifecycle contract has a separate host test executable covering attach validation, generation changes, resize, detach, recreation, and stale callbacks. The fixed-step scheduler has dedicated tests for configuration validation, partial accumulation, fixed-step emission, frame-delta clamping, catch-up limits, state preservation after invalid input/overflow, and reset.
 
-No Android SDK/NDK or Xcode/UIKit adapter runtime tests have been run on physical devices. The Android NativeActivity bridge is cross-compiled and linked in CI only. The iOS event-normalization policy has host tests, but UIKit callback delivery and native lifecycle integration remain unimplemented.
+No Android SDK/NDK or Xcode/UIKit adapter runtime tests have been run on physical devices. The Android NativeActivity bridge is cross-compiled and linked in CI only. The iOS event-normalization policy has host tests and its Objective-C++ UISceneDelegate adapter is cross-compiled against UIKit in CI; physical-device callback delivery and runtime integration remain unverified.

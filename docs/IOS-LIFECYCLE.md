@@ -4,13 +4,13 @@
 
 The platform-neutral iOS lifecycle event adapter is implemented in Storm::Platform::IOS. It normalizes UIKit scene lifecycle events into the shared LifecycleStateMachine contract.
 
-This is not a UIKit integration. The repository still has no UIApplicationDelegate, UISceneDelegate, Objective-C/Objective-C++ bridge, iOS application target, or physical-device lifecycle test. A host application must currently forward UIKit callbacks to this adapter itself.
+The repository now includes StormEngineSceneDelegate, an Objective-C++ UIWindowSceneDelegate adapter available on iOS 13+ and compiled only for iOS. It owns one LifecycleStateMachine per scene and forwards normalized state transitions through an overridable method. This is a native scene-lifecycle integration component, not a complete iOS application: the repository still has no UIApplicationDelegate, app target, runtime event consumer, signed app, or physical-device lifecycle test.
 
 ## Scene ownership
 
 Create one LifecycleStateMachine instance for each independently managed UIScene. Do not share one state machine across multiple scenes: one scene may be active while another is in the background.
 
-The adapter is single-thread-affine, like the lifecycle state machine. Call it serially on the owning scene's lifecycle callback queue. It is not internally synchronized and does not enqueue callbacks.
+The platform-neutral adapter is single-thread-affine. The Objective-C++ delegate receives UIKit scene callbacks on the main thread and invokes it there. The delegate checks this requirement and reports an error instead of updating state from another thread. It does not enqueue callbacks; the host runtime must consume the overridable transition hook without blocking.
 
 ## Callback mapping
 
@@ -36,4 +36,20 @@ The app-scoped applicationWillTerminate(_:) notification can be forwarded to eac
 
 The dedicated host test executable stormengine_ios_lifecycle_tests contains seven cases covering the foreground/background sequence, recovery from background, launch into background, idempotent callbacks, independent scene state, terminal app shutdown, and invalid events. All seven cases passed in GCC, Clang, Apple Clang, and Clang ASan/UBSan in CI run 41304250865. The Platform library, including this adapter, also cross-compiled for Android arm64-v8a and iOS device arm64 in that workflow.
 
-These tests validate the C++ event-normalization policy only. They do not invoke UIKit, create a UIScene, validate callback delivery order from iOS, or establish physical-device compatibility.
+The seven host tests validate the C++ event-normalization policy only. The iOS CI build additionally compiles the Objective-C++ delegate against the iPhoneOS UIKit SDK. Cross-compilation does not invoke UIKit callbacks, create a UIScene, validate callback delivery order on an operating system, or establish physical-device compatibility.
+
+
+## Host application integration
+
+Link the host app against Storm Platform. Because the delegate class is stored in a static archive and selected by class name, the iOS consumer link must retain Objective-C classes; the CMake target propagates the -ObjC linker option.
+
+Configure StormEngineSceneDelegate (or a subclass) as the delegate class in the host application's UISceneConfiguration. An app may subclass the delegate and override the following hook:
+
+```objective-c
+- (void)stormScene:(UIScene *)scene
+    didTransitionToState:(StormEngineLifecycleState)state {
+    // Forward the scene identifier and state to the app-owned runtime.
+}
+```
+
+The override is called synchronously on the main thread only when the normalized state changes. It must not block. Each scene delegate owns independent state. The app-termination hook is best-effort; persistent state must be saved incrementally rather than relying on termination.

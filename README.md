@@ -29,13 +29,13 @@ See [Mobile-only policy](docs/MOBILE-ONLY-POLICY.md), [Architecture](docs/ARCHIT
 - A bounded, allocation-free, multi-producer/single-consumer lifecycle event queue with explicit full/closed results.
 - A platform-neutral surface lifecycle contract with validated dimensions/scale and generation-based stale-callback rejection.
 - An Android NativeActivity adapter built with the NDK Native App Glue. It maps Activity lifecycle events and attaches/resizes/detaches surface metadata without retaining an ANativeWindow pointer.
-- A platform-neutral iOS scene-event adapter that maps UIKit lifecycle semantics into one lifecycle state machine per scene. UIKit delegate integration remains unimplemented.
+- A platform-neutral iOS scene-event adapter plus an Objective-C++ StormEngineSceneDelegate available on iOS 13+ that consumes UIKit scene callbacks, owns one lifecycle state machine per scene, and exposes an overridable transition hook to the host runtime. Its source is compiled only for the iOS target.
 - Host tests for Foundation, fixed-step scheduling, frame orchestration, typed event dispatch, surface lifecycle, and Android/iOS lifecycle event normalization. All 53 named cases across seven CTest executables now pass in GCC, Clang, Apple Clang, and Clang ASan/UBSan host CI.
 - CI cross-compilation of the Foundation, Core, and Platform static libraries for Android arm64-v8a and iOS device arm64, plus Android NativeActivity shared-library compilation/linking.
 
 The Android CI job uses ANDROID_PLATFORM=android-21 as its native compilation target. This is not yet a declared product minimum SDK. The iOS CI job uses the iPhoneOS Device SDK and does not create an Xcode application, archive, or IPA.
 
-The Android bridge is only an event/lifecycle adapter. It is not yet wired to the Core GameLoop and does not provide frame pacing, rendering, touch input, sensor access, low-memory policy, Java/Kotlin UI, or a packageable app module. The GameLoop does not yet acquire a monotonic clock, dispatch OS lifecycle callbacks, or invoke a physics implementation. iOS UIKit scene-delegate integration is not implemented; only the platform-neutral scene-event normalization policy exists. Neither target has physical-device runtime validation.
+The Android bridge is only an event/lifecycle adapter. It is not yet wired to the Core GameLoop and does not provide frame pacing, rendering, touch input, sensor access, low-memory policy, Java/Kotlin UI, or a packageable app module. The GameLoop does not yet acquire a monotonic clock, dispatch OS lifecycle callbacks, or invoke a physics implementation. The Objective-C++ UIKit scene delegate is compiled for the iOS target, but the repository still has no complete iOS application target, engine-runtime callback consumer, signed app, or physical-device validation. Neither target has physical-device runtime validation.
 
 ## Build and test the host foundation
 

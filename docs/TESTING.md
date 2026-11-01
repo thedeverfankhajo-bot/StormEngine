@@ -84,7 +84,7 @@ The Foundation workflow runs on pushes to main and on manual dispatch. The succe
 
 The Android and iOS jobs disable host test executables because those binaries cannot be run as ordinary host programs from the target toolchains. They validate compilation and linking only; they do not build APK/AAB/IPA packages, invoke Android callbacks, deploy to devices, or run on physical hardware. The Android API 21 value is a CI compilation target, not a declared product minimum SDK.
 
-The iOS job uses CMake's Xcode generator and the iPhoneOS Device SDK. The Platform target compiled the new iOS scene-event policy in this run. A successful static-library build is not an iOS application archive or signed IPA.
+The iOS job uses CMake's Xcode generator and the iPhoneOS Device SDK. The Platform target compiles the C++ scene-event policy and the Objective-C++ UIWindowSceneDelegate adapter against UIKit. A successful static-library build is not an iOS application archive or signed IPA.
 
 All seven CTest executables, including the new iOS lifecycle-policy suite, passed in GCC, Clang, Clang ASan/UBSan, and Apple Clang host jobs. The iOS suite validates event normalization only; it does not invoke UIKit.
 
@@ -99,3 +99,6 @@ The sanitizer job runs the same host tests with leak detection enabled and Undef
 - Android/iOS runtime compatibility requires installable native application targets, platform lifecycle integration, target-specific tests, and real-device evidence.
 
 See [Android NativeActivity Lifecycle Bridge](ANDROID-NATIVE-ACTIVITY.md), [Core Game Loop](GAME-LOOP.md), and [Core Event System](EVENT-SYSTEM.md) for the exact implementation scope and limitations.
+
+
+The iOS target build verifies that the Objective-C++ scene delegate compiles against the selected iPhoneOS SDK and is included in the Platform static library. It does not instantiate the delegate, run UIKit lifecycle callbacks, build an app target, sign an application, or test on an iPhone. The host application must configure the delegate class in its UISceneConfiguration and provide a non-blocking transition-hook implementation that connects to its runtime.

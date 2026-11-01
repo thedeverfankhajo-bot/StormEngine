@@ -6,6 +6,13 @@ project(StormEngine
     LANGUAGES CXX
 )
 
+if(CMAKE_SYSTEM_NAME STREQUAL "iOS")
+    enable_language(OBJCXX)
+    set(CMAKE_OBJCXX_STANDARD 20)
+    set(CMAKE_OBJCXX_STANDARD_REQUIRED ON)
+    set(CMAKE_OBJCXX_EXTENSIONS OFF)
+endif()
+
 include(CTest)
 
 option(STORMENGINE_BUILD_TESTS "Build host-side StormEngine tests" ${BUILD_TESTING})
@@ -73,6 +80,25 @@ target_include_directories(storm_platform
 target_link_libraries(storm_platform PUBLIC Storm::Foundation)
 target_compile_features(storm_platform PUBLIC cxx_std_20)
 stormengine_apply_warnings(storm_platform)
+
+if(CMAKE_SYSTEM_NAME STREQUAL "iOS")
+    find_library(STORMENGINE_UIKIT_FRAMEWORK UIKit REQUIRED)
+
+    target_sources(storm_platform PRIVATE
+        platforms/ios/scene_lifecycle_delegate.mm
+    )
+    target_include_directories(storm_platform
+        PUBLIC
+            $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/platforms/ios/include>
+    )
+    target_link_libraries(storm_platform PUBLIC "${STORMENGINE_UIKIT_FRAMEWORK}")
+    target_compile_options(storm_platform PRIVATE
+        $<$<COMPILE_LANGUAGE:OBJCXX>:-fobjc-arc>
+    )
+    # The host application selects StormEngineSceneDelegate by class name in
+    # its scene configuration; -ObjC loads the class object from this archive.
+    target_link_options(storm_platform INTERFACE "-ObjC")
+endif()
 
 if(ANDROID)
     # The NDK's Native App Glue is C source shipped with the selected NDK.
