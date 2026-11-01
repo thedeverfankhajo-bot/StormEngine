@@ -429,6 +429,119 @@ struct Velocity final {
     return std::nullopt;
 }
 
+[[nodiscard]] std::optional<std::string> test_entity_iteration_is_ordered_and_skips_destroyed_slots() {
+    auto result = Storm::Scene::create("Iteration");
+    EXPECT(result);
+    auto scene = std::move(result).value();
+
+    auto first = scene.create_entity("First");
+    auto removed = scene.create_entity("Removed");
+    auto third = scene.create_entity("Third");
+    EXPECT(first);
+    EXPECT(removed);
+    EXPECT(third);
+    EXPECT(scene.destroy_entity(removed.value()));
+
+    auto replacement = scene.create_entity("Replacement");
+    EXPECT(replacement);
+    EXPECT(replacement.value().index == removed.value().index);
+
+    std::array<Storm::EntityHandle, 3U> handles{};
+    std::array<std::string, 3U> names{};
+    std::size_t callback_count = 0U;
+    const auto iteration = scene.for_each_entity(
+        [&](Storm::EntityHandle handle, std::string_view name) {
+            if (callback_count < handles.size()) {
+                handles[callback_count] = handle;
+                names[callback_count] = name;
+            }
+            ++callback_count;
+        });
+
+    EXPECT(iteration);
+    EXPECT(iteration.value() == 3U);
+    EXPECT(callback_count == 3U);
+    EXPECT(handles[0U] == first.value());
+    EXPECT(handles[1U] == replacement.value());
+    EXPECT(handles[2U] == third.value());
+    EXPECT(names[0U] == "First");
+    EXPECT(names[1U] == "Replacement");
+    EXPECT(names[2U] == "Third");
+
+    Storm::Scene moved(std::move(scene));
+    const auto moved_from_iteration = scene.for_each_entity(
+        [](Storm::EntityHandle, std::string_view) {});
+    EXPECT(!moved_from_iteration);
+    EXPECT(moved_from_iteration.error().code == Storm::ErrorCode::InvalidState);
+    EXPECT(moved.is_alive(first.value()));
+    return std::nullopt;
+}
+
+[[nodiscard]] std::optional<std::string> test_component_iteration_is_ordered_typed_and_const_safe() {
+    auto result = Storm::Scene::create("ComponentIteration");
+    EXPECT(result);
+    auto scene = std::move(result).value();
+
+    auto first = scene.create_entity("First");
+    auto second = scene.create_entity("Second");
+    auto third = scene.create_entity("Third");
+    EXPECT(first);
+    EXPECT(second);
+    EXPECT(third);
+
+    EXPECT(scene.add_component<Position>(first.value(), Position{1, 10}));
+    EXPECT(scene.add_component<Position>(third.value(), Position{3, 30}));
+    EXPECT(scene.destroy_entity(first.value()));
+
+    auto replacement = scene.create_entity("Replacement");
+    EXPECT(replacement);
+    EXPECT(replacement.value().index == first.value().index);
+    EXPECT(scene.add_component<Position>(replacement.value(), Position{7, 70}));
+
+    std::array<Storm::EntityHandle, 2U> mutable_handles{};
+    std::array<int, 2U> mutable_values{};
+    std::size_t mutable_callbacks = 0U;
+    const auto mutable_iteration = scene.for_each_component<Position>(
+        [&](Storm::EntityHandle handle, Position& position) {
+            if (mutable_callbacks < mutable_handles.size()) {
+                mutable_handles[mutable_callbacks] = handle;
+                mutable_values[mutable_callbacks] = position.x;
+            }
+            ++mutable_callbacks;
+            ++position.x;
+        });
+
+    EXPECT(mutable_iteration);
+    EXPECT(mutable_iteration.value() == 2U);
+    EXPECT(mutable_callbacks == 2U);
+    EXPECT(mutable_handles[0U] == replacement.value());
+    EXPECT(mutable_handles[1U] == third.value());
+    EXPECT(mutable_values[0U] == 7);
+    EXPECT(mutable_values[1U] == 3);
+
+    const Storm::Scene& const_scene = scene;
+    std::size_t const_callbacks = 0U;
+    const auto const_iteration = const_scene.for_each_component<Position>(
+        [&](Storm::EntityHandle, const Position& position) {
+            EXPECT(position.x == 8 || position.x == 4);
+            ++const_callbacks;
+        });
+    EXPECT(const_iteration);
+    EXPECT(const_iteration.value() == 2U);
+    EXPECT(const_callbacks == 2U);
+
+    std::size_t missing_callbacks = 0U;
+    const auto missing_iteration = scene.for_each_component<Velocity>(
+        [&](Storm::EntityHandle, Velocity&) {
+            ++missing_callbacks;
+        });
+    EXPECT(missing_iteration);
+    EXPECT(missing_iteration.value() == 0U);
+    EXPECT(missing_callbacks == 0U);
+    EXPECT(scene.is_alive(second.value()));
+    return std::nullopt;
+}
+
 struct TestCase final {
     const char* name;
     std::optional<std::string> (*run)();
@@ -454,6 +567,8 @@ int main() {
         TestCase{"destroying_parent_orphans_children_and_preserves_subtrees", &test_destroying_parent_orphans_children_and_preserves_subtrees},
         TestCase{"destroying_child_removes_parent_link_before_slot_reuse", &test_destroying_child_removes_parent_link_before_slot_reuse},
         TestCase{"move_preserves_hierarchy_handles", &test_move_preserves_hierarchy_handles},
+        TestCase{"entity_iteration_is_ordered_and_skips_destroyed_slots", &test_entity_iteration_is_ordered_and_skips_destroyed_slots},
+        TestCase{"component_iteration_is_ordered_typed_and_const_safe", &test_component_iteration_is_ordered_typed_and_const_safe},
     };
 
     std::size_t failures = 0U;

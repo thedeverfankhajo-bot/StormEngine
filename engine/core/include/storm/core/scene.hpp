@@ -48,6 +48,39 @@ public:
     [[nodiscard]] std::string_view name() const noexcept;
     [[nodiscard]] std::size_t entity_count() const noexcept;
 
+    // Visits live entities in ascending slot-index order. The callback receives
+    // a generation-checked handle and a non-owning name view.
+    template <typename Callback>
+    [[nodiscard]] Result<std::size_t> for_each_entity(Callback&& callback) const {
+        static_assert(
+            std::is_invocable_v<Callback&, EntityHandle, std::string_view>,
+            "Entity callbacks must accept (EntityHandle, std::string_view)");
+
+        if (scene_id_ == 0U) {
+            return Result<std::size_t>::failure(Error::make(
+                ErrorCode::InvalidState,
+                "A moved-from Scene cannot be iterated"));
+        }
+
+        std::size_t visited = 0U;
+        for (std::size_t raw_index = 0U; raw_index < entities_.size(); ++raw_index) {
+            const EntitySlot& slot = entities_[raw_index];
+            if (!slot.alive) {
+                continue;
+            }
+
+            const EntityHandle handle{
+                .scene_id = scene_id_,
+                .index = static_cast<EntityIndex>(raw_index),
+                .generation = slot.generation,
+            };
+            static_cast<void>(std::invoke(callback, handle, std::string_view{slot.name}));
+            ++visited;
+        }
+
+        return Result<std::size_t>::success(visited);
+    }
+
     [[nodiscard]] Result<EntityHandle> create_entity(std::string name = {});
     [[nodiscard]] Result<void> destroy_entity(EntityHandle entity);
     [[nodiscard]] bool is_alive(EntityHandle entity) const noexcept;
@@ -136,6 +169,104 @@ public:
 
         const auto iterator = storage->values.find(entity.index);
         return iterator == storage->values.end() ? nullptr : &iterator->second;
+    }
+
+    // Visits matching components in ascending entity slot-index order.
+    // Mutable iteration permits value updates, but callbacks must not mutate
+    // Scene structure or retain references beyond the component's lifetime.
+    template <typename Component, typename Callback>
+    [[nodiscard]] Result<std::size_t> for_each_component(Callback&& callback) {
+        static_assert(
+            std::is_object_v<Component> &&
+                !std::is_const_v<Component> &&
+                !std::is_volatile_v<Component>,
+            "Components must be non-cv-qualified object types");
+        static_assert(
+            std::is_invocable_v<Callback&, EntityHandle, Component&>,
+            "Component callbacks must accept (EntityHandle, Component&)");
+
+        if (scene_id_ == 0U) {
+            return Result<std::size_t>::failure(Error::make(
+                ErrorCode::InvalidState,
+                "A moved-from Scene cannot be iterated"));
+        }
+
+        ComponentStorage<Component>* storage = find_storage<Component>();
+        if (storage == nullptr) {
+            return Result<std::size_t>::success(0U);
+        }
+
+        std::size_t visited = 0U;
+        for (std::size_t raw_index = 0U; raw_index < entities_.size(); ++raw_index) {
+            const EntitySlot& slot = entities_[raw_index];
+            if (!slot.alive) {
+                continue;
+            }
+
+            const EntityIndex index = static_cast<EntityIndex>(raw_index);
+            const auto component = storage->values.find(index);
+            if (component == storage->values.end()) {
+                continue;
+            }
+
+            const EntityHandle handle{
+                .scene_id = scene_id_,
+                .index = index,
+                .generation = slot.generation,
+            };
+            static_cast<void>(std::invoke(callback, handle, component->second));
+            ++visited;
+        }
+
+        return Result<std::size_t>::success(visited);
+    }
+
+    // Const iteration exposes components only as const references.
+    template <typename Component, typename Callback>
+    [[nodiscard]] Result<std::size_t> for_each_component(Callback&& callback) const {
+        static_assert(
+            std::is_object_v<Component> &&
+                !std::is_const_v<Component> &&
+                !std::is_volatile_v<Component>,
+            "Components must be non-cv-qualified object types");
+        static_assert(
+            std::is_invocable_v<Callback&, EntityHandle, const Component&>,
+            "Const component callbacks must accept (EntityHandle, const Component&)");
+
+        if (scene_id_ == 0U) {
+            return Result<std::size_t>::failure(Error::make(
+                ErrorCode::InvalidState,
+                "A moved-from Scene cannot be iterated"));
+        }
+
+        const ComponentStorage<Component>* storage = find_storage<Component>();
+        if (storage == nullptr) {
+            return Result<std::size_t>::success(0U);
+        }
+
+        std::size_t visited = 0U;
+        for (std::size_t raw_index = 0U; raw_index < entities_.size(); ++raw_index) {
+            const EntitySlot& slot = entities_[raw_index];
+            if (!slot.alive) {
+                continue;
+            }
+
+            const EntityIndex index = static_cast<EntityIndex>(raw_index);
+            const auto component = storage->values.find(index);
+            if (component == storage->values.end()) {
+                continue;
+            }
+
+            const EntityHandle handle{
+                .scene_id = scene_id_,
+                .index = index,
+                .generation = slot.generation,
+            };
+            static_cast<void>(std::invoke(callback, handle, component->second));
+            ++visited;
+        }
+
+        return Result<std::size_t>::success(visited);
     }
 
     template <typename Component>
