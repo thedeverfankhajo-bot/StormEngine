@@ -86,13 +86,6 @@ std::atomic<std::uint64_t> next_world_id{1U};
     return Error::make(ErrorCode::Internal, "");
 }
 
-[[nodiscard]] double inverse_mass(const WorkingBody& body) noexcept {
-    if (body.definition.type != BodyType1D::Dynamic) {
-        return 0.0;
-    }
-    return 1.0 / body.definition.mass;
-}
-
 } // namespace
 
 PhysicsWorld1D::PhysicsWorld1D(
@@ -108,7 +101,7 @@ PhysicsWorld1D::PhysicsWorld1D(PhysicsWorld1D&& other) noexcept
       slots_(std::move(other.slots_)),
       free_slots_(std::move(other.free_slots_)) {}
 
-Result<PhysicsWorld1D> PhysicsWorld1D::create(PhysicsWorld1DConfig config) noexcept {
+Result<PhysicsWorld1D> PhysicsWorld1D::create(PhysicsWorld1DConfig config) {
     if (config.maximum_bodies == 0U ||
         config.maximum_bodies > std::numeric_limits<std::uint32_t>::max() ||
         config.maximum_contacts_per_step == 0U ||
@@ -412,20 +405,21 @@ Result<StepResult1D> PhysicsWorld1D::step(
                 continue;
             }
 
-            const double first_min = first.position - first.definition.half_extent;
-            const double first_max = first.position + first.definition.half_extent;
-            if (!is_finite(first_min) || !is_finite(first_max)) {
-                return Result<StepResult1D>::failure(Error::make(
-                    ErrorCode::ResourceExhausted,
-                    "A 1D collider bound exceeded the supported numeric range"));
-            }
-
             for (std::size_t second_index = first_index + 1U;
                  second_index < working.size();
                  ++second_index) {
                 WorkingBody& second = working[second_index];
                 if (!second.active) {
                     continue;
+                }
+
+                // Earlier pair resolution may have moved this body; refresh its bounds.
+                const double first_min = first.position - first.definition.half_extent;
+                const double first_max = first.position + first.definition.half_extent;
+                if (!is_finite(first_min) || !is_finite(first_max)) {
+                    return Result<StepResult1D>::failure(Error::make(
+                        ErrorCode::ResourceExhausted,
+                        "A 1D collider bound exceeded the supported numeric range"));
                 }
                 if ((first.definition.collision_layer & second.definition.collision_mask) == 0U ||
                     (second.definition.collision_layer & first.definition.collision_mask) == 0U) {
@@ -483,8 +477,14 @@ Result<StepResult1D> PhysicsWorld1D::step(
                     continue;
                 }
 
-                const double first_inverse_mass = inverse_mass(first);
-                const double second_inverse_mass = inverse_mass(second);
+                const double first_inverse_mass =
+                    first.definition.type == BodyType1D::Dynamic
+                        ? 1.0 / first.definition.mass
+                        : 0.0;
+                const double second_inverse_mass =
+                    second.definition.type == BodyType1D::Dynamic
+                        ? 1.0 / second.definition.mass
+                        : 0.0;
                 const double inverse_mass_sum =
                     first_inverse_mass + second_inverse_mass;
                 if (inverse_mass_sum <= 0.0) {

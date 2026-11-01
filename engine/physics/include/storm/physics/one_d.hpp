@@ -72,7 +72,7 @@ struct PhysicsWorld1DConfig final {
 class PhysicsWorld1D final {
 public:
     [[nodiscard]] static Result<PhysicsWorld1D> create(
-        PhysicsWorld1DConfig config = {}) noexcept;
+        PhysicsWorld1DConfig config = {});
 
     PhysicsWorld1D(const PhysicsWorld1D&) = delete;
     PhysicsWorld1D& operator=(const PhysicsWorld1D&) = delete;

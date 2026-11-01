@@ -12,6 +12,7 @@
 namespace {
 
 using Storm::Physics::OneD::BodyDefinition1D;
+using Storm::Physics::OneD::BodyHandle1D;
 using Storm::Physics::OneD::BodyType1D;
 using Storm::Physics::OneD::PhysicsWorld1D;
 using Storm::Physics::OneD::PhysicsWorld1DConfig;
