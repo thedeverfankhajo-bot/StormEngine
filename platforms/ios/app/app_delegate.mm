@@ -27,7 +27,7 @@
     UIViewController *rootController = [[UIViewController alloc] init];
     rootController.view.backgroundColor = [UIColor systemBackgroundColor];
 
-    UILabel *statusLabel = [[UILabel alloc] initWithFrame:CGRectZero];
+    UILabel *statusLabel = [[UILabel alloc] initWithFrame:CGRectMake(0.0, 0.0, 0.0, 0.0)];
     statusLabel.numberOfLines = 0;
     statusLabel.textAlignment = NSTextAlignmentCenter;
     statusLabel.font = [UIFont preferredFontForTextStyle:UIFontTextStyleBody];

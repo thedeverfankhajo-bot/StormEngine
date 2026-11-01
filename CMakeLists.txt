@@ -165,6 +165,7 @@ if(CMAKE_SYSTEM_NAME STREQUAL "iOS")
     set_target_properties(storm_ios_app PROPERTIES
         MACOSX_BUNDLE TRUE
         MACOSX_BUNDLE_GUI_IDENTIFIER "com.stormengine.runtime"
+        XCODE_ATTRIBUTE_PRODUCT_BUNDLE_IDENTIFIER "com.stormengine.runtime"
         MACOSX_BUNDLE_BUNDLE_NAME "StormEngine"
         MACOSX_BUNDLE_BUNDLE_VERSION "1"
         MACOSX_BUNDLE_SHORT_VERSION_STRING "${PROJECT_VERSION}"
