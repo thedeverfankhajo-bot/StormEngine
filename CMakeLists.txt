@@ -132,6 +132,24 @@ target_link_libraries(storm_runtime PUBLIC Storm::Core Storm::Platform)
 target_compile_features(storm_runtime PUBLIC cxx_std_20)
 stormengine_apply_warnings(storm_runtime)
 
+# Optional bridge: Core and the standalone Physics1D target stay decoupled.
+add_library(storm_physics_scene1d STATIC
+    engine/physics/src/one_d_scene.cpp
+)
+add_library(Storm::PhysicsScene1D ALIAS storm_physics_scene1d)
+target_include_directories(storm_physics_scene1d
+    PUBLIC
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/engine/physics/include>
+)
+target_link_libraries(storm_physics_scene1d
+    PUBLIC
+        Storm::Physics1D
+        Storm::Core
+        Storm::Math
+)
+target_compile_features(storm_physics_scene1d PUBLIC cxx_std_20)
+stormengine_apply_warnings(storm_physics_scene1d)
+
 if(CMAKE_SYSTEM_NAME STREQUAL "iOS")
     find_library(STORMENGINE_UIKIT_FRAMEWORK UIKit REQUIRED)
 
@@ -322,5 +340,13 @@ if(STORMENGINE_BUILD_TESTS)
         target_compile_features(stormengine_one_d_physics_tests PRIVATE cxx_std_20)
         stormengine_apply_warnings(stormengine_one_d_physics_tests)
         add_test(NAME stormengine_one_d_physics_tests COMMAND stormengine_one_d_physics_tests)
+
+        add_executable(stormengine_one_d_scene_tests
+            tests/one_d_scene_tests.cpp
+        )
+        target_link_libraries(stormengine_one_d_scene_tests PRIVATE Storm::PhysicsScene1D)
+        target_compile_features(stormengine_one_d_scene_tests PRIVATE cxx_std_20)
+        stormengine_apply_warnings(stormengine_one_d_scene_tests)
+        add_test(NAME stormengine_one_d_scene_tests COMMAND stormengine_one_d_scene_tests)
     endif()
 endif()

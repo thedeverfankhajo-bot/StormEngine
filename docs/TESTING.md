@@ -223,3 +223,22 @@ This gate supplements, but does not replace, host unit tests, ASan/UBSan, code
 review, fuzzing, dependency auditing, or physical-device validation. It does not
 claim ThreadSanitizer coverage or prove the absence of defects outside the
 analyzed paths.
+
+
+## 1D Scene adapter coverage added in the current change
+
+The new stormengine_one_d_scene_tests executable adds nine named cases for:
+- Requiring a finite Transform1D component before body attachment.
+- Treating the Scene scalar position as authoritative during attachment.
+- Synchronizing successful fixed-step positions back to Scene.
+- Explicit teleport, velocity, force, and impulse operations.
+- Entity/body handle lookup and explicit detach.
+- Cleanup after entity destruction or Transform1D removal.
+- Rejection of foreign Scenes and stale entities.
+- Preserving Scene/body state when the physics step fails.
+- Preserving the Scene binding through Scene and adapter move operations.
+
+The test target is registered in CTest, and the optional adapter is included
+in Android arm64 and iOS device arm64 target-build jobs. The CI run triggered
+by this commit is the validation gate; until it completes successfully, these
+nine cases and the new mobile target builds are pending, not passed.

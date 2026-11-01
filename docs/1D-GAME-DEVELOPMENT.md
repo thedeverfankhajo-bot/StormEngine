@@ -8,7 +8,7 @@ velocity, acceleration, applied force, and impulses are also scalar values. The
 simulation does not store Vector2 or Transform3D values and does not use the 2D
 or 3D transform hierarchy.
 
-The current implementation is a foundation, not a complete 1D game runtime. It
+An optional Scene bridge now maps scalar Transform1D components to PhysicsWorld1D bodies; see [1D Scene Integration](1D-SCENE-INTEGRATION.md). This is still a foundation, not a complete 1D game runtime. It
 does not provide a 1D camera, game-state framework, input mapping, UI overlays,
 renderer, asset pipeline, or a sample installable mobile game.
 
@@ -120,11 +120,11 @@ the origin.
 - Bodies use one-dimensional intervals only. There are no rotations, surfaces,
   tangent friction, angular motion, joints, or 2D/3D colliders.
 - Begin/Stay/End contact phases are available from successful PhysicsWorld1D
-  steps, but they are not yet dispatched through the Core EventDispatcher or
-  integrated with Scene components. Sleeping and a higher-level gameplay event
-  integration layer remain future work.
-- PhysicsWorld1D is single-thread-affine and currently does not mutate Scene
-  components automatically.
+  steps, but they are not yet dispatched through the Core EventDispatcher.
+  Sleeping and a higher-level gameplay event integration layer remain future work.
+- PhysicsWorld1D itself remains independent of Scene. The optional
+  PhysicsScene1D adapter performs explicit entity/body mapping and transform
+  synchronization; it does not provide automatic component discovery.
 - No Android/iOS device runtime, frame pacing, rendering, input, or packaging
   integration is claimed.
 
