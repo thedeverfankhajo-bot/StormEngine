@@ -34,9 +34,9 @@ The app-scoped applicationWillTerminate(_:) notification can be forwarded to eac
 
 ## Validation
 
-The dedicated host test executable stormengine_ios_lifecycle_tests contains seven cases covering the foreground/background sequence, recovery from background, launch into background, idempotent callbacks, independent scene state, terminal app shutdown, and invalid events. All seven cases passed in GCC, Clang, Apple Clang, and Clang ASan/UBSan in CI run 41304250865. The Platform library, including this adapter, also cross-compiled for Android arm64-v8a and iOS device arm64 in that workflow.
+The dedicated host test executable stormengine_ios_lifecycle_tests contains seven cases covering the foreground/background sequence, recovery from background, launch into background, idempotent callbacks, independent scene state, terminal app shutdown, and invalid events. All seven cases passed in GCC, Clang, Apple Clang, and Clang ASan/UBSan in CI run [41305339039](https://github.com/thedeverfankhajo-bot/StormEngine/actions/runs/41305339039) for commit `809b990c2fc5f2a245e3dbf04893637f1595a49d`. The latest GCC CTest output explicitly reported `100% tests passed, 0 tests failed out of 7`. The Platform library cross-compiled for Android arm64-v8a and iOS device arm64 in the same workflow.
 
-The seven host tests validate the C++ event-normalization policy only. The iOS CI build additionally compiles the Objective-C++ delegate against the iPhoneOS UIKit SDK. Cross-compilation does not invoke UIKit callbacks, create a UIScene, validate callback delivery order on an operating system, or establish physical-device compatibility.
+The seven host tests validate the C++ event-normalization policy only. In CI run [41305339039](https://github.com/thedeverfankhajo-bot/StormEngine/actions/runs/41305339039), Xcode 16.4 compiled `platforms/ios/scene_lifecycle_delegate.mm` as Objective-C++ against the iPhoneOS 18.5 Device SDK; the build then produced `libstorm_platform.a` for arm64. This proves source compilation and static-library creation only. It does not invoke UIKit callbacks, create a UIScene, validate callback delivery order on an operating system, or establish physical-device compatibility.
 
 
 ## Host application integration

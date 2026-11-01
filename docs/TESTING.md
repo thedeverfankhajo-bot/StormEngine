@@ -2,7 +2,7 @@
 
 ## Current automated coverage
 
-The host test suite contains 53 named test cases across seven CTest executables. All seven executables passed in the successful six-job Foundation CI run [41304250865](https://github.com/thedeverfankhajo-bot/StormEngine/actions/runs/41304250865) for commit `5a90b128cdf3ff57a094dda0a30929fe9a4a3e4e`. The GCC, Clang, Clang ASan/UBSan, and Apple Clang host jobs each configured, built, and ran the complete CTest suite:
+The host test suite contains 53 named test cases across seven CTest executables. All seven executables passed in the successful six-job CI run [41305339039](https://github.com/thedeverfankhajo-bot/StormEngine/actions/runs/41305339039) for commit `809b990c2fc5f2a245e3dbf04893637f1595a49d`. The GCC, Clang, Clang ASan/UBSan, and Apple Clang host jobs each configured, built, and ran the complete CTest suite:
 
 - stormengine_foundation_tests (11 cases):
   - Success and failure paths for typed Result<T> values.
@@ -73,7 +73,7 @@ A direct CMake configure/build/test flow is also supported and documented in the
 
 ## GitHub Actions
 
-The Foundation workflow runs on pushes to main and on manual dispatch. The successful target-validation workflow run [41304250865](https://github.com/thedeverfankhajo-bot/StormEngine/actions/runs/41304250865) for commit `5a90b128cdf3ff57a094dda0a30929fe9a4a3e4e` completed all six jobs successfully:
+The Foundation workflow runs on pushes to main and on manual dispatch. The latest successful target-validation workflow run [41305339039](https://github.com/thedeverfankhajo-bot/StormEngine/actions/runs/41305339039) for commit `809b990c2fc5f2a245e3dbf04893637f1595a49d` completed all six jobs successfully:
 
 - Linux with GCC: configure, build, and run host CTest.
 - Linux with Clang: configure, build, and run host CTest.
@@ -84,7 +84,7 @@ The Foundation workflow runs on pushes to main and on manual dispatch. The succe
 
 The Android and iOS jobs disable host test executables because those binaries cannot be run as ordinary host programs from the target toolchains. They validate compilation and linking only; they do not build APK/AAB/IPA packages, invoke Android callbacks, deploy to devices, or run on physical hardware. The Android API 21 value is a CI compilation target, not a declared product minimum SDK.
 
-The iOS job uses CMake's Xcode generator and the iPhoneOS Device SDK. The Platform target compiles the C++ scene-event policy and the Objective-C++ UIWindowSceneDelegate adapter against UIKit. A successful static-library build is not an iOS application archive or signed IPA.
+The iOS job uses CMake's Xcode generator and the iPhoneOS Device SDK. In the latest successful run, the build log explicitly compiled `platforms/ios/scene_lifecycle_delegate.mm` as Objective-C++ against iPhoneOS 18.5 and produced `libstorm_platform.a` for arm64. The Android job also compiled and linked the NativeActivity shared library for arm64-v8a. These successful target builds do not create an iOS application archive or signed IPA, or an Android APK/AAB.
 
 All seven CTest executables, including the new iOS lifecycle-policy suite, passed in GCC, Clang, Clang ASan/UBSan, and Apple Clang host jobs. The iOS suite validates event normalization only; it does not invoke UIKit.
 
