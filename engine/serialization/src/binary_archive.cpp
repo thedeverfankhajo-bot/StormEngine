@@ -82,6 +82,28 @@ Result<void> BinaryWriter::write_string(
             "A string exceeds its configured archive limit"));
     }
 
+    constexpr std::size_t length_prefix_size = sizeof(std::uint32_t);
+    if (bytes_.size() > maximum_size_ ||
+        length_prefix_size > maximum_size_ - bytes_.size() ||
+        value.size() > maximum_size_ - bytes_.size() - length_prefix_size) {
+        return Result<void>::failure(archive_limit_error(
+            "The encoded string would exceed the archive byte limit"));
+    }
+
+    const std::size_t required_size =
+        bytes_.size() + length_prefix_size + value.size();
+    try {
+        // Reserve the complete field up front so allocation failure cannot
+        // leave a length prefix without its corresponding string bytes.
+        bytes_.reserve(required_size);
+    } catch (const std::bad_alloc&) {
+        return Result<void>::failure(archive_limit_error(
+            "The archive writer could not reserve string storage"));
+    } catch (const std::length_error&) {
+        return Result<void>::failure(archive_limit_error(
+            "The archive writer reached the container size limit"));
+    }
+
     const Result<void> length_result =
         write_u32(static_cast<std::uint32_t>(value.size()));
     if (!length_result) {
@@ -164,6 +186,7 @@ Result<std::span<const std::byte>> BinaryReader::read_bytes(std::size_t count) {
 }
 
 Result<std::string> BinaryReader::read_string(std::size_t maximum_string_size) {
+    const std::size_t original_offset = offset_;
     const Result<std::uint32_t> length_result = read_u32();
     if (!length_result) {
         return Result<std::string>::failure(length_result.error());
@@ -171,12 +194,14 @@ Result<std::string> BinaryReader::read_string(std::size_t maximum_string_size) {
 
     const std::size_t length = static_cast<std::size_t>(length_result.value());
     if (length > maximum_string_size) {
+        offset_ = original_offset;
         return Result<std::string>::failure(archive_limit_error(
             "An encoded string exceeds its configured size limit"));
     }
 
     const Result<std::span<const std::byte>> bytes = read_bytes(length);
     if (!bytes) {
+        offset_ = original_offset;
         return Result<std::string>::failure(bytes.error());
     }
 
@@ -189,9 +214,11 @@ Result<std::string> BinaryReader::read_string(std::size_t maximum_string_size) {
         }
         return Result<std::string>::success(std::move(value));
     } catch (const std::bad_alloc&) {
+        offset_ = original_offset;
         return Result<std::string>::failure(archive_limit_error(
             "The archive reader could not allocate string storage"));
     } catch (const std::length_error&) {
+        offset_ = original_offset;
         return Result<std::string>::failure(archive_limit_error(
             "The decoded string exceeds the container size limit"));
     }

@@ -81,6 +81,7 @@ stormengine_apply_warnings(storm_core)
 
 add_library(storm_serialization STATIC
     engine/serialization/src/binary_archive.cpp
+    engine/serialization/src/scene_serializer.cpp
 )
 add_library(Storm::Serialization ALIAS storm_serialization)
 target_include_directories(storm_serialization

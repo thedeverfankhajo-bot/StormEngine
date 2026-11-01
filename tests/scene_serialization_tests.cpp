@@ -555,6 +555,32 @@ struct RawEntity final {
     return std::nullopt;
 }
 
+[[nodiscard]] std::optional<std::string> test_binary_string_operations_are_transactional() {
+    BinaryWriter too_small(4U);
+    const auto rejected_write = too_small.write_string("A", 1U);
+    EXPECT(!rejected_write);
+    EXPECT(too_small.size() == 0U);
+
+    BinaryWriter exact_fit(5U);
+    const auto accepted_write = exact_fit.write_string("A", 1U);
+    EXPECT(accepted_write);
+    EXPECT(exact_fit.size() == 5U);
+
+    const std::array<std::byte, 5U> over_limit_data{
+        std::byte{3U}, std::byte{0U}, std::byte{0U}, std::byte{0U}, std::byte{'A'},
+    };
+    Storm::Serialization::BinaryReader over_limit_reader(over_limit_data);
+    const auto over_limit_read = over_limit_reader.read_string(2U);
+    EXPECT(!over_limit_read);
+    EXPECT(over_limit_reader.remaining() == over_limit_data.size());
+
+    Storm::Serialization::BinaryReader truncated_reader(over_limit_data);
+    const auto truncated_read = truncated_reader.read_string(3U);
+    EXPECT(!truncated_read);
+    EXPECT(truncated_reader.remaining() == over_limit_data.size());
+    return std::nullopt;
+}
+
 struct TestCase final {
     const char* name;
     std::optional<std::string> (*run)();
@@ -600,6 +626,9 @@ int main() {
         TestCase{
             "invalid_transform_values_are_rejected",
             &test_invalid_transform_values_are_rejected},
+        TestCase{
+            "binary_string_operations_are_transactional",
+            &test_binary_string_operations_are_transactional},
     };
 
     std::size_t failures = 0U;
