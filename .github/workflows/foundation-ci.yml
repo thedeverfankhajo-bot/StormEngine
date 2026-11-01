@@ -103,7 +103,7 @@ jobs:
           test -s build-android-arm64/libstorm_foundation.a
           test -s build-android-arm64/libstorm_math.a
           test -s build-android-arm64/libstorm_core.a
-  test -s build-android-arm64/libstorm_serialization.a
+          test -s build-android-arm64/libstorm_serialization.a
           test -s build-android-arm64/libstorm_platform.a
           test -s build-android-arm64/libstorm_runtime.a
           test -s build-android-arm64/libstorm_android_native_activity.so
@@ -139,7 +139,7 @@ jobs:
           test -s build-ios-arm64/Release-iphoneos/libstorm_foundation.a
           test -s build-ios-arm64/Release-iphoneos/libstorm_math.a
           test -s build-ios-arm64/Release-iphoneos/libstorm_core.a
-  test -s build-ios-arm64/Release-iphoneos/libstorm_serialization.a
+          test -s build-ios-arm64/Release-iphoneos/libstorm_serialization.a
           test -s build-ios-arm64/Release-iphoneos/libstorm_platform.a
           test -s build-ios-arm64/Release-iphoneos/libstorm_runtime.a
 
