@@ -521,14 +521,18 @@ struct Velocity final {
 
     const Storm::Scene& const_scene = scene;
     std::size_t const_callbacks = 0U;
+    bool const_values_valid = true;
     const auto const_iteration = const_scene.for_each_component<Position>(
         [&](Storm::EntityHandle, const Position& position) {
-            EXPECT(position.x == 8 || position.x == 4);
+            if (position.x != 8 && position.x != 4) {
+                const_values_valid = false;
+            }
             ++const_callbacks;
         });
     EXPECT(const_iteration);
     EXPECT(const_iteration.value() == 2U);
     EXPECT(const_callbacks == 2U);
+    EXPECT(const_values_valid);
 
     std::size_t missing_callbacks = 0U;
     const auto missing_iteration = scene.for_each_component<Velocity>(
