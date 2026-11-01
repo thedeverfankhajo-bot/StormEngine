@@ -2,7 +2,7 @@
 
 ## Current automated coverage
 
-The host test suite contains 27 named test cases across four CTest executables:
+The host test suite contains 36 named test cases across five CTest executables:
 
 - stormengine_foundation_tests (11 cases):
   - Success and failure paths for typed Result<T> values.
@@ -30,8 +30,17 @@ The host test suite contains 27 named test cases across four CTest executables:
   - Negative-delta rejection without mutating scheduler state.
   - Explicit accumulator reset.
   - Duration-overflow reporting without mutating scheduler state.
+- stormengine_game_loop_tests (9 cases):
+  - Configuration validation.
+  - Deterministic input/event/fixed-update/variable-update/render ordering.
+  - Zero-duration frame behavior.
+  - Frame-delta clamping and discarded-backlog reporting.
+  - Fixed-update and variable-update failure propagation.
+  - Early termination on input failure.
+  - Negative-delta rejection before callbacks.
+  - Timing reset across suspension.
 
-These are host-side tests. The Android lifecycle cases test the platform-neutral event policy; they do not invoke Android framework callbacks. None of these tests establishes physical-device runtime compatibility.
+These are host-side tests. The Android lifecycle cases test the platform-neutral event policy; they do not invoke Android framework callbacks. The GameLoop tests do not exercise an Android/iOS clock, native lifecycle gate, GPU, or physical device.
 
 ## Local host workflow
 
@@ -68,4 +77,4 @@ The sanitizer job runs the same host tests with leak detection enabled and Undef
 - The current workflow does not run ThreadSanitizer, static analysis, dependency vulnerability scanning, fuzz tests, Android instrumentation tests, or iOS simulator/device tests.
 - Android/iOS runtime compatibility requires installable native application targets, platform lifecycle integration, target-specific tests, and real-device evidence.
 
-See [Android NativeActivity Lifecycle Bridge](ANDROID-NATIVE-ACTIVITY.md) for the Android bridge's exact scope and limitations.
+See [Android NativeActivity Lifecycle Bridge](ANDROID-NATIVE-ACTIVITY.md) and [Core Game Loop](GAME-LOOP.md) for the exact implementation scope and limitations.
