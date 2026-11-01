@@ -4,10 +4,12 @@
 
 The current implementation contains:
 - `foundation`: typed errors/results, logging contracts, and memory-budget accounting.
-- `core`: a minimal engine lifecycle model, fixed-step time accumulator, callback-driven frame coordinator, and synchronous typed event dispatcher.
+- `core`: a minimal engine lifecycle model, fixed-step time accumulator, callback-driven frame coordinator, synchronous typed event dispatcher, and an initial move-only Scene owner with generation-checked entity handles and scene-local typed component storage.
 - `platform`: platform-neutral lifecycle and surface contracts, Android NativeActivity lifecycle normalization, and iOS UIKit scene lifecycle integration.
 - `runtime`: a mobile frame driver that gates Core callbacks on active lifecycle and surface readiness, with lifecycle-revision and surface-generation based timing resets.
 - Host CTest executables covering the implemented contracts.
+
+The initial Scene/Entity implementation is a correctness-oriented, type-indexed component registry. It does not yet provide hierarchy, transform propagation, iteration/query APIs, reflection, scene transitions, or serialization. See [Scene and Entity System](SCENE-SYSTEM.md).
 
 The Runtime driver accepts monotonic timestamps from its caller; it does not yet own Android Choreographer/iOS CADisplayLink integration, a native frame pump, a renderer, or physics. The Android NativeActivity event pump and iOS scene delegate are not yet wired to the frame driver or an installable app target.
 

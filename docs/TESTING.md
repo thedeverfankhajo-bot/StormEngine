@@ -2,7 +2,7 @@
 
 ## Current automated coverage
 
-The host test suite is being extended from 64 named test cases across eight CTest executables; the Scene change adds eight cases in a ninth executable and requires the next CI run for validation. All eight executables passed in the successful six-job CI run [41307026111](https://github.com/thedeverfankhajo-bot/StormEngine/actions/runs/41307026111) for commit `4a3515c8cd8da92012edd018ed1a51045bad9269`. The GCC, Clang, Clang ASan/UBSan, and Apple Clang host jobs each configured, built, and ran the complete CTest suite:
+The host test suite contains 72 named test cases across nine CTest executables. All nine executables passed in the successful six-job CI run [41318394662](https://github.com/thedeverfankhajo-bot/StormEngine/actions/runs/41318394662) for commit `17fe82183862b9209a992e4df47b2b17a62e8b13`. The GCC, Clang, Clang ASan/UBSan, and Apple Clang host jobs each configured, built, and ran the complete CTest suite:
 
 - stormengine_foundation_tests (11 cases):
   - Success and failure paths for typed Result<T> values.
@@ -94,7 +94,7 @@ A direct CMake configure/build/test flow is also supported and documented in the
 
 ## GitHub Actions
 
-The Foundation workflow runs on pushes to main and on manual dispatch. The latest successful target-validation workflow run before the Scene/Entity change [41307026111](https://github.com/thedeverfankhajo-bot/StormEngine/actions/runs/41307026111) for commit `4a3515c8cd8da92012edd018ed1a51045bad9269` completed all six jobs successfully:
+The Foundation workflow runs on pushes to main and on manual dispatch. The latest successful target-validation workflow run [41318394662](https://github.com/thedeverfankhajo-bot/StormEngine/actions/runs/41318394662) for commit `17fe82183862b9209a992e4df47b2b17a62e8b13` completed all six jobs successfully:
 
 - Linux with GCC: configure, build, and run host CTest.
 - Linux with Clang: configure, build, and run host CTest.
@@ -105,9 +105,9 @@ The Foundation workflow runs on pushes to main and on manual dispatch. The lates
 
 The Android and iOS jobs disable host test executables because those binaries cannot be run as ordinary host programs from the target toolchains. They validate compilation and linking only; they do not build APK/AAB/IPA packages, invoke Android callbacks, deploy to devices, or run on physical hardware. The Android API 21 value is a CI compilation target, not a declared product minimum SDK.
 
-The iOS job uses CMake's Xcode generator and the iPhoneOS Device SDK. In the latest successful run, the build compiled `platforms/ios/scene_lifecycle_delegate.mm` as Objective-C++ and `engine/runtime/src/mobile_frame_driver.cpp` as C++ against iPhoneOS 18.5, producing `libstorm_platform.a` and `libstorm_runtime.a` for arm64. The Android job cross-compiled Runtime and linked the NativeActivity shared library for arm64-v8a. These successful target builds do not create an iOS application archive or signed IPA, or an Android APK/AAB.
+The iOS job uses CMake's Xcode generator and the iPhoneOS Device SDK. In the latest successful run, the build compiled `platforms/ios/scene_lifecycle_delegate.mm` as Objective-C++, `engine/core/src/scene.cpp` as C++, and `engine/runtime/src/mobile_frame_driver.cpp` as C++ against iPhoneOS 18.5, producing `libstorm_core.a`, `libstorm_platform.a`, and `libstorm_runtime.a` for arm64. The Android job cross-compiled Runtime and linked the NativeActivity shared library for arm64-v8a. These successful target builds do not create an iOS application archive or signed IPA, or an Android APK/AAB.
 
-All eight CTest executables passed in GCC, Clang, Clang ASan/UBSan, and Apple Clang host jobs. The new Runtime suite validates orchestration contracts on the host; it does not call Android or UIKit frame sources, and the iOS lifecycle suite does not invoke UIKit.
+All nine CTest executables passed in GCC, Clang, Clang ASan/UBSan, and Apple Clang host jobs. The new Runtime suite validates orchestration contracts on the host; it does not call Android or UIKit frame sources, and the iOS lifecycle suite does not invoke UIKit.
 
 The sanitizer job runs the same host tests with leak detection enabled and UndefinedBehaviorSanitizer configured to halt on the first reported issue. Sanitizer coverage increases confidence in tested code paths but is not a substitute for a security audit, fuzzing, or device testing.
 

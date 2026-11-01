@@ -12,6 +12,8 @@ The Storm::Platform::Android::apply_activity_event function and ActivityEvent en
 
 The `Storm::EventDispatcher`, its `Subscription` handle, and the `subscribe<Event>()` / `dispatch()` methods are development interfaces added to Core. They are not stable API guarantees. Dispatch is synchronous and single-thread-affine; handler errors stop dispatch, and callback exceptions propagate.
 
+The `Storm::Scene`, `Storm::EntityHandle`, and typed component storage APIs are development interfaces. Scene handles use process-unique Scene IDs and per-slot generations; component references are non-owning and are invalidated by component removal, entity destruction, or Scene destruction. The Scene and its component stores are single-thread-affine and do not yet provide hierarchy, serialization, reflection, or an archetype ECS. These interfaces are not stable API guarantees.
+
 ## Intended policy before the first stable release
 
 - Use Semantic Versioning for published engine releases once a public compatibility baseline is declared.
