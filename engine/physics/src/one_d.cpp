@@ -406,6 +406,94 @@ Result<std::vector<BodyHandle1D>> PhysicsWorld1D::overlap_query(
     }
 }
 
+Result<std::optional<RaycastHit1D>> PhysicsWorld1D::raycast(
+    const RaycastQuery1D& query) const {
+    if (world_id_ == 0U) {
+        return Result<std::optional<RaycastHit1D>>::failure(Error::make(
+            ErrorCode::InvalidState,
+            "A moved-from PhysicsWorld1D cannot execute raycasts"));
+    }
+    if (!is_finite(query.origin) ||
+        !is_finite(query.direction) ||
+        (query.direction != -1.0 && query.direction != 1.0) ||
+        !is_finite(query.maximum_distance) ||
+        query.maximum_distance < 0.0) {
+        return Result<std::optional<RaycastHit1D>>::failure(Error::make(
+            ErrorCode::InvalidArgument,
+            "A 1D raycast requires a finite origin, direction of -1 or +1, and non-negative finite maximum distance"));
+    }
+
+    const double ray_end =
+        query.origin + (query.direction * query.maximum_distance);
+    if (!is_finite(ray_end)) {
+        return Result<std::optional<RaycastHit1D>>::failure(Error::make(
+            ErrorCode::InvalidArgument,
+            "The 1D ray endpoint exceeds the supported numeric range"));
+    }
+    if (query.collision_mask == 0U || body_count_ == 0U) {
+        return Result<std::optional<RaycastHit1D>>::success(std::nullopt);
+    }
+
+    std::optional<RaycastHit1D> nearest;
+    double nearest_distance = query.maximum_distance;
+
+    for (std::size_t index = 0U; index < slots_.size(); ++index) {
+        const Slot& slot = slots_[index];
+        if (!slot.alive ||
+            (!query.include_triggers && slot.definition.is_trigger) ||
+            (query.collision_mask & slot.definition.collision_layer) == 0U) {
+            continue;
+        }
+
+        const double body_min = slot.position - slot.definition.half_extent;
+        const double body_max = slot.position + slot.definition.half_extent;
+        if (!is_finite(body_min) || !is_finite(body_max)) {
+            return Result<std::optional<RaycastHit1D>>::failure(Error::make(
+                ErrorCode::ResourceExhausted,
+                "A stored 1D collider bound exceeds the supported numeric range"));
+        }
+
+        double hit_distance = 0.0;
+        if (query.origin < body_min) {
+            if (query.direction < 0.0) {
+                continue;
+            }
+            hit_distance = body_min - query.origin;
+        } else if (query.origin > body_max) {
+            if (query.direction > 0.0) {
+                continue;
+            }
+            hit_distance = query.origin - body_max;
+        }
+
+        if (!is_finite(hit_distance) ||
+            hit_distance < 0.0 ||
+            hit_distance > query.maximum_distance ||
+            (nearest.has_value() && hit_distance >= nearest_distance)) {
+            continue;
+        }
+
+        const double hit_point =
+            query.origin + (query.direction * hit_distance);
+        if (!is_finite(hit_point)) {
+            return Result<std::optional<RaycastHit1D>>::failure(Error::make(
+                ErrorCode::ResourceExhausted,
+                "A 1D raycast hit point exceeds the supported numeric range"));
+        }
+
+        nearest_distance = hit_distance;
+        nearest = RaycastHit1D{
+            .body = make_handle(static_cast<std::uint32_t>(index), slot),
+            .point = hit_point,
+            .normal = -query.direction,
+            .distance = hit_distance,
+            .is_trigger = slot.definition.is_trigger,
+        };
+    }
+
+    return Result<std::optional<RaycastHit1D>>::success(std::move(nearest));
+}
+
 Result<StepResult1D> PhysicsWorld1D::step(
     double delta_seconds,
     double gravity) {

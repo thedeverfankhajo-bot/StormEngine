@@ -76,6 +76,25 @@ the supported numeric range return typed errors. A stored body whose collider
 bounds are outside the supported numeric range also causes an explicit error;
 the query never silently omits that body.
 
+## Raycasts
+
+PhysicsWorld1D::raycast() casts a scalar ray through the current closed body
+intervals and returns the nearest RaycastHit1D, or an empty optional when no
+body is hit. The direction is a unit sign and must be exactly -1 or +1; the
+maximum distance is finite, non-negative, and inclusive at the far endpoint.
+The query matches collision_mask against each body's collision_layer and
+includes triggers by default, with an option to exclude them.
+
+If the origin is inside a body interval or exactly on its boundary, that body
+is reported at distance zero. The reported normal is the entry normal opposing
+the ray direction (-direction). Equal-distance hits are resolved by ascending
+body-slot order. The query is read-only and single-thread-affine.
+
+Invalid directions, non-finite inputs, overflowed ray endpoints, and invalid
+stored collider bounds return typed errors rather than producing partial
+results. A zero maximum distance is a point query against intervals containing
+the origin.
+
 ## Deliberate limitations
 
 - The first broadphase is a bounded O(n²) pair scan. It is a correctness-first

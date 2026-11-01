@@ -4,6 +4,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <optional>
 #include <vector>
 
 namespace Storm::Physics::OneD {
@@ -65,6 +66,24 @@ struct OverlapQuery1D final {
     bool include_triggers{true};
 };
 
+struct RaycastQuery1D final {
+    double origin{0.0};
+    // A scalar unit direction. Only -1.0 and +1.0 are valid.
+    double direction{1.0};
+    double maximum_distance{0.0};
+    std::uint32_t collision_mask{0xFFFFFFFFU};
+    bool include_triggers{true};
+};
+
+struct RaycastHit1D final {
+    BodyHandle1D body{};
+    double point{0.0};
+    // Entry normal opposing the ray direction; always -1.0 or +1.0.
+    double normal{-1.0};
+    double distance{0.0};
+    bool is_trigger{false};
+};
+
 struct StepResult1D final {
     double delta_seconds{0.0};
     std::vector<Contact1D> contacts;
@@ -96,6 +115,8 @@ public:
     [[nodiscard]] Result<BodySnapshot1D> body_snapshot(BodyHandle1D handle) const;
     [[nodiscard]] Result<std::vector<BodyHandle1D>> overlap_query(
         const OverlapQuery1D& query) const;
+    [[nodiscard]] Result<std::optional<RaycastHit1D>> raycast(
+        const RaycastQuery1D& query) const;
 
     // Call from the engine's fixed-update phase. Forces are consumed by one
     // successful step; a failed step leaves body state and forces unchanged.

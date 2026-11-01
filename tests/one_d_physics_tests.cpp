@@ -586,6 +586,233 @@ using Storm::Physics::OneD::PhysicsWorld1DConfig;
     return std::nullopt;
 }
 
+
+[[nodiscard]] std::optional<std::string> test_raycast_returns_nearest_positive_hit_and_stable_tie() {
+    auto world_result = PhysicsWorld1D::create();
+    EXPECT(world_result);
+    auto world = std::move(world_result).value();
+
+    auto farther = world.create_body(BodyDefinition1D{.position = 8.0});
+    auto nearest = world.create_body(BodyDefinition1D{.position = 3.0});
+    auto tied = world.create_body(BodyDefinition1D{.position = 3.0});
+    EXPECT(farther);
+    EXPECT(nearest);
+    EXPECT(tied);
+
+    const auto result = world.raycast(Storm::Physics::OneD::RaycastQuery1D{
+        .origin = 0.0,
+        .direction = 1.0,
+        .maximum_distance = 10.0,
+    });
+    EXPECT(result);
+    EXPECT(result.value().has_value());
+    EXPECT(result.value()->body == nearest.value());
+    EXPECT(result.value()->distance == 2.5);
+    EXPECT(result.value()->point == 2.5);
+    EXPECT(result.value()->normal == -1.0);
+    EXPECT(!result.value()->is_trigger);
+    return std::nullopt;
+}
+
+[[nodiscard]] std::optional<std::string> test_raycast_supports_negative_direction() {
+    auto world_result = PhysicsWorld1D::create();
+    EXPECT(world_result);
+    auto world = std::move(world_result).value();
+
+    auto farther = world.create_body(BodyDefinition1D{.position = -8.0});
+    auto nearest = world.create_body(BodyDefinition1D{.position = -3.0});
+    EXPECT(farther);
+    EXPECT(nearest);
+
+    const auto result = world.raycast(Storm::Physics::OneD::RaycastQuery1D{
+        .origin = 0.0,
+        .direction = -1.0,
+        .maximum_distance = 10.0,
+    });
+    EXPECT(result);
+    EXPECT(result.value().has_value());
+    EXPECT(result.value()->body == nearest.value());
+    EXPECT(result.value()->distance == 2.5);
+    EXPECT(result.value()->point == -2.5);
+    EXPECT(result.value()->normal == 1.0);
+    return std::nullopt;
+}
+
+[[nodiscard]] std::optional<std::string> test_raycast_filters_layers_and_triggers() {
+    auto world_result = PhysicsWorld1D::create();
+    EXPECT(world_result);
+    auto world = std::move(world_result).value();
+
+    auto filtered_layer = world.create_body(BodyDefinition1D{
+        .position = 1.0,
+        .collision_layer = 0x1U,
+    });
+    auto trigger = world.create_body(BodyDefinition1D{
+        .position = 3.0,
+        .is_trigger = true,
+        .collision_layer = 0x2U,
+    });
+    auto solid = world.create_body(BodyDefinition1D{
+        .position = 5.0,
+        .collision_layer = 0x2U,
+    });
+    EXPECT(filtered_layer);
+    EXPECT(trigger);
+    EXPECT(solid);
+
+    const auto with_triggers = world.raycast(Storm::Physics::OneD::RaycastQuery1D{
+        .origin = 0.0,
+        .direction = 1.0,
+        .maximum_distance = 10.0,
+        .collision_mask = 0x2U,
+    });
+    EXPECT(with_triggers);
+    EXPECT(with_triggers.value().has_value());
+    EXPECT(with_triggers.value()->body == trigger.value());
+    EXPECT(with_triggers.value()->is_trigger);
+
+    const auto without_triggers = world.raycast(Storm::Physics::OneD::RaycastQuery1D{
+        .origin = 0.0,
+        .direction = 1.0,
+        .maximum_distance = 10.0,
+        .collision_mask = 0x2U,
+        .include_triggers = false,
+    });
+    EXPECT(without_triggers);
+    EXPECT(without_triggers.value().has_value());
+    EXPECT(without_triggers.value()->body == solid.value());
+    EXPECT(!without_triggers.value()->is_trigger);
+    return std::nullopt;
+}
+
+[[nodiscard]] std::optional<std::string> test_raycast_reports_zero_distance_when_origin_is_inside_or_on_boundary() {
+    auto world_result = PhysicsWorld1D::create();
+    EXPECT(world_result);
+    auto world = std::move(world_result).value();
+
+    auto body = world.create_body(BodyDefinition1D{
+        .position = 0.0,
+        .half_extent = 0.5,
+    });
+    EXPECT(body);
+
+    const auto inside = world.raycast(Storm::Physics::OneD::RaycastQuery1D{
+        .origin = 0.1,
+        .direction = -1.0,
+        .maximum_distance = 0.0,
+    });
+    EXPECT(inside);
+    EXPECT(inside.value().has_value());
+    EXPECT(inside.value()->body == body.value());
+    EXPECT(inside.value()->distance == 0.0);
+    EXPECT(inside.value()->point == 0.1);
+    EXPECT(inside.value()->normal == 1.0);
+
+    const auto boundary = world.raycast(Storm::Physics::OneD::RaycastQuery1D{
+        .origin = 0.5,
+        .direction = 1.0,
+        .maximum_distance = 0.0,
+    });
+    EXPECT(boundary);
+    EXPECT(boundary.value().has_value());
+    EXPECT(boundary.value()->distance == 0.0);
+    return std::nullopt;
+}
+
+[[nodiscard]] std::optional<std::string> test_raycast_maximum_distance_is_inclusive() {
+    auto world_result = PhysicsWorld1D::create();
+    EXPECT(world_result);
+    auto world = std::move(world_result).value();
+
+    auto body = world.create_body(BodyDefinition1D{
+        .position = 3.0,
+        .half_extent = 0.5,
+    });
+    EXPECT(body);
+
+    const auto exact_limit = world.raycast(Storm::Physics::OneD::RaycastQuery1D{
+        .origin = 0.0,
+        .direction = 1.0,
+        .maximum_distance = 2.5,
+    });
+    EXPECT(exact_limit);
+    EXPECT(exact_limit.value().has_value());
+    EXPECT(exact_limit.value()->body == body.value());
+    EXPECT(exact_limit.value()->distance == 2.5);
+
+    const auto before_limit = world.raycast(Storm::Physics::OneD::RaycastQuery1D{
+        .origin = 0.0,
+        .direction = 1.0,
+        .maximum_distance = 2.49,
+    });
+    EXPECT(before_limit);
+    EXPECT(!before_limit.value().has_value());
+    return std::nullopt;
+}
+
+[[nodiscard]] std::optional<std::string> test_raycast_rejects_invalid_queries_and_body_bounds() {
+    auto world_result = PhysicsWorld1D::create();
+    EXPECT(world_result);
+    auto world = std::move(world_result).value();
+
+    auto invalid = world.raycast(Storm::Physics::OneD::RaycastQuery1D{
+        .direction = 0.0,
+    });
+    EXPECT(!invalid);
+    EXPECT(invalid.error().code == Storm::ErrorCode::InvalidArgument);
+
+    invalid = world.raycast(Storm::Physics::OneD::RaycastQuery1D{
+        .direction = 2.0,
+    });
+    EXPECT(!invalid);
+    EXPECT(invalid.error().code == Storm::ErrorCode::InvalidArgument);
+
+    invalid = world.raycast(Storm::Physics::OneD::RaycastQuery1D{
+        .origin = std::numeric_limits<double>::quiet_NaN(),
+    });
+    EXPECT(!invalid);
+    EXPECT(invalid.error().code == Storm::ErrorCode::InvalidArgument);
+
+    invalid = world.raycast(Storm::Physics::OneD::RaycastQuery1D{
+        .maximum_distance = -1.0,
+    });
+    EXPECT(!invalid);
+    EXPECT(invalid.error().code == Storm::ErrorCode::InvalidArgument);
+
+    invalid = world.raycast(Storm::Physics::OneD::RaycastQuery1D{
+        .maximum_distance = std::numeric_limits<double>::infinity(),
+    });
+    EXPECT(!invalid);
+    EXPECT(invalid.error().code == Storm::ErrorCode::InvalidArgument);
+
+    invalid = world.raycast(Storm::Physics::OneD::RaycastQuery1D{
+        .origin = std::numeric_limits<double>::max(),
+        .direction = 1.0,
+        .maximum_distance = std::numeric_limits<double>::max(),
+    });
+    EXPECT(!invalid);
+    EXPECT(invalid.error().code == Storm::ErrorCode::InvalidArgument);
+
+    auto huge_body = world.create_body(BodyDefinition1D{
+        .position = 1.0e308,
+        .half_extent = 1.0e308,
+    });
+    EXPECT(huge_body);
+    invalid = world.raycast(Storm::Physics::OneD::RaycastQuery1D{
+        .origin = 0.0,
+        .direction = 1.0,
+        .maximum_distance = 1.0e308,
+    });
+    EXPECT(!invalid);
+    EXPECT(invalid.error().code == Storm::ErrorCode::ResourceExhausted);
+
+    PhysicsWorld1D moved(std::move(world));
+    const auto moved_from = world.raycast({});
+    EXPECT(!moved_from);
+    EXPECT(moved_from.error().code == Storm::ErrorCode::InvalidState);
+    return std::nullopt;
+}
+
 struct TestCase final {
     const char* name;
     std::optional<std::string> (*run)();
@@ -616,6 +843,12 @@ int main() {
         TestCase{"overlap_query_filters_layers_and_triggers", &test_overlap_query_filters_layers_and_triggers},
         TestCase{"overlap_query_includes_touching_point_bounds", &test_overlap_query_includes_touching_point_bounds},
         TestCase{"overlap_query_rejects_invalid_input_and_moved_from_world", &test_overlap_query_rejects_invalid_input_and_moved_from_world},
+        TestCase{"raycast_returns_nearest_positive_hit_and_stable_tie", &test_raycast_returns_nearest_positive_hit_and_stable_tie},
+        TestCase{"raycast_supports_negative_direction", &test_raycast_supports_negative_direction},
+        TestCase{"raycast_filters_layers_and_triggers", &test_raycast_filters_layers_and_triggers},
+        TestCase{"raycast_reports_zero_distance_when_origin_is_inside_or_on_boundary", &test_raycast_reports_zero_distance_when_origin_is_inside_or_on_boundary},
+        TestCase{"raycast_maximum_distance_is_inclusive", &test_raycast_maximum_distance_is_inclusive},
+        TestCase{"raycast_rejects_invalid_queries_and_body_bounds", &test_raycast_rejects_invalid_queries_and_body_bounds},
     };
 
     std::size_t failures = 0U;
