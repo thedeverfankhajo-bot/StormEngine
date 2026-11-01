@@ -78,14 +78,14 @@ using Storm::Physics::OneD::PhysicsScene1D;
     EXPECT(pr);
     auto physics = std::move(pr).value();
     EXPECT(physics.attach(scene, entity.value()));
-    auto step = physics.step(scene, 0.5, -10.0);
+    auto step = physics.step(scene, 0.25, -10.0);
     EXPECT(step);
     const auto* t = scene.try_get_component<Transform1D>(entity.value());
     EXPECT(t != nullptr);
-    EXPECT(std::abs(t->position - 7.5) < 1e-12);
+    EXPECT(std::abs(t->position - 9.375) < 1e-12);
     auto body = physics.body_snapshot(scene, entity.value());
     EXPECT(body);
-    EXPECT(std::abs(body.value().velocity + 5.0) < 1e-12);
+    EXPECT(std::abs(body.value().velocity + 2.5) < 1e-12);
     return std::nullopt;
 }
 
@@ -106,13 +106,13 @@ using Storm::Physics::OneD::PhysicsScene1D;
     EXPECT(physics.set_velocity(scene, entity.value(), 1.0));
     EXPECT(physics.apply_impulse(scene, entity.value(), 2.0));
     EXPECT(physics.apply_force(scene, entity.value(), 4.0));
-    auto step = physics.step(scene, 0.5, 0.0);
+    auto step = physics.step(scene, 0.25, 0.0);
     EXPECT(step);
     auto body = physics.body_snapshot(scene, entity.value());
     EXPECT(body);
-    EXPECT(std::abs(body.value().velocity - 3.0) < 1e-12);
-    EXPECT(std::abs(body.value().position - 6.5) < 1e-12);
-    EXPECT(std::abs(scene.try_get_component<Transform1D>(entity.value())->position - 6.5) < 1e-12);
+    EXPECT(std::abs(body.value().velocity - 2.5) < 1e-12);
+    EXPECT(std::abs(body.value().position - 5.625) < 1e-12);
+    EXPECT(std::abs(scene.try_get_component<Transform1D>(entity.value())->position - 5.625) < 1e-12);
     return std::nullopt;
 }
 
