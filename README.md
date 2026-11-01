@@ -21,7 +21,8 @@ See [Mobile-only policy](docs/MOBILE-ONLY-POLICY.md), [Architecture](docs/ARCHIT
 - A platform-neutral, injectable logging interface.
 - An atomic byte-budget accounting utility. It accounts for reservations; it does not allocate memory.
 - A minimal engine initialization/shutdown state model. It does not start a game loop or initialize an operating-system runtime.
-- A platform-neutral lifecycle state machine with validated transitions. Native Android/iOS callback adapters are not implemented yet.
+- A platform-neutral lifecycle state machine with validated transitions.
+- A bounded, allocation-free, multi-producer/single-consumer lifecycle event queue with explicit full/closed results.
 - A small dependency-free host test executable.
 
 All of these are foundation-level capabilities only. No Android or iOS compatibility is claimed yet.

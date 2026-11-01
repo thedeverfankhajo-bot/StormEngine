@@ -3,6 +3,7 @@
 #include "storm/foundation/memory_budget.hpp"
 #include "storm/foundation/result.hpp"
 #include "storm/platform/lifecycle.hpp"
+#include "storm/platform/lifecycle_event_queue.hpp"
 
 #include <atomic>
 #include <cstdlib>
@@ -248,6 +249,119 @@ private:
 }
 
 
+
+
+[[nodiscard]] std::optional<TestFailure> test_lifecycle_event_queue_fifo() {
+    using Storm::Platform::LifecycleQueuePushResult;
+    using Storm::Platform::LifecycleState;
+
+    Storm::Platform::LifecycleEventQueue queue;
+    constexpr LifecycleState events[]{
+        LifecycleState::ForegroundInactive,
+        LifecycleState::ForegroundActive,
+        LifecycleState::ForegroundInactive,
+        LifecycleState::Background,
+        LifecycleState::Terminating,
+    };
+
+    for (const LifecycleState event : events) {
+        STORM_EXPECT(queue.try_push(event) == LifecycleQueuePushResult::Enqueued);
+    }
+    STORM_EXPECT(queue.size() == std::size(events));
+
+    for (const LifecycleState expected : events) {
+        const auto actual = queue.try_pop();
+        STORM_EXPECT(actual.has_value());
+        STORM_EXPECT(actual.value() == expected);
+    }
+    STORM_EXPECT(!queue.try_pop().has_value());
+    STORM_EXPECT(queue.size() == 0U);
+    return std::nullopt;
+}
+
+[[nodiscard]] std::optional<TestFailure> test_lifecycle_event_queue_capacity_and_close() {
+    using Storm::Platform::LifecycleQueuePushResult;
+    using Storm::Platform::LifecycleState;
+
+    Storm::Platform::LifecycleEventQueue queue;
+    for (std::size_t index = 0U; index < Storm::Platform::LifecycleEventQueue::capacity; ++index) {
+        STORM_EXPECT(queue.try_push(LifecycleState::ForegroundInactive) == LifecycleQueuePushResult::Enqueued);
+    }
+    STORM_EXPECT(queue.size() == Storm::Platform::LifecycleEventQueue::capacity);
+    STORM_EXPECT(queue.try_push(LifecycleState::Terminating) == LifecycleQueuePushResult::Full);
+
+    queue.close();
+    queue.close();
+    STORM_EXPECT(queue.is_closed());
+    STORM_EXPECT(queue.try_push(LifecycleState::Terminating) == LifecycleQueuePushResult::Closed);
+
+    std::size_t drained = 0U;
+    while (queue.try_pop().has_value()) {
+        ++drained;
+    }
+    STORM_EXPECT(drained == Storm::Platform::LifecycleEventQueue::capacity);
+    STORM_EXPECT(queue.size() == 0U);
+    STORM_EXPECT(!queue.try_pop().has_value());
+    return std::nullopt;
+}
+
+[[nodiscard]] std::optional<TestFailure> test_lifecycle_event_queue_multi_producer() {
+    using Storm::Platform::LifecycleQueuePushResult;
+    using Storm::Platform::LifecycleState;
+
+    constexpr std::size_t producer_count = 4U;
+    constexpr std::size_t events_per_producer = 4000U;
+    constexpr std::size_t expected_events = producer_count * events_per_producer;
+
+    Storm::Platform::LifecycleEventQueue queue;
+    std::atomic<std::size_t> producers_remaining{producer_count};
+    std::atomic<bool> producer_failed{false};
+    std::vector<std::thread> producers;
+    producers.reserve(producer_count);
+
+    for (std::size_t producer_index = 0U; producer_index < producer_count; ++producer_index) {
+        producers.emplace_back([&queue, &producers_remaining, &producer_failed, producer_index]() {
+            for (std::size_t event_index = 0U; event_index < events_per_producer; ++event_index) {
+                const LifecycleState event = ((event_index + producer_index) % 2U == 0U)
+                    ? LifecycleState::ForegroundInactive
+                    : LifecycleState::ForegroundActive;
+                bool enqueued = false;
+                while (!enqueued) {
+                    const LifecycleQueuePushResult result = queue.try_push(event);
+                    if (result == LifecycleQueuePushResult::Enqueued) {
+                        enqueued = true;
+                    } else if (result == LifecycleQueuePushResult::Full) {
+                        std::this_thread::yield();
+                    } else {
+                        producer_failed.store(true, std::memory_order_relaxed);
+                        producers_remaining.fetch_sub(1U, std::memory_order_release);
+                        return;
+                    }
+                }
+            }
+            producers_remaining.fetch_sub(1U, std::memory_order_release);
+        });
+    }
+
+    std::size_t consumed = 0U;
+    while (producers_remaining.load(std::memory_order_acquire) != 0U || queue.size() != 0U) {
+        if (queue.try_pop().has_value()) {
+            ++consumed;
+        } else {
+            std::this_thread::yield();
+        }
+    }
+
+    for (std::thread& producer : producers) {
+        producer.join();
+    }
+
+    STORM_EXPECT(!producer_failed.load(std::memory_order_relaxed));
+    STORM_EXPECT(consumed == expected_events);
+    STORM_EXPECT(queue.size() == 0U);
+    return std::nullopt;
+}
+
 using TestFunction = std::optional<TestFailure> (*)();
 
 struct TestCase final {
@@ -267,6 +381,9 @@ int main() {
         {"platform_lifecycle_transitions", &test_platform_lifecycle_transitions},
         {"platform_lifecycle_validation", &test_platform_lifecycle_validation},
         {"platform_background_launch", &test_platform_background_launch},
+        {"lifecycle_event_queue_fifo", &test_lifecycle_event_queue_fifo},
+        {"lifecycle_event_queue_capacity_and_close", &test_lifecycle_event_queue_capacity_and_close},
+        {"lifecycle_event_queue_multi_producer", &test_lifecycle_event_queue_multi_producer},
     };
 
     std::size_t failures = 0U;

@@ -16,7 +16,7 @@ The intended dependency direction is inward-to-outward:
 6. **Mobile editor** — a mobile application that edits project data through stable engine/editor services. Editor UI must not become a dependency of the game runtime.
 7. **Export tooling** — Android and iOS packaging/signing workflows with platform-specific validation.
 
-No dependency on a specific editor framework or GPU API is introduced into Foundation. The current `engine/platform` module depends only on Foundation and defines a normalized lifecycle state contract; it does not include Android or Apple SDK headers.
+No dependency on a specific editor framework or GPU API is introduced into Foundation. The current `engine/platform` module depends only on Foundation and defines a normalized lifecycle state contract plus a bounded event queue for forwarding native callbacks to the engine thread; it does not include Android or Apple SDK headers.
 
 See [Engine Lifecycle](ENGINE-LIFECYCLE.md) for state semantics, transition rules, native callback mapping guidelines, and threading constraints.
 

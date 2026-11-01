@@ -55,6 +55,7 @@ stormengine_apply_warnings(storm_core)
 
 add_library(storm_platform STATIC
     engine/platform/src/lifecycle.cpp
+    engine/platform/src/lifecycle_event_queue.cpp
 )
 add_library(Storm::Platform ALIAS storm_platform)
 target_include_directories(storm_platform

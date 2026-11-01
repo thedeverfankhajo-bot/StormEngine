@@ -46,9 +46,22 @@ For scene-based UIKit applications, map `sceneWillEnterForeground` to `Foregroun
 
 UIKit may launch a scene directly into the background for background event processing. Such an owner can begin with `Created -> Background` and later transition to the foreground. A termination callback is best-effort and must not be the only place where important state is saved or resources are made safe.
 
+## Lifecycle event queue
+
+`Storm::Platform::LifecycleEventQueue` provides the first thread boundary for future native adapters. It is a fixed-capacity ring buffer of 64 state events and performs no heap allocation when enqueuing or dequeuing.
+
+- `try_push()` returns `Enqueued`, `Full`, or `Closed` explicitly. A full or closed queue never silently drops an event while reporting success.
+- `try_pop()` returns the oldest event, preserving FIFO order across successful enqueues.
+- `close()` rejects new events but leaves already queued events available for draining.
+- Multiple producers are serialized by a mutex. One engine-thread consumer is the intended usage model.
+
+The native callback must not block waiting for capacity. If `try_push()` returns `Full`, the adapter must surface a diagnostic and apply an explicit recovery policy; it must not pretend the transition was delivered. Queue overflow is a serious lifecycle-delivery failure and should be treated as such by a real platform adapter. The capacity of 64 is an initial bounded default, not a proven universal limit.
+
+The engine thread should dequeue each event and pass it to `LifecycleStateMachine::transition_to()`. The queue preserves enqueue order; the state machine remains the authority that validates legal state transitions.
+
 ## Threading contract
 
-`LifecycleStateMachine` is intentionally not internally synchronized. The native adapter must serialize transitions on its native lifecycle callback queue. If the engine consumes lifecycle information on another thread, a later integration must forward transitions through an explicitly synchronized event queue; it must not call this class concurrently.
+`LifecycleStateMachine` is intentionally not internally synchronized. Native adapters should enqueue callback-derived state changes instead of calling the state machine concurrently. The queue serializes producers and is designed for one consumer on the engine thread. If more than one consumer is introduced, ordering and ownership semantics must be redesigned and tested explicitly.
 
 ## Separate concerns
 
@@ -64,4 +77,4 @@ A surface can be recreated while the application remains active. Therefore surfa
 
 ## Current validation
 
-The state machine and its transition rules are covered by host unit tests. GCC 14.2 and Clang 17 builds, and a Clang AddressSanitizer/UndefinedBehaviorSanitizer test build, passed in the current engineering environment. No Android SDK/NDK or Xcode/UIKit adapter build has been run; neither Android nor iOS compatibility is verified.
+The state machine and queue are covered by host unit tests, including FIFO behavior, full/closed handling, and concurrent multi-producer delivery (16,000 enqueued events in the stress test). GCC 14.2 and Clang 17 builds, and a Clang AddressSanitizer/UndefinedBehaviorSanitizer test build, passed in the current engineering environment. No Android SDK/NDK or Xcode/UIKit adapter build has been run; neither Android nor iOS compatibility is verified.
