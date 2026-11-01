@@ -2,6 +2,7 @@
 #include "storm/foundation/logging.hpp"
 #include "storm/foundation/memory_budget.hpp"
 #include "storm/foundation/result.hpp"
+#include "storm/platform/lifecycle.hpp"
 
 #include <atomic>
 #include <cstdlib>
@@ -168,6 +169,85 @@ private:
     return std::nullopt;
 }
 
+
+[[nodiscard]] std::optional<TestFailure> test_platform_lifecycle_transitions() {
+    using Storm::Platform::LifecycleState;
+    Storm::Platform::LifecycleStateMachine lifecycle;
+
+    STORM_EXPECT(lifecycle.state() == LifecycleState::Created);
+    STORM_EXPECT(!lifecycle.is_foreground());
+    STORM_EXPECT(!lifecycle.can_run_game_loop());
+
+    auto inactive = lifecycle.transition_to(LifecycleState::ForegroundInactive);
+    STORM_EXPECT(inactive.has_value());
+    STORM_EXPECT(inactive.value().changed);
+    STORM_EXPECT(inactive.value().previous == LifecycleState::Created);
+    STORM_EXPECT(lifecycle.is_foreground());
+    STORM_EXPECT(!lifecycle.can_run_game_loop());
+
+    auto repeated = lifecycle.transition_to(LifecycleState::ForegroundInactive);
+    STORM_EXPECT(repeated.has_value());
+    STORM_EXPECT(!repeated.value().changed);
+
+    auto active = lifecycle.transition_to(LifecycleState::ForegroundActive);
+    STORM_EXPECT(active.has_value());
+    STORM_EXPECT(lifecycle.can_run_game_loop());
+
+    auto inactive_again = lifecycle.transition_to(LifecycleState::ForegroundInactive);
+    STORM_EXPECT(inactive_again.has_value());
+    STORM_EXPECT(!lifecycle.can_run_game_loop());
+
+    auto background = lifecycle.transition_to(LifecycleState::Background);
+    STORM_EXPECT(background.has_value());
+    STORM_EXPECT(!lifecycle.is_foreground());
+    STORM_EXPECT(!lifecycle.can_run_game_loop());
+
+    STORM_EXPECT(lifecycle.transition_to(LifecycleState::ForegroundInactive).has_value());
+    STORM_EXPECT(lifecycle.transition_to(LifecycleState::ForegroundActive).has_value());
+    STORM_EXPECT(lifecycle.can_run_game_loop());
+    return std::nullopt;
+}
+
+[[nodiscard]] std::optional<TestFailure> test_platform_lifecycle_validation() {
+    using Storm::Platform::LifecycleState;
+    Storm::Platform::LifecycleStateMachine lifecycle;
+
+    auto invalid_initial = lifecycle.transition_to(LifecycleState::ForegroundActive);
+    STORM_EXPECT(!invalid_initial.has_value());
+    STORM_EXPECT(invalid_initial.error().code == Storm::ErrorCode::InvalidState);
+    STORM_EXPECT(lifecycle.state() == LifecycleState::Created);
+
+    STORM_EXPECT(lifecycle.transition_to(LifecycleState::ForegroundInactive).has_value());
+    STORM_EXPECT(lifecycle.transition_to(LifecycleState::ForegroundActive).has_value());
+    auto skipped_inactive = lifecycle.transition_to(LifecycleState::Background);
+    STORM_EXPECT(!skipped_inactive.has_value());
+    STORM_EXPECT(lifecycle.state() == LifecycleState::ForegroundActive);
+
+    auto terminating = lifecycle.transition_to(LifecycleState::Terminating);
+    STORM_EXPECT(terminating.has_value());
+    STORM_EXPECT(lifecycle.is_terminating());
+    STORM_EXPECT(!lifecycle.can_run_game_loop());
+
+    auto after_termination = lifecycle.transition_to(LifecycleState::ForegroundActive);
+    STORM_EXPECT(!after_termination.has_value());
+    STORM_EXPECT(lifecycle.state() == LifecycleState::Terminating);
+    return std::nullopt;
+}
+
+[[nodiscard]] std::optional<TestFailure> test_platform_background_launch() {
+    using Storm::Platform::LifecycleState;
+    Storm::Platform::LifecycleStateMachine lifecycle;
+
+    // Background delivery can occur without a visible foreground presentation.
+    STORM_EXPECT(lifecycle.transition_to(LifecycleState::Background).has_value());
+    STORM_EXPECT(!lifecycle.is_foreground());
+    STORM_EXPECT(lifecycle.transition_to(LifecycleState::ForegroundInactive).has_value());
+    STORM_EXPECT(lifecycle.transition_to(LifecycleState::ForegroundActive).has_value());
+    STORM_EXPECT(lifecycle.can_run_game_loop());
+    return std::nullopt;
+}
+
+
 using TestFunction = std::optional<TestFailure> (*)();
 
 struct TestCase final {
@@ -184,6 +264,9 @@ int main() {
         {"memory_budget_concurrency", &test_memory_budget_concurrency},
         {"logger", &test_logger},
         {"engine_lifecycle", &test_engine_lifecycle},
+        {"platform_lifecycle_transitions", &test_platform_lifecycle_transitions},
+        {"platform_lifecycle_validation", &test_platform_lifecycle_validation},
+        {"platform_background_launch", &test_platform_background_launch},
     };
 
     std::size_t failures = 0U;

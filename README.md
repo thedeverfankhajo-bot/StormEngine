@@ -12,7 +12,7 @@ StormEngine is an early-stage, mobile-only game-engine project targeting **Andro
 - All repository development is performed on main.
 - Platform and graphics capabilities are reported only after implementation and validation on real target devices.
 
-See [Mobile-only policy](docs/MOBILE-ONLY-POLICY.md), [Architecture](docs/ARCHITECTURE.md), [Compatibility](docs/COMPATIBILITY.md), [Testing](docs/TESTING.md), [API versioning](docs/API-VERSIONING.md), and [Roadmap](docs/ROADMAP.md).
+See [Mobile-only policy](docs/MOBILE-ONLY-POLICY.md), [Architecture](docs/ARCHITECTURE.md), [Engine Lifecycle](docs/ENGINE-LIFECYCLE.md), [Compatibility](docs/COMPATIBILITY.md), [Testing](docs/TESTING.md), [API versioning](docs/API-VERSIONING.md), and [Roadmap](docs/ROADMAP.md).
 
 ## Current foundation
 
@@ -21,6 +21,7 @@ See [Mobile-only policy](docs/MOBILE-ONLY-POLICY.md), [Architecture](docs/ARCHIT
 - A platform-neutral, injectable logging interface.
 - An atomic byte-budget accounting utility. It accounts for reservations; it does not allocate memory.
 - A minimal engine initialization/shutdown state model. It does not start a game loop or initialize an operating-system runtime.
+- A platform-neutral lifecycle state machine with validated transitions. Native Android/iOS callback adapters are not implemented yet.
 - A small dependency-free host test executable.
 
 All of these are foundation-level capabilities only. No Android or iOS compatibility is claimed yet.

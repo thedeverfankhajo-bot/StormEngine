@@ -53,6 +53,18 @@ target_link_libraries(storm_core PUBLIC Storm::Foundation)
 target_compile_features(storm_core PUBLIC cxx_std_20)
 stormengine_apply_warnings(storm_core)
 
+add_library(storm_platform STATIC
+    engine/platform/src/lifecycle.cpp
+)
+add_library(Storm::Platform ALIAS storm_platform)
+target_include_directories(storm_platform
+    PUBLIC
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/engine/platform/include>
+)
+target_link_libraries(storm_platform PUBLIC Storm::Foundation)
+target_compile_features(storm_platform PUBLIC cxx_std_20)
+stormengine_apply_warnings(storm_platform)
+
 if(STORMENGINE_BUILD_TESTS)
     if(ANDROID OR CMAKE_SYSTEM_NAME STREQUAL "iOS")
         message(STATUS "StormEngine host tests are disabled for mobile target builds")
@@ -60,7 +72,7 @@ if(STORMENGINE_BUILD_TESTS)
         add_executable(stormengine_foundation_tests
             tests/foundation_tests.cpp
         )
-        target_link_libraries(stormengine_foundation_tests PRIVATE Storm::Core Storm::Foundation)
+        target_link_libraries(stormengine_foundation_tests PRIVATE Storm::Core Storm::Foundation Storm::Platform)
         target_compile_features(stormengine_foundation_tests PRIVATE cxx_std_20)
         stormengine_apply_warnings(stormengine_foundation_tests)
         add_test(NAME stormengine_foundation_tests COMMAND stormengine_foundation_tests)

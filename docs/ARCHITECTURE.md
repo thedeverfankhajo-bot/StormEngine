@@ -2,7 +2,7 @@
 
 ## Current implementation boundary
 
-The current implementation contains only `foundation` and a minimal `core` lifecycle model. It has no native platform entry point, game loop, renderer, scene system, physics implementation, editor, or export tooling.
+The current implementation contains `foundation`, a minimal `core` lifecycle model, and a platform-neutral lifecycle state machine. It has no native platform entry point or callback adapter, game loop, renderer, scene system, physics implementation, editor, or export tooling.
 
 ## Dependency direction
 
@@ -16,7 +16,9 @@ The intended dependency direction is inward-to-outward:
 6. **Mobile editor** — a mobile application that edits project data through stable engine/editor services. Editor UI must not become a dependency of the game runtime.
 7. **Export tooling** — Android and iOS packaging/signing workflows with platform-specific validation.
 
-No dependency on a specific editor framework or GPU API is introduced into Foundation.
+No dependency on a specific editor framework or GPU API is introduced into Foundation. The current `engine/platform` module depends only on Foundation and defines a normalized lifecycle state contract; it does not include Android or Apple SDK headers.
+
+See [Engine Lifecycle](ENGINE-LIFECYCLE.md) for state semantics, transition rules, native callback mapping guidelines, and threading constraints.
 
 ## Rendering direction
 
