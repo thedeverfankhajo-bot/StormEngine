@@ -2,7 +2,7 @@
 
 ## Current automated coverage
 
-The host test suite contains 46 named test cases across six CTest executables. All six executables passed in the latest successful Foundation CI run for commit `56f0607856d548a00c06a1b6741f2d178a2ddf0d`. The GCC, Clang, Clang ASan/UBSan, and Apple Clang host jobs each configured, built, and ran the complete CTest suite:
+The existing host test suite contains 46 named test cases across six CTest executables. All six executables passed in the latest successful Foundation CI run for commit `56f0607856d548a00c06a1b6741f2d178a2ddf0d`. The current change adds a seventh CTest executable with seven iOS lifecycle-policy cases; that new suite's CI result is pending. The previous six-job result remains the evidence for the existing six executables:
 
 - stormengine_foundation_tests (11 cases):
   - Success and failure paths for typed Result<T> values.
@@ -22,6 +22,14 @@ The host test suite contains 46 named test cases across six CTest executables. A
   - Focus recovery when a separate RESUME event is absent.
   - Idempotent duplicate lifecycle events.
   - Terminal destroy behavior and invalid event rejection.
+- stormengine_ios_lifecycle_tests (7 cases; current CI pending):
+  - Foreground/background callback sequence.
+  - Active callback recovery from background.
+  - Background launch and repeated background delivery.
+  - Idempotent scene callbacks.
+  - Independent lifecycle state for two scenes.
+  - Terminal app termination.
+  - Unknown scene/application event rejection.
 - stormengine_fixed_step_scheduler_tests (7 cases):
   - Invalid step, frame-delta limit, and catch-up budget configuration.
   - Partial frame accumulation and fixed-step emission.
@@ -51,7 +59,7 @@ The host test suite contains 46 named test cases across six CTest executables. A
   - Safe subscription destruction after the dispatcher is gone.
   - Idempotent explicit disconnection.
 
-These are host-side tests. The Android lifecycle cases test the platform-neutral event policy; they do not invoke Android framework callbacks. The GameLoop tests do not exercise an Android/iOS clock, native lifecycle gate, GPU, or physical device.
+These are host-side tests. The Android and iOS lifecycle cases test platform-neutral event policies; they do not invoke Android framework or UIKit callbacks. The GameLoop tests do not exercise an Android/iOS clock, native lifecycle gate, GPU, or physical device.
 
 ## Local host workflow
 

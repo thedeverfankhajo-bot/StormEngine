@@ -63,6 +63,7 @@ add_library(storm_platform STATIC
     engine/platform/src/lifecycle_event_queue.cpp
     engine/platform/src/surface_lifecycle.cpp
     engine/platform/src/android_lifecycle_adapter.cpp
+    engine/platform/src/ios_lifecycle_adapter.cpp
 )
 add_library(Storm::Platform ALIAS storm_platform)
 target_include_directories(storm_platform
@@ -137,6 +138,14 @@ if(STORMENGINE_BUILD_TESTS)
         target_compile_features(stormengine_android_lifecycle_tests PRIVATE cxx_std_20)
         stormengine_apply_warnings(stormengine_android_lifecycle_tests)
         add_test(NAME stormengine_android_lifecycle_tests COMMAND stormengine_android_lifecycle_tests)
+
+        add_executable(stormengine_ios_lifecycle_tests
+            tests/ios_lifecycle_tests.cpp
+        )
+        target_link_libraries(stormengine_ios_lifecycle_tests PRIVATE Storm::Platform)
+        target_compile_features(stormengine_ios_lifecycle_tests PRIVATE cxx_std_20)
+        stormengine_apply_warnings(stormengine_ios_lifecycle_tests)
+        add_test(NAME stormengine_ios_lifecycle_tests COMMAND stormengine_ios_lifecycle_tests)
 
         add_executable(stormengine_fixed_step_scheduler_tests
             tests/fixed_step_scheduler_tests.cpp

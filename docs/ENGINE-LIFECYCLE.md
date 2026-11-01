@@ -47,9 +47,9 @@ The default configuration uses a 16,666,667 ns fixed step, a 250 ms maximum acce
 
 The scheduler intentionally separates time accounting from simulation. A future game loop must decide when to call it, execute exactly the reported number of fixed updates, define what happens when a scene pauses, and avoid applying background elapsed time unintentionally. The scheduler does not currently control the Android NativeActivity event pump.
 
-## Native callback mapping to be implemented
+## Native callback mapping and implementation status
 
-These are mapping guidelines for future adapters, not code that exists in this repository yet.
+Android lifecycle normalization is implemented in Storm::Platform::Android. iOS scene-event normalization is implemented in Storm::Platform::IOS; the actual UIKit delegate bridge remains planned. The mappings below distinguish event policy from OS callback integration.
 
 ### Android
 
@@ -57,9 +57,16 @@ For a single-Activity runtime, an adapter can normalize `onStart` to `Foreground
 
 ### iOS
 
-For scene-based UIKit applications, map `sceneWillEnterForeground` to `ForegroundInactive`, `sceneDidBecomeActive` to `ForegroundActive`, `sceneWillResignActive` to `ForegroundInactive`, and `sceneDidEnterBackground` to `Background`. Keep independent state machines for independent scenes. For apps without scene support, map the corresponding app-delegate lifecycle notifications to one app-level instance.
+For scene-based UIKit applications, create one lifecycle state machine per UIScene and pass normalized callbacks to Storm::Platform::IOS::apply_scene_event():
 
-UIKit may launch a scene directly into the background for background event processing. Such an owner can begin with `Created -> Background` and later transition to the foreground. A termination callback is best-effort and must not be the only place where important state is saved or resources are made safe.
+- sceneWillEnterForeground -> SceneEvent::WillEnterForeground -> ForegroundInactive
+- sceneDidBecomeActive -> SceneEvent::DidBecomeActive -> ForegroundActive
+- sceneWillResignActive -> SceneEvent::WillResignActive -> ForegroundInactive
+- sceneDidEnterBackground -> SceneEvent::DidEnterBackground -> Background
+
+For apps without scene support, map the corresponding app-delegate lifecycle notifications to one app-level instance. The current C++ adapter implements this normalization policy, but does not implement or register a UIKit delegate. See [iOS Lifecycle Event Adapter](IOS-LIFECYCLE.md).
+
+UIKit may launch a scene directly into the background for background event processing. Such an owner can begin with Created -> Background and later transition to the foreground. The app-scoped termination callback can be forwarded with apply_application_event(), but it is best-effort and must not be the only place where important state is saved or resources are made safe.
 
 ## Lifecycle event queue
 
@@ -109,4 +116,4 @@ The following remain separate contracts or future integrations:
 
 The lifecycle state machine and event queue are covered by the foundation host tests, including FIFO behavior, full/closed handling, and concurrent multi-producer delivery (16,000 enqueued events in the stress test). The surface lifecycle contract has a separate host test executable covering attach validation, generation changes, resize, detach, recreation, and stale callbacks. The fixed-step scheduler has dedicated tests for configuration validation, partial accumulation, fixed-step emission, frame-delta clamping, catch-up limits, state preservation after invalid input/overflow, and reset.
 
-No Android SDK/NDK or Xcode/UIKit adapter runtime tests have been run on physical devices. The current Android NativeActivity bridge is cross-compiled and linked in CI only; iOS native lifecycle callbacks remain unimplemented.
+No Android SDK/NDK or Xcode/UIKit adapter runtime tests have been run on physical devices. The Android NativeActivity bridge is cross-compiled and linked in CI only. The iOS event-normalization policy has host tests, but UIKit callback delivery and native lifecycle integration remain unimplemented.
