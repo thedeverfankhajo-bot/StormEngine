@@ -29,7 +29,7 @@ See [Mobile-only policy](docs/MOBILE-ONLY-POLICY.md), [Architecture](docs/ARCHIT
 - A bounded, allocation-free, multi-producer/single-consumer lifecycle event queue with explicit full/closed results.
 - A platform-neutral surface lifecycle contract with validated dimensions/scale and generation-based stale-callback rejection.
 - An Android NativeActivity adapter built with the NDK Native App Glue. It maps Activity lifecycle events and attaches/resizes/detaches surface metadata without retaining an ANativeWindow pointer.
-- Host tests for Foundation, fixed-step scheduling, frame orchestration, typed event dispatch, surface lifecycle, and Android lifecycle event normalization.
+- Host tests for Foundation, fixed-step scheduling, frame orchestration, typed event dispatch, surface lifecycle, and Android lifecycle event normalization: 46 named cases across six CTest executables, all passing in the latest six-job CI run.
 - CI cross-compilation of the Foundation, Core, and Platform static libraries for Android arm64-v8a and iOS device arm64, plus Android NativeActivity shared-library compilation/linking.
 
 The Android CI job uses ANDROID_PLATFORM=android-21 as its native compilation target. This is not yet a declared product minimum SDK. The iOS CI job uses the iPhoneOS Device SDK and does not create an Xcode application, archive, or IPA.

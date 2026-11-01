@@ -2,7 +2,7 @@
 
 ## Current automated coverage
 
-The host test sources contain 46 named test cases across six CTest executables. The EventDispatcher test executable was added in the current change; its CI result is pending until the corresponding workflow completes:
+The host test suite contains 46 named test cases across six CTest executables. All six executables passed in the latest successful Foundation CI run for commit `56f0607856d548a00c06a1b6741f2d178a2ddf0d`. The GCC, Clang, Clang ASan/UBSan, and Apple Clang host jobs each configured, built, and ran the complete CTest suite:
 
 - stormengine_foundation_tests (11 cases):
   - Success and failure paths for typed Result<T> values.
@@ -65,7 +65,7 @@ A direct CMake configure/build/test flow is also supported and documented in the
 
 ## GitHub Actions
 
-The Foundation workflow runs on pushes to main and on manual dispatch. The latest successful target-validation workflow contains six jobs:
+The Foundation workflow runs on pushes to main and on manual dispatch. The successful target-validation workflow run [41303432277](https://github.com/thedeverfankhajo-bot/StormEngine/actions/runs/41303432277) for commit `56f0607856d548a00c06a1b6741f2d178a2ddf0d` completed all six jobs successfully:
 
 - Linux with GCC: configure, build, and run host CTest.
 - Linux with Clang: configure, build, and run host CTest.

@@ -55,6 +55,6 @@ Handlers receive a const reference to the event, valid only for the duration of 
 
 ## Validation boundary
 
-The dedicated host test executable contains cases for dispatch order and exact type matching, no-listener behavior, RAII and move semantics, disconnection and registration during dispatch, clearing during dispatch, failure propagation, empty callback rejection, dispatcher destruction, and idempotent disconnect. The CI run for the commit that adds these cases is the evidence required before marking them as passed.
+The dedicated host test executable contains ten cases for dispatch order and exact type matching, no-listener behavior, RAII and move semantics, disconnection and registration during dispatch, clearing during dispatch, failure propagation, empty callback rejection, dispatcher destruction, and idempotent disconnect. All ten passed in the GCC, Clang, Apple Clang, and Clang ASan/UBSan CI host configurations for commit `56f0607856d548a00c06a1b6741f2d178a2ddf0d`.
 
 These tests validate the platform-neutral dispatcher only. They do not demonstrate OS event integration or physical-device runtime behavior.
