@@ -1,0 +1,47 @@
+# CMake and native build output
+/build/
+/build-*/
+/cmake-build-*/
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+CTestTestfile.cmake
+Testing/
+compile_commands.json
+
+# IDE and OS files
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Flutter / Dart generated output (editor work begins in a later phase)
+/.dart_tool/
+.packages
+.pub-cache/
+.flutter-plugins
+.flutter-plugins-dependencies
+build/
+
+# Signing material and local secrets
+*.keystore
+*.jks
+*.p12
+*.mobileprovision
+*.provisionprofile
+.env
+.env.*
+!.env.example
+
+# Native debug artifacts
+*.dSYM/
+*.apk
+*.aab
+*.ipa
+*.phar
+*.so
+*.dylib
+*.dll
+*.o
+*.a
+*.lib
