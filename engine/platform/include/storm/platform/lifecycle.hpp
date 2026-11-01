@@ -2,11 +2,10 @@
 
 #include "storm/foundation/result.hpp"
 
+#include <cstdint>
+
 namespace Storm::Platform {
 
-// A normalized state for one native presentation lifecycle stream.
-// An iOS adapter may own one instance per UIScene; an Android adapter
-// typically owns one instance per Activity.
 enum class LifecycleState {
     Created,
     ForegroundInactive,
@@ -21,8 +20,6 @@ struct LifecycleTransition final {
     bool changed{false};
 };
 
-// A small, single-thread-affine state model. Platform adapters must serialize
-// calls on their native lifecycle callback queue before forwarding transitions.
 class LifecycleStateMachine final {
 public:
     LifecycleStateMachine() = default;
@@ -30,6 +27,8 @@ public:
     [[nodiscard]] Result<LifecycleTransition> transition_to(LifecycleState next);
 
     [[nodiscard]] LifecycleState state() const noexcept;
+    // Monotonically increments for each successful, non-idempotent transition.
+    [[nodiscard]] std::uint64_t revision() const noexcept;
     [[nodiscard]] bool is_foreground() const noexcept;
     [[nodiscard]] bool can_run_game_loop() const noexcept;
     [[nodiscard]] bool is_terminating() const noexcept;
@@ -40,6 +39,7 @@ private:
         LifecycleState next) noexcept;
 
     LifecycleState state_{LifecycleState::Created};
+    std::uint64_t revision_{0U};
 };
 
 } // namespace Storm::Platform

@@ -81,6 +81,18 @@ target_link_libraries(storm_platform PUBLIC Storm::Foundation)
 target_compile_features(storm_platform PUBLIC cxx_std_20)
 stormengine_apply_warnings(storm_platform)
 
+add_library(storm_runtime STATIC
+    engine/runtime/src/mobile_frame_driver.cpp
+)
+add_library(Storm::Runtime ALIAS storm_runtime)
+target_include_directories(storm_runtime
+    PUBLIC
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/engine/runtime/include>
+)
+target_link_libraries(storm_runtime PUBLIC Storm::Core Storm::Platform)
+target_compile_features(storm_runtime PUBLIC cxx_std_20)
+stormengine_apply_warnings(storm_runtime)
+
 if(CMAKE_SYSTEM_NAME STREQUAL "iOS")
     find_library(STORMENGINE_UIKIT_FRAMEWORK UIKit REQUIRED)
 
@@ -185,6 +197,14 @@ if(STORMENGINE_BUILD_TESTS)
         target_compile_features(stormengine_game_loop_tests PRIVATE cxx_std_20)
         stormengine_apply_warnings(stormengine_game_loop_tests)
         add_test(NAME stormengine_game_loop_tests COMMAND stormengine_game_loop_tests)
+
+        add_executable(stormengine_mobile_frame_driver_tests
+            tests/mobile_frame_driver_tests.cpp
+        )
+        target_link_libraries(stormengine_mobile_frame_driver_tests PRIVATE Storm::Runtime)
+        target_compile_features(stormengine_mobile_frame_driver_tests PRIVATE cxx_std_20)
+        stormengine_apply_warnings(stormengine_mobile_frame_driver_tests)
+        add_test(NAME stormengine_mobile_frame_driver_tests COMMAND stormengine_mobile_frame_driver_tests)
 
         add_executable(stormengine_event_dispatcher_tests
             tests/event_dispatcher_tests.cpp

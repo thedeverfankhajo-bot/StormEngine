@@ -95,7 +95,7 @@ jobs:
       - name: Build Android target libraries and NativeActivity bridge
         run: >-
           cmake --build build-android-arm64
-          --target storm_foundation storm_core storm_platform storm_android_native_activity
+          --target storm_foundation storm_core storm_platform storm_runtime storm_android_native_activity
           --parallel
 
       - name: Verify Android artifacts
@@ -103,6 +103,7 @@ jobs:
           test -s build-android-arm64/libstorm_foundation.a
           test -s build-android-arm64/libstorm_core.a
           test -s build-android-arm64/libstorm_platform.a
+          test -s build-android-arm64/libstorm_runtime.a
           test -s build-android-arm64/libstorm_android_native_activity.so
 
   ios-arm64:
@@ -128,7 +129,7 @@ jobs:
       - name: Build iOS device target libraries
         run: >-
           cmake --build build-ios-arm64 --config Release
-          --target storm_foundation storm_core storm_platform
+          --target storm_foundation storm_core storm_platform storm_runtime
           --parallel
 
       - name: Verify iOS artifacts
@@ -136,6 +137,7 @@ jobs:
           test -s build-ios-arm64/Release-iphoneos/libstorm_foundation.a
           test -s build-ios-arm64/Release-iphoneos/libstorm_core.a
           test -s build-ios-arm64/Release-iphoneos/libstorm_platform.a
+          test -s build-ios-arm64/Release-iphoneos/libstorm_runtime.a
 
   macos:
     name: macOS / Apple Clang host tests

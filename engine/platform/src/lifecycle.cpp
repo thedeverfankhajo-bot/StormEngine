@@ -1,5 +1,7 @@
 #include "storm/platform/lifecycle.hpp"
 
+#include <limits>
+
 namespace Storm::Platform {
 
 Result<LifecycleTransition> LifecycleStateMachine::transition_to(LifecycleState next) {
@@ -18,7 +20,14 @@ Result<LifecycleTransition> LifecycleStateMachine::transition_to(LifecycleState 
             "The requested platform lifecycle transition is not allowed"));
     }
 
+    if (revision_ == std::numeric_limits<std::uint64_t>::max()) {
+        return Result<LifecycleTransition>::failure(Storm::Error::make(
+            Storm::ErrorCode::ResourceExhausted,
+            "The lifecycle revision counter is exhausted"));
+    }
+
     state_ = next;
+    ++revision_;
     return Result<LifecycleTransition>::success(LifecycleTransition{
         .previous = previous,
         .current = next,
@@ -28,6 +37,10 @@ Result<LifecycleTransition> LifecycleStateMachine::transition_to(LifecycleState 
 
 LifecycleState LifecycleStateMachine::state() const noexcept {
     return state_;
+}
+
+std::uint64_t LifecycleStateMachine::revision() const noexcept {
+    return revision_;
 }
 
 bool LifecycleStateMachine::is_foreground() const noexcept {
