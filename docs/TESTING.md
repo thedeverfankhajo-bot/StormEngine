@@ -192,9 +192,15 @@ The iOS target build verifies that the Objective-C++ scene delegate compiles aga
 The `Linux / Clang static analysis` workflow job installs `clang-tidy`, configures
 the project with Clang, and runs the normal CMake build with
 `CMAKE_CXX_CLANG_TIDY` enabled. The repository-level `.clang-tidy` configuration
-currently enables the Clang Static Analyzer checks; findings from those checks
-are treated as errors. The analyzer runs on the translation units built by CMake
-and reports diagnostics in StormEngine source and test headers.
+enables the Clang Static Analyzer checks; findings from enabled checks are
+treated as errors. The analyzer runs on the translation units built by CMake
+and reports diagnostics in StormEngine source and test headers. The
+`clang-analyzer-core.uninitialized.Assign` check is explicitly excluded for
+now: Clang 18.1.3 reports a false positive when copying the initialized
+`Storm::Error` value out of the `std::variant` used by `Result<T>`. The
+`Error::code` member has a default member initializer, and `Error::make`
+initializes both aggregate fields. Revisit this exclusion when the analyzer is
+upgraded or the Result representation changes.
 
 This gate supplements, but does not replace, host unit tests, ASan/UBSan, code
 review, fuzzing, dependency auditing, or physical-device validation. It does not
