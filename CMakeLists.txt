@@ -16,16 +16,19 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 function(stormengine_apply_warnings target_name)
     if(MSVC)
-        target_compile_options(${target_name} PRIVATE /W4 /permissive-)
+        target_compile_options(${target_name} PRIVATE
+            "$<$<COMPILE_LANGUAGE:CXX>:/W4>"
+            "$<$<COMPILE_LANGUAGE:CXX>:/permissive->"
+        )
     else()
         target_compile_options(${target_name} PRIVATE
-            -Wall
-            -Wextra
-            -Wpedantic
-            -Wconversion
-            -Wsign-conversion
-            -Wshadow
-            -Wformat=2
+            "$<$<COMPILE_LANGUAGE:CXX>:-Wall>"
+            "$<$<COMPILE_LANGUAGE:CXX>:-Wextra>"
+            "$<$<COMPILE_LANGUAGE:CXX>:-Wpedantic>"
+            "$<$<COMPILE_LANGUAGE:CXX>:-Wconversion>"
+            "$<$<COMPILE_LANGUAGE:CXX>:-Wsign-conversion>"
+            "$<$<COMPILE_LANGUAGE:CXX>:-Wshadow>"
+            "$<$<COMPILE_LANGUAGE:CXX>:-Wformat=2>"
         )
     endif()
 endfunction()

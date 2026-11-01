@@ -230,8 +230,6 @@ extern "C" void android_main(android_app* app) {
         return;
     }
 
-    app_dummy();
-
     NativeActivityState state{};
     app->userData = &state;
     app->onAppCmd = &handle_app_command;
