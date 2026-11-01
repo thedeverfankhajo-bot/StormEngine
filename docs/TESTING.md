@@ -2,7 +2,7 @@
 
 ## Current automated coverage
 
-The host test suite contains 144 named test cases across thirteen CTest executables. All thirteen executables passed in the successful seven-job CI run [41329544664](https://github.com/thedeverfankhajo-bot/StormEngine/actions/runs/41329544664) for commit `a64d546ac042ab262512399a880ae8e584796f4d`. The GCC, Clang, Clang ASan/UBSan, and Apple Clang host jobs each configured, built, and ran the complete CTest suite:
+The host test suite contains 150 named test cases across thirteen CTest executables. All thirteen executables passed in the successful seven-job CI run [41330980892](https://github.com/thedeverfankhajo-bot/StormEngine/actions/runs/41330980892) for commit `e3cfa7b2366f6e14fddbf1304e99c97e82428e8c`. The GCC, Clang, Clang ASan/UBSan, and Apple Clang host jobs each configured, built, and ran the complete CTest suite:
 
 - stormengine_foundation_tests (11 cases):
   - Success and failure paths for typed Result<T> values.
@@ -126,7 +126,7 @@ The host test suite contains 144 named test cases across thirteen CTest executab
   - Preservation of timing across a resize with the same surface generation.
   - Lifecycle revision changes only for non-idempotent transitions.
 
-- stormengine_one_d_physics_tests (27 cases):
+- stormengine_one_d_physics_tests (33 cases):
   - World configuration validation and unique world identities.
   - Body definition validation, including finite values, positive interval extent, valid restitution, and dynamic mass.
   - World-scoped generation-checked body handles, stale-handle rejection, and slot reuse.
@@ -141,6 +141,9 @@ The host test suite contains 144 named test cases across thirteen CTest executab
   - Invalid setter/force operations and transactional rejection of invalid steps.
   - Preservation of body state and accumulated force when the contact limit aborts a step.
   - Deterministic contact ordering by body-slot pair.
+  - Begin/Stay/End transitions for persistent contacts, including trigger metadata.
+  - End + Begin transitions when a destroyed body's slot is reused with a new generation.
+  - Contact event ordering, move-preserved history, and transactional history on failed steps.
   - Closed-interval overlap queries with stable hit ordering, collision-layer filtering, and optional trigger exclusion.
   - Nearest-hit raycasts in both scalar directions, including deterministic equal-distance tie-breaking.
   - Raycast collision-layer/trigger filtering, origin-inside and boundary hits, and inclusive maximum-distance handling.
@@ -160,7 +163,7 @@ A direct CMake configure/build/test flow is also supported and documented in the
 
 ## GitHub Actions
 
-The Foundation workflow runs on pushes to main and on manual dispatch. The latest successful seven-job workflow run [41329544664](https://github.com/thedeverfankhajo-bot/StormEngine/actions/runs/41329544664) for commit `a64d546ac042ab262512399a880ae8e584796f4d` completed all seven jobs successfully:
+The Foundation workflow runs on pushes to main and on manual dispatch. The latest successful seven-job workflow run [41330980892](https://github.com/thedeverfankhajo-bot/StormEngine/actions/runs/41330980892) for commit `e3cfa7b2366f6e14fddbf1304e99c97e82428e8c` completed all seven jobs successfully:
 
 - Linux with GCC: configure, build, and run host CTest.
 - Linux with Clang: configure, build, and run host CTest.
@@ -172,9 +175,9 @@ The Foundation workflow runs on pushes to main and on manual dispatch. The lates
 
 The Android and iOS jobs disable host test executables because those binaries cannot be run as ordinary host programs from the target toolchains. They validate compilation and linking only; they do not build APK/AAB/IPA packages, invoke Android callbacks, deploy to devices, or run on physical hardware. The Android API 21 value is a CI compilation target, not a declared product minimum SDK.
 
-The iOS job uses CMake's Xcode generator and the iPhoneOS Device SDK. The latest successful run compiled `engine/serialization/src/scene_serializer.cpp`, explicitly instantiating the built-in Transform3D archive path into `libstorm_serialization.a` for device arm64. The Android job built the same Serialization target for arm64-v8a and linked the NativeActivity shared library. These target builds do not create an iOS application archive or signed IPA, or an Android APK/AAB.
+The iOS job uses CMake's Xcode generator and the iPhoneOS Device SDK. The latest successful run [41330980892](https://github.com/thedeverfankhajo-bot/StormEngine/actions/runs/41330980892) compiled `engine/serialization/src/scene_serializer.cpp`, explicitly instantiating the built-in Transform3D archive path into `libstorm_serialization.a` for device arm64. The Android job built the same Serialization target for arm64-v8a and linked the NativeActivity shared library. These target builds do not create an iOS application archive or signed IPA, or an Android APK/AAB.
 
-All thirteen CTest executables (144 named cases) passed in GCC, Clang, Clang ASan/UBSan, and Apple Clang host jobs in run [41329544664](https://github.com/thedeverfankhajo-bot/StormEngine/actions/runs/41329544664). The 1D PhysicsWorld suite accounts for twenty-seven dedicated cases. The Scene archive suite validates the versioned binary format and codec contracts on the host; it does not exercise app-sandbox file access or a real mobile device. Physics1D tests validate the scalar simulation and contact rules on the host; target compilation does not validate runtime behavior, input/render integration, or device performance. The Runtime suite does not call Android or UIKit frame sources, and the iOS lifecycle suite does not invoke UIKit.
+All thirteen CTest executables (150 named cases) passed in GCC, Clang, Clang ASan/UBSan, and Apple Clang host jobs in run [41330980892](https://github.com/thedeverfankhajo-bot/StormEngine/actions/runs/41330980892). The 1D PhysicsWorld suite accounts for thirty-three dedicated cases. The Scene archive suite validates the versioned binary format and codec contracts on the host; it does not exercise app-sandbox file access or a real mobile device. Physics1D tests validate the scalar simulation and contact rules on the host; target compilation does not validate runtime behavior, input/render integration, or device performance. The Runtime suite does not call Android or UIKit frame sources, and the iOS lifecycle suite does not invoke UIKit.
 
 The sanitizer job runs the same host tests with leak detection enabled and UndefinedBehaviorSanitizer configured to halt on the first reported issue. Sanitizer coverage increases confidence in tested code paths but is not a substitute for a security audit, fuzzing, or device testing.
 

@@ -27,7 +27,16 @@ triggers and collision layers are filterable, and an origin inside or on an
 interval reports a zero-distance hit. Equal-distance hits are resolved by
 body-slot order. Both query operations are read-only and single-thread-affine.
 They do not establish a complete 1D gameplay runtime or a verified Android/iOS
-runtime feature. See [1D Game Development](1D-GAME-DEVELOPMENT.md).
+runtime feature.
+
+The `ContactPhase1D` and `ContactEvent1D` types extend the same development
+surface. Each successful `PhysicsWorld1D::step()` returns Begin/Stay/End
+transitions ordered by body-slot pair. Pair identity includes both handle
+generations; reuse of a slot emits End for the previous handle and Begin for the
+new one. End payloads preserve the last reported contact geometry and may contain
+stale historical handles. Failed steps do not advance contact history. These
+interfaces are not stable API guarantees and are not yet bridged to the Core
+EventDispatcher or Scene components. See [1D Game Development](1D-GAME-DEVELOPMENT.md).
 
 ## Intended policy before the first stable release
 
