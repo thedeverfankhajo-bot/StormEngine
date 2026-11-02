@@ -19,7 +19,9 @@ public:
     [[nodiscard]] Result<void> write_u8(std::uint8_t value);
     [[nodiscard]] Result<void> write_u16(std::uint16_t value);
     [[nodiscard]] Result<void> write_u32(std::uint32_t value);
+    [[nodiscard]] Result<void> write_u64(std::uint64_t value);
     [[nodiscard]] Result<void> write_f32(float value);
+    [[nodiscard]] Result<void> write_f64(double value);
     [[nodiscard]] Result<void> write_bytes(std::span<const std::byte> value);
     [[nodiscard]] Result<void> write_string(
         std::string_view value,
@@ -41,7 +43,9 @@ public:
     [[nodiscard]] Result<std::uint8_t> read_u8();
     [[nodiscard]] Result<std::uint16_t> read_u16();
     [[nodiscard]] Result<std::uint32_t> read_u32();
+    [[nodiscard]] Result<std::uint64_t> read_u64();
     [[nodiscard]] Result<float> read_f32();
+    [[nodiscard]] Result<double> read_f64();
     [[nodiscard]] Result<std::span<const std::byte>> read_bytes(std::size_t count);
     [[nodiscard]] Result<std::string> read_string(std::size_t maximum_string_size);
 

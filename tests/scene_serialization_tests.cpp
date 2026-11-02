@@ -240,6 +240,9 @@ struct RawEntity final {
         first_child.value(), TestComponents::Position{12.5F, -4.0F}));
     EXPECT(scene.add_component<TestComponents::Velocity>(
         second_child.value(), TestComponents::Velocity{3.25F}));
+    EXPECT(scene.add_component<Storm::Math::Transform1D>(
+        second_child.value(),
+        Storm::Math::Transform1D{.position = 123.45678901234567}));
     EXPECT(scene.add_component<Storm::Math::Transform3D>(
         root.value(),
         Storm::Math::Transform3D{.translation = {2.0F, 4.0F, 6.0F}}));
@@ -247,18 +250,20 @@ struct RawEntity final {
     const auto archive = SceneSerializer::serialize<
         TestComponents::Position,
         TestComponents::Velocity,
+        Storm::Math::Transform1D,
         Storm::Math::Transform3D>(scene);
     EXPECT(archive);
 
     auto restored_result = SceneSerializer::deserialize<
         TestComponents::Position,
         TestComponents::Velocity,
+        Storm::Math::Transform1D,
         Storm::Math::Transform3D>(archive.value());
     EXPECT(restored_result);
     Storm::Scene restored = std::move(restored_result).value();
     EXPECT(restored.name() == "Gameplay");
     EXPECT(restored.entity_count() == 3U);
-    EXPECT(restored.component_type_count() == 3U);
+    EXPECT(restored.component_type_count() == 4U);
 
     std::array<std::string, 3U> names{};
     std::size_t name_count = 0U;
@@ -313,9 +318,13 @@ struct RawEntity final {
     const auto position = restored.try_get_component<TestComponents::Position>(*first_handle);
     const auto velocity = restored.try_get_component<TestComponents::Velocity>(*second_handle);
     const auto transform = restored.try_get_component<Storm::Math::Transform3D>(*root_handle);
+    const auto one_d_transform =
+        restored.try_get_component<Storm::Math::Transform1D>(*second_handle);
     EXPECT(position != nullptr);
     EXPECT(velocity != nullptr);
     EXPECT(transform != nullptr);
+    EXPECT(one_d_transform != nullptr);
+    EXPECT(one_d_transform->position == 123.45678901234567);
     EXPECT(std::fabs(position->x - 12.5F) < 1.0e-5F);
     EXPECT(std::fabs(position->y + 4.0F) < 1.0e-5F);
     EXPECT(std::fabs(velocity->value - 3.25F) < 1.0e-5F);
@@ -523,6 +532,24 @@ struct RawEntity final {
         SceneSerializer::deserialize<TestComponents::Position>(*archive);
     EXPECT(!restored);
     EXPECT(restored.error().code == Storm::ErrorCode::Unsupported);
+
+    BinaryWriter transform1d_payload(8U);
+    EXPECT(transform1d_payload.write_f64(12.5));
+    const auto transform1d_archive = make_raw_archive(
+        "VersionedTransform1D",
+        {RawEntity{"A"}},
+        {
+            RawBlock{
+                "storm.math.transform1d",
+                22U,
+                {RawRecord{0U, std::move(transform1d_payload).take()}},
+            },
+        });
+    EXPECT(transform1d_archive.has_value());
+    const auto unsupported_transform1d =
+        SceneSerializer::deserialize<Storm::Math::Transform1D>(*transform1d_archive);
+    EXPECT(!unsupported_transform1d);
+    EXPECT(unsupported_transform1d.error().code == Storm::ErrorCode::Unsupported);
     return std::nullopt;
 }
 
@@ -552,6 +579,25 @@ struct RawEntity final {
         SceneSerializer::deserialize<Storm::Math::Transform3D>(*archive);
     EXPECT(!restored);
     EXPECT(restored.error().code == Storm::ErrorCode::InvalidArgument);
+
+    BinaryWriter invalid_transform1d_payload(8U);
+    EXPECT(invalid_transform1d_payload.write_f64(
+        std::numeric_limits<double>::quiet_NaN()));
+    const auto invalid_transform1d_archive = make_raw_archive(
+        "InvalidTransform1D",
+        {RawEntity{"A"}},
+        {
+            RawBlock{
+                "storm.math.transform1d",
+                1U,
+                {RawRecord{0U, std::move(invalid_transform1d_payload).take()}},
+            },
+        });
+    EXPECT(invalid_transform1d_archive.has_value());
+    const auto invalid_transform1d =
+        SceneSerializer::deserialize<Storm::Math::Transform1D>(*invalid_transform1d_archive);
+    EXPECT(!invalid_transform1d);
+    EXPECT(invalid_transform1d.error().code == Storm::ErrorCode::InvalidArgument);
     return std::nullopt;
 }
 
@@ -578,6 +624,30 @@ struct RawEntity final {
     const auto truncated_read = truncated_reader.read_string(3U);
     EXPECT(!truncated_read);
     EXPECT(truncated_reader.remaining() == over_limit_data.size());
+
+    BinaryWriter too_small_double(7U);
+    const auto rejected_double = too_small_double.write_f64(123.45678901234567);
+    EXPECT(!rejected_double);
+    EXPECT(too_small_double.size() == 0U);
+
+    BinaryWriter exact_double(8U);
+    constexpr double expected_double = 123.45678901234567;
+    EXPECT(exact_double.write_f64(expected_double));
+    const auto double_bytes = std::move(exact_double).take();
+    EXPECT(double_bytes.size() == 8U);
+
+    Storm::Serialization::BinaryReader double_reader(double_bytes);
+    const auto decoded_double = double_reader.read_f64();
+    EXPECT(decoded_double);
+    EXPECT(decoded_double.value() == expected_double);
+    EXPECT(double_reader.empty());
+
+    std::vector<std::byte> truncated_double_bytes(
+        double_bytes.begin(), double_bytes.end() - 1);
+    Storm::Serialization::BinaryReader truncated_double_reader(truncated_double_bytes);
+    const auto rejected_truncated_double = truncated_double_reader.read_f64();
+    EXPECT(!rejected_truncated_double);
+    EXPECT(truncated_double_reader.remaining() == 7U);
     return std::nullopt;
 }
 

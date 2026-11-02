@@ -62,10 +62,13 @@ successful step writes the physics position back to the component.
 
 ## Deliberate limits
 
-The adapter does not add a Scene observer, automatic component discovery,
-reflection, or serialization codec registration. Physics contact events are
-returned by the existing 1D world and are not dispatched through Core's
-EventDispatcher. The underlying collision broadphase remains the bounded
+Transform1D has a built-in version-1 Scene archive codec with the stable ID
+`storm.math.transform1d`. Callers must explicitly include
+`Math::Transform1D` in the `SceneSerializer` component type list; codec
+selection is not automatic. The adapter does not add a Scene observer,
+automatic component discovery, reflection, or schema migration registry.
+Physics contact events are returned by the existing 1D world and are not
+dispatched through Core's EventDispatcher. The underlying collision broadphase remains the bounded
 O(n squared) pair scan documented in 1D-GAME-DEVELOPMENT.md.
 
 No renderer, camera, touch input, in-game UI, Android/iOS gameplay host, or

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "storm/core/scene.hpp"
+#include "storm/math/transform1d.hpp"
 #include "storm/math/transform3d.hpp"
 #include "storm/serialization/binary_archive.hpp"
 
@@ -101,6 +102,46 @@ struct ComponentCodec<Math::Transform3D> final {
             return Result<Math::Transform3D>::failure(validation.error());
         }
         return Result<Math::Transform3D>::success(value);
+    }
+};
+
+template <>
+struct ComponentCodec<Math::Transform1D> final {
+    static constexpr std::string_view type_id{"storm.math.transform1d"};
+    static constexpr std::uint32_t schema_version{1U};
+
+    [[nodiscard]] static Result<void> encode(
+        const Math::Transform1D& value,
+        BinaryWriter& writer) {
+        if (!value.is_valid()) {
+            return Result<void>::failure(Error::make(
+                ErrorCode::InvalidArgument,
+                "The Transform1D position must be finite"));
+        }
+        return writer.write_f64(value.position);
+    }
+
+    [[nodiscard]] static Result<Math::Transform1D> decode(
+        std::uint32_t version,
+        BinaryReader& reader) {
+        if (version != schema_version) {
+            return Result<Math::Transform1D>::failure(Error::make(
+                ErrorCode::Unsupported,
+                "The Transform1D component schema version is unsupported"));
+        }
+
+        const Result<double> position = reader.read_f64();
+        if (!position) {
+            return Result<Math::Transform1D>::failure(position.error());
+        }
+
+        Math::Transform1D value{.position = position.value()};
+        if (!value.is_valid()) {
+            return Result<Math::Transform1D>::failure(Error::make(
+                ErrorCode::InvalidArgument,
+                "The archived Transform1D position must be finite"));
+        }
+        return Result<Math::Transform1D>::success(value);
     }
 };
 

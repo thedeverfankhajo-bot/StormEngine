@@ -105,7 +105,7 @@ The host suite contains 176 named test cases across fifteen CTest executables. A
   - Mutable/const typed component iteration, slot ordering, and empty-store behavior.
 - stormengine_scene_serialization_tests (13 cases):
   - Full Scene round-trip of names, entities, hierarchy, sibling order, and registered components.
-  - Built-in Transform3D codec and custom Position/Velocity codecs.
+  - Built-in Transform1D and Transform3D codecs plus custom Position/Velocity codecs.
   - Canonical archive output independent of caller codec ordering.
   - Empty Scene round-trip without component codecs.
   - Rejection of component stores without an explicit codec.
@@ -172,13 +172,13 @@ The Foundation workflow runs on pushes to main and on manual dispatch. The lates
 - Linux with Clang: configure, build, and run host CTest.
 - Linux with Clang AddressSanitizer and UndefinedBehaviorSanitizer: build and run host CTest with leak detection enabled.
 - Linux Clang Static Analysis: run `clang-tidy` on the production CMake libraries with enabled Clang Static Analyzer checks treated as errors.
-- Android NDK: cross-compile Foundation, Math, Physics1D, Input, Core, Serialization (including explicit Transform3D SceneSerializer instantiations), Platform, and Runtime for arm64-v8a, then compile and link the NativeActivity shared library against the NDK-provided Native App Glue, Android, and Log libraries. The job installs the Android SDK/NDK packages, assembles an arm64-v8a debug APK with Gradle, and checks that the APK contains `libstorm_android_native_activity.so`. The Gradle application configuration currently declares `minSdk 21`; CI also compiles the native target with `ANDROID_PLATFORM=android-21`.
-- iOS Device SDK: cross-compile Foundation, Math, Physics1D, Input, Core, Serialization (including explicit Transform3D SceneSerializer instantiations), Platform, and Runtime for arm64 using the iPhoneOS SDK and Xcode.
+- Android NDK: cross-compile Foundation, Math, Physics1D, Input, Core, Serialization (including explicit Transform1D and Transform3D SceneSerializer instantiations), Platform, and Runtime for arm64-v8a, then compile and link the NativeActivity shared library against the NDK-provided Native App Glue, Android, and Log libraries. The job installs the Android SDK/NDK packages, assembles an arm64-v8a debug APK with Gradle, and checks that the APK contains `libstorm_android_native_activity.so`. The Gradle application configuration currently declares `minSdk 21`; CI also compiles the native target with `ANDROID_PLATFORM=android-21`.
+- iOS Device SDK: cross-compile Foundation, Math, Physics1D, Input, Core, Serialization (including explicit Transform1D and Transform3D SceneSerializer instantiations), Platform, and Runtime for arm64 using the iPhoneOS SDK and Xcode.
 - macOS with Apple Clang: configure, build, and run host CTest.
 
 The Android and iOS jobs disable host test executables because those binaries cannot be run as ordinary host programs from the target toolchains. The Android job additionally assembles a debug APK and verifies its native-library packaging; the iOS job builds an unsigned device-architecture `.app` bundle. Neither job installs the app, invokes Android or UIKit callbacks on a device, creates an Android AAB, signs an iOS app, creates an archive/IPA, or runs on physical hardware. `minSdk 21` is the current Gradle package setting, not evidence that runtime behavior has been validated on API 21 devices.
 
-The iOS job uses CMake's Xcode generator and the iPhoneOS Device SDK. The latest successful run [41330980892](https://github.com/thedeverfankhajo-bot/StormEngine/actions/runs/41330980892) compiled `engine/serialization/src/scene_serializer.cpp`, explicitly instantiating the built-in Transform3D archive path into `libstorm_serialization.a` for device arm64. The Android job built the same Serialization target for arm64-v8a and linked the NativeActivity shared library. These target builds do not create an iOS application archive or signed IPA, or an Android APK/AAB.
+The iOS job uses CMake's Xcode generator and the iPhoneOS Device SDK. The latest successful run [41330980892](https://github.com/thedeverfankhajo-bot/StormEngine/actions/runs/41330980892) compiled `engine/serialization/src/scene_serializer.cpp`, explicitly instantiating the built-in Transform1D and Transform3D archive paths into `libstorm_serialization.a` for device arm64. The Android job built the same Serialization target for arm64-v8a and linked the NativeActivity shared library. These target builds do not create an iOS application archive or signed IPA, or an Android APK/AAB.
 
 All fifteen CTest executables (176 named cases) passed in GCC, Clang, Clang ASan/UBSan, and Apple Clang host jobs in run [41373342369](https://github.com/thedeverfankhajo-bot/StormEngine/actions/runs/41373342369). The 1D PhysicsWorld suite accounts for thirty-three dedicated cases. The Scene archive suite validates the versioned binary format and codec contracts on the host; it does not exercise app-sandbox file access or a real mobile device. Physics1D tests validate the scalar simulation and contact rules on the host; target compilation does not validate runtime behavior, input/render integration, or device performance. The Runtime suite does not call Android or UIKit frame sources, and the iOS lifecycle suite does not invoke UIKit.
 
@@ -191,7 +191,7 @@ The sanitizer job runs the same host tests with leak detection enabled and Undef
 - AddressSanitizer can detect classes of memory errors on exercised paths; UndefinedBehaviorSanitizer can detect supported forms of undefined behavior on exercised paths. Neither proves the absence of all memory-safety or correctness defects.
 - The current workflow does not run ThreadSanitizer, dependency vulnerability scanning, fuzz tests, Android instrumentation tests, or iOS simulator/device tests. Clang static analysis is run separately by the `Linux / Clang static analysis` job.
 - Android/iOS runtime compatibility requires installable native application targets, platform lifecycle integration, target-specific tests, and real-device evidence.
-- Scene archive cross-compilation instantiates the built-in Transform3D codec for each mobile toolchain. The thirteen archive behavior tests run on host CI only; no on-device serialization or platform file-system integration is claimed.
+- Scene archive cross-compilation instantiates the built-in Transform1D and Transform3D codecs for each mobile toolchain. The thirteen archive behavior tests run on host CI only; no on-device serialization or platform file-system integration is claimed.
 
 See [Android NativeActivity Lifecycle Bridge](ANDROID-NATIVE-ACTIVITY.md), [Core Game Loop](GAME-LOOP.md), [Mobile Runtime Frame Driver](MOBILE-RUNTIME.md), [Core Event System](EVENT-SYSTEM.md), and [Transform System](TRANSFORM-SYSTEM.md) for the exact implementation scope and limitations.
 

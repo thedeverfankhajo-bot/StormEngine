@@ -17,6 +17,7 @@ A component is serializable only when the caller supplies a `ComponentCodec<T>` 
 - `encode(const T&, BinaryWriter&)`: writes the complete component payload.
 - `decode(schema_version, BinaryReader&)`: validates the supplied version and constructs a component value.
 
+`Transform1D` has a built-in codec with ID `storm.math.transform1d` and schema version 1. Its scalar position is stored as an IEEE-754 64-bit value without narrowing.
 `Transform3D` has a built-in codec with ID `storm.math.transform3d` and schema version 1. Other component types require an explicit specialization supplied by the game or engine module.
 
 Codec implementations must validate their own payload values and consume the complete payload during decoding. They should not persist process-local pointers, addresses, runtime handles, or native object layout.
@@ -45,7 +46,7 @@ Loading creates a new Scene with a new process-local SceneId and new EntityHandl
 
 ## Archive structure
 
-Version 1 uses fixed-width little-endian integer fields and 32-bit IEEE-754 float bit patterns.
+Version 1 uses fixed-width little-endian integer fields and bit-preserved IEEE-754 32-bit floats and 64-bit doubles.
 
 The archive contains:
 
@@ -88,6 +89,6 @@ Unknown component IDs and unsupported versions fail explicitly. Malformed or ove
 
 ## Validation evidence
 
-Thirteen dedicated host test cases cover Scene round-trip, hierarchy and sibling order, built-in Transform3D and custom components, deterministic codec ordering, empty scenes, missing/unknown codecs, invalid magic/version, truncation/trailing input, limits, invalid parents/cycles, duplicate records, schema versions, invalid transform values, and transactional string operations.
+Thirteen dedicated host test cases cover Scene round-trip, hierarchy and sibling order, built-in Transform1D/Transform3D and custom components, deterministic codec ordering, empty scenes, missing/unknown codecs, invalid magic/version, truncation/trailing input, limits, invalid parents/cycles, duplicate records, schema versions, invalid transform values, and transactional string/64-bit numeric operations.
 
 The six-job GitHub Actions run [41322123527](https://github.com/thedeverfankhajo-bot/StormEngine/actions/runs/41322123527) passed GCC, Clang, Apple Clang, Clang ASan/UBSan, Android arm64-v8a, and iOS device arm64. Android and iOS explicitly instantiate the built-in Transform3D archive path at compile time. These are host-test and target-build results, not on-device serialization or filesystem integration tests.

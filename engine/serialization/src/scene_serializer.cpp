@@ -7,8 +7,18 @@
 
 namespace Storm::Serialization {
 
-// Instantiate the built-in Transform3D archive path in every configured
-// mobile target build. User-defined component codecs remain template-driven.
+// Instantiate built-in scalar and spatial transform archive paths in every
+// configured mobile target build. User-defined component codecs remain template-driven.
+template Result<std::vector<std::byte>>
+SceneSerializer::serialize<Math::Transform1D>(
+    const Scene& scene,
+    const SceneArchiveLimits& limits);
+
+template Result<Scene>
+SceneSerializer::deserialize<Math::Transform1D>(
+    std::span<const std::byte> archive,
+    const SceneArchiveLimits& limits);
+
 template Result<std::vector<std::byte>>
 SceneSerializer::serialize<Math::Transform3D>(
     const Scene& scene,

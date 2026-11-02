@@ -48,8 +48,26 @@ Result<void> BinaryWriter::write_u32(std::uint32_t value) {
     return write_bytes(bytes);
 }
 
+Result<void> BinaryWriter::write_u64(std::uint64_t value) {
+    const std::array<std::byte, 8U> bytes{
+        static_cast<std::byte>(value & 0xffU),
+        static_cast<std::byte>((value >> 8U) & 0xffU),
+        static_cast<std::byte>((value >> 16U) & 0xffU),
+        static_cast<std::byte>((value >> 24U) & 0xffU),
+        static_cast<std::byte>((value >> 32U) & 0xffU),
+        static_cast<std::byte>((value >> 40U) & 0xffU),
+        static_cast<std::byte>((value >> 48U) & 0xffU),
+        static_cast<std::byte>((value >> 56U) & 0xffU),
+    };
+    return write_bytes(bytes);
+}
+
 Result<void> BinaryWriter::write_f32(float value) {
     return write_u32(std::bit_cast<std::uint32_t>(value));
+}
+
+Result<void> BinaryWriter::write_f64(double value) {
+    return write_u64(std::bit_cast<std::uint64_t>(value));
 }
 
 Result<void> BinaryWriter::write_bytes(std::span<const std::byte> value) {
@@ -166,12 +184,34 @@ Result<std::uint32_t> BinaryReader::read_u32() {
     return Result<std::uint32_t>::success(value);
 }
 
+Result<std::uint64_t> BinaryReader::read_u64() {
+    const Result<std::span<const std::byte>> bytes = read_bytes(8U);
+    if (!bytes) {
+        return Result<std::uint64_t>::failure(bytes.error());
+    }
+
+    std::uint64_t value = 0U;
+    for (std::size_t index = 0U; index < 8U; ++index) {
+        const auto byte = std::to_integer<std::uint8_t>(bytes.value()[index]);
+        value |= static_cast<std::uint64_t>(byte) << (index * 8U);
+    }
+    return Result<std::uint64_t>::success(value);
+}
+
 Result<float> BinaryReader::read_f32() {
     const Result<std::uint32_t> bits = read_u32();
     if (!bits) {
         return Result<float>::failure(bits.error());
     }
     return Result<float>::success(std::bit_cast<float>(bits.value()));
+}
+
+Result<double> BinaryReader::read_f64() {
+    const Result<std::uint64_t> bits = read_u64();
+    if (!bits) {
+        return Result<double>::failure(bits.error());
+    }
+    return Result<double>::success(std::bit_cast<double>(bits.value()));
 }
 
 Result<std::span<const std::byte>> BinaryReader::read_bytes(std::size_t count) {
