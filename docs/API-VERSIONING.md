@@ -39,6 +39,8 @@ interfaces are not stable API guarantees and are not yet bridged to the Core
 EventDispatcher or Scene components. See [1D Game Development](1D-GAME-DEVELOPMENT.md).
 
 ## Intended policy before the first stable release
+The `Storm::Input::TouchInput`, `PointerEvent`, `PointerSnapshot`, and `TouchInputConfig` types are experimental development interfaces with no compatibility guarantee. They provide bounded, single-thread-affine ingestion of multi-pointer Down/Move/Up/Cancel events, surface-generation validation, monotonic timestamp checks, and per-frame movement deltas. The implementation does not acquire native events or clocks and is not connected to Android MotionEvent or iOS UIKit callbacks; gesture recognition and action mapping are not included. See [Mobile Input Foundation](INPUT-SYSTEM.md).
+
 
 - Use Semantic Versioning for published engine releases once a public compatibility baseline is declared.
 - Document every public API change in the changelog and API reference.

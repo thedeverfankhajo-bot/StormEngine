@@ -75,6 +75,18 @@ target_link_libraries(storm_physics PUBLIC Storm::Foundation)
 target_compile_features(storm_physics PUBLIC cxx_std_20)
 stormengine_apply_warnings(storm_physics)
 
+add_library(storm_input STATIC
+    engine/input/src/touch_input.cpp
+)
+add_library(Storm::Input ALIAS storm_input)
+target_include_directories(storm_input
+    PUBLIC
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/engine/input/include>
+)
+target_link_libraries(storm_input PUBLIC Storm::Foundation)
+target_compile_features(storm_input PUBLIC cxx_std_20)
+stormengine_apply_warnings(storm_input)
+
 add_library(storm_core STATIC
     engine/core/src/engine.cpp
     engine/core/src/fixed_step_scheduler.cpp
@@ -348,5 +360,13 @@ if(STORMENGINE_BUILD_TESTS)
         target_compile_features(stormengine_one_d_scene_tests PRIVATE cxx_std_20)
         stormengine_apply_warnings(stormengine_one_d_scene_tests)
         add_test(NAME stormengine_one_d_scene_tests COMMAND stormengine_one_d_scene_tests)
+
+        add_executable(stormengine_touch_input_tests
+            tests/touch_input_tests.cpp
+        )
+        target_link_libraries(stormengine_touch_input_tests PRIVATE Storm::Input)
+        target_compile_features(stormengine_touch_input_tests PRIVATE cxx_std_20)
+        stormengine_apply_warnings(stormengine_touch_input_tests)
+        add_test(NAME stormengine_touch_input_tests COMMAND stormengine_touch_input_tests)
     endif()
 endif()

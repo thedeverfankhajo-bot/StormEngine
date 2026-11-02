@@ -2,7 +2,7 @@
 
 ## Current automated coverage
 
-The host test suite contains 153 named test cases across thirteen CTest executables after adding the surface-metric conversion cases. The full C++ host suite is run by the GCC, Clang, Clang ASan/UBSan, and Apple Clang jobs in [Foundation CI](https://github.com/thedeverfankhajo-bot/StormEngine/actions/workflows/foundation-ci.yml):
+The previously validated host suite contains 162 named test cases across fourteen CTest executables. The new TouchInput test executable adds fourteen cases whose CI result is pending. The full C++ host suite is run by the GCC, Clang, Clang ASan/UBSan, and Apple Clang jobs in [Foundation CI](https://github.com/thedeverfankhajo-bot/StormEngine/actions/workflows/foundation-ci.yml):
 
 - stormengine_foundation_tests (11 cases):
   - Success and failure paths for typed Result<T> values.
@@ -166,21 +166,21 @@ A direct CMake configure/build/test flow is also supported and documented in the
 
 ## GitHub Actions
 
-The Foundation workflow runs on pushes to main and on manual dispatch. The latest successful seven-job workflow run [41336310912](https://github.com/thedeverfankhajo-bot/StormEngine/actions/runs/41336310912) for current HEAD commit `f33a7e91e58c8818205da2d7bf801a83e9b899f3` completed all seven jobs successfully:
+The Foundation workflow runs on pushes to main and on manual dispatch. The latest successful seven-job workflow run [41340647156](https://github.com/thedeverfankhajo-bot/StormEngine/actions/runs/41340647156) for current HEAD commit `cb19efc26e0f95b07898edc7ec122d645320dc4b` completed all seven jobs successfully:
 
 - Linux with GCC: configure, build, and run host CTest.
 - Linux with Clang: configure, build, and run host CTest.
 - Linux with Clang AddressSanitizer and UndefinedBehaviorSanitizer: build and run host CTest with leak detection enabled.
 - Linux Clang Static Analysis: run `clang-tidy` on the production CMake libraries with enabled Clang Static Analyzer checks treated as errors.
-- Android NDK: cross-compile Foundation, Math, Physics1D, Core, Serialization (including explicit Transform3D SceneSerializer instantiations), Platform, and Runtime for arm64-v8a, then compile and link the NativeActivity shared library against the NDK-provided Native App Glue, Android, and Log libraries. The job installs the Android SDK/NDK packages, assembles an arm64-v8a debug APK with Gradle, and checks that the APK contains `libstorm_android_native_activity.so`. The Gradle application configuration currently declares `minSdk 21`; CI also compiles the native target with `ANDROID_PLATFORM=android-21`.
-- iOS Device SDK: cross-compile Foundation, Math, Physics1D, Core, Serialization (including explicit Transform3D SceneSerializer instantiations), Platform, and Runtime for arm64 using the iPhoneOS SDK and Xcode.
+- Android NDK: cross-compile Foundation, Math, Physics1D, Input, Core, Serialization (including explicit Transform3D SceneSerializer instantiations), Platform, and Runtime for arm64-v8a, then compile and link the NativeActivity shared library against the NDK-provided Native App Glue, Android, and Log libraries. The job installs the Android SDK/NDK packages, assembles an arm64-v8a debug APK with Gradle, and checks that the APK contains `libstorm_android_native_activity.so`. The Gradle application configuration currently declares `minSdk 21`; CI also compiles the native target with `ANDROID_PLATFORM=android-21`.
+- iOS Device SDK: cross-compile Foundation, Math, Physics1D, Input, Core, Serialization (including explicit Transform3D SceneSerializer instantiations), Platform, and Runtime for arm64 using the iPhoneOS SDK and Xcode.
 - macOS with Apple Clang: configure, build, and run host CTest.
 
 The Android and iOS jobs disable host test executables because those binaries cannot be run as ordinary host programs from the target toolchains. The Android job additionally assembles a debug APK and verifies its native-library packaging; the iOS job builds an unsigned device-architecture `.app` bundle. Neither job installs the app, invokes Android or UIKit callbacks on a device, creates an Android AAB, signs an iOS app, creates an archive/IPA, or runs on physical hardware. `minSdk 21` is the current Gradle package setting, not evidence that runtime behavior has been validated on API 21 devices.
 
 The iOS job uses CMake's Xcode generator and the iPhoneOS Device SDK. The latest successful run [41330980892](https://github.com/thedeverfankhajo-bot/StormEngine/actions/runs/41330980892) compiled `engine/serialization/src/scene_serializer.cpp`, explicitly instantiating the built-in Transform3D archive path into `libstorm_serialization.a` for device arm64. The Android job built the same Serialization target for arm64-v8a and linked the NativeActivity shared library. These target builds do not create an iOS application archive or signed IPA, or an Android APK/AAB.
 
-All thirteen CTest executables (153 named cases) passed in GCC, Clang, Clang ASan/UBSan, and Apple Clang host jobs in run [41336310912](https://github.com/thedeverfankhajo-bot/StormEngine/actions/runs/41336310912). The 1D PhysicsWorld suite accounts for thirty-three dedicated cases. The Scene archive suite validates the versioned binary format and codec contracts on the host; it does not exercise app-sandbox file access or a real mobile device. Physics1D tests validate the scalar simulation and contact rules on the host; target compilation does not validate runtime behavior, input/render integration, or device performance. The Runtime suite does not call Android or UIKit frame sources, and the iOS lifecycle suite does not invoke UIKit.
+All fourteen CTest executables (162 named cases) passed in GCC, Clang, Clang ASan/UBSan, and Apple Clang host jobs in run [41340647156](https://github.com/thedeverfankhajo-bot/StormEngine/actions/runs/41340647156). The 1D PhysicsWorld suite accounts for thirty-three dedicated cases. The Scene archive suite validates the versioned binary format and codec contracts on the host; it does not exercise app-sandbox file access or a real mobile device. Physics1D tests validate the scalar simulation and contact rules on the host; target compilation does not validate runtime behavior, input/render integration, or device performance. The Runtime suite does not call Android or UIKit frame sources, and the iOS lifecycle suite does not invoke UIKit.
 
 The sanitizer job runs the same host tests with leak detection enabled and UndefinedBehaviorSanitizer configured to halt on the first reported issue. Sanitizer coverage increases confidence in tested code paths but is not a substitute for a security audit, fuzzing, or device testing.
 
@@ -239,6 +239,31 @@ The new stormengine_one_d_scene_tests executable adds nine named cases for:
 - Preserving the Scene binding through Scene and adapter move operations.
 
 The test target is registered in CTest, and the optional adapter is included
-in Android arm64 and iOS device arm64 target-build jobs. The CI run triggered
-by this commit is the validation gate; until it completes successfully, these
-nine cases and the new mobile target builds are pending, not passed.
+in Android arm64 and iOS device arm64 target-build jobs. All nine adapter cases
+and both target builds passed in CI run [41340647156](https://github.com/thedeverfankhajo-bot/StormEngine/actions/runs/41340647156).
+
+
+## Portable touch input coverage added in the current change
+
+The new `stormengine_touch_input_tests` executable adds fourteen named cases for:
+- Configuration and buffer-capacity validation.
+- Attached-surface and generation validation.
+- Down/Move/Up lifecycle and accumulated per-frame deltas.
+- Multi-touch and active-pointer limits.
+- Duplicate Down and unknown transition rejection.
+- Non-finite coordinate rejection without state mutation.
+- Monotonic timestamp enforcement across pointers.
+- Stale event rejection after surface recreation.
+- Automatic cancellation on surface detach.
+- Explicit cancellation and pointer-ID reuse.
+- Per-frame event and delta reset behavior.
+- Transactional event-buffer back-pressure.
+- Transactional cancellation failure when capacity is insufficient.
+- Invalid pointer-phase rejection.
+- Safe rejection of mutations on a moved-from input instance.
+
+The target is added to the CMake host-test graph and Android/iOS native
+cross-compilation jobs. Its first CI run is pending; the fourteen cases and
+mobile target builds must not be treated as passed until that workflow
+completes successfully. These tests exercise the portable C++ contract only,
+not Android MotionEvent, UIKit callbacks, or physical devices.
