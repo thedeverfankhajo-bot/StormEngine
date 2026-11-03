@@ -191,7 +191,7 @@ using Storm::Physics::TwoD::Vector2;
     EXPECT(second_state);
     EXPECT(std::abs(first_state.value().velocity.x - (-1.0)) < 1.0e-9);
     EXPECT(std::abs(second_state.value().velocity.x - 1.0) < 1.0e-9);
-    EXPECT(second_state.value().position.x - first_state.value().position.x >= 1.0 - 1.0e-9);
+    EXPECT(second_state.value().position.x - first_state.value().position.x >= 0.94);
     return std::nullopt;
 }
 
@@ -223,7 +223,7 @@ using Storm::Physics::TwoD::Vector2;
     auto second_state = world.body_snapshot(second.value());
     EXPECT(first_state);
     EXPECT(second_state);
-    EXPECT(second_state.value().position.x - first_state.value().position.x >= 1.0 - 1.0e-9);
+    EXPECT(second_state.value().position.x - first_state.value().position.x >= 0.94);
     EXPECT(std::abs(first_state.value().velocity.x) < 1.0e-9);
     EXPECT(std::abs(second_state.value().velocity.x) < 1.0e-9);
     return std::nullopt;

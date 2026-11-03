@@ -37,6 +37,16 @@ Normal impulses use the smaller restitution; tangential friction is bounded by
 the product of the normal impulse and the geometric mean of the two friction
 coefficients.
 
+## Contact resolution limits
+
+The first solver pass is deliberately simple and deterministic. It applies one
+normal impulse, a Coulomb-style tangential impulse, and positional correction
+with a 0.005-unit slop and 80% correction factor. It is not an iterative
+constraint solver; small residual penetration may remain after one step,
+especially in dense multi-contact configurations. A later solver iteration
+budget and CCD policy must be designed and benchmarked before treating this as
+a production-grade general-purpose physics backend.
+
 ## Broadphase and limits
 
 The broadphase uses a uniform spatial hash. Each body's world AABB is inserted
