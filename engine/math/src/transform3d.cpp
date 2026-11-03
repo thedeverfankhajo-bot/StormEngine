@@ -45,17 +45,17 @@ struct DoubleVector3 final {
     };
 }
 
-[[nodiscard]] double dot(DoubleVector3 lhs, DoubleVector3 rhs) noexcept {
+[[nodiscard]] double dot_double(DoubleVector3 lhs, DoubleVector3 rhs) noexcept {
     return (lhs.x * rhs.x) + (lhs.y * rhs.y) + (lhs.z * rhs.z);
 }
 
-[[nodiscard]] DoubleVector3 subtract(
+[[nodiscard]] DoubleVector3 subtract_double(
     DoubleVector3 lhs,
     DoubleVector3 rhs) noexcept {
     return DoubleVector3{lhs.x - rhs.x, lhs.y - rhs.y, lhs.z - rhs.z};
 }
 
-[[nodiscard]] DoubleVector3 cross(
+[[nodiscard]] DoubleVector3 cross_double(
     DoubleVector3 lhs,
     DoubleVector3 rhs) noexcept {
     return DoubleVector3{
@@ -65,10 +65,10 @@ struct DoubleVector3 final {
     };
 }
 
-[[nodiscard]] Result<DoubleVector3> normalized(
+[[nodiscard]] Result<DoubleVector3> normalize_double(
     DoubleVector3 value,
     const char* error_message) {
-    const double magnitude_squared = dot(value, value);
+    const double magnitude_squared = dot_double(value, value);
     if (!std::isfinite(magnitude_squared) ||
         magnitude_squared <= kMinimumMagnitudeSquared) {
         return Result<DoubleVector3>::failure(invalid_math_input(error_message));
@@ -122,7 +122,7 @@ double Vector3::length() const noexcept {
 }
 
 double Vector3::dot(Vector3 other) const noexcept {
-    return Storm::Math::dot(to_double(*this), to_double(other));
+    return dot_double(to_double(*this), to_double(other));
 }
 
 Result<Vector3> Vector3::cross(Vector3 other) const {
@@ -131,7 +131,7 @@ Result<Vector3> Vector3::cross(Vector3 other) const {
             invalid_math_input("Vector3 cross-product inputs must be finite"));
     }
     return narrow_vector(
-        Storm::Math::cross(to_double(*this), to_double(other)),
+        cross_double(to_double(*this), to_double(other)),
         "Vector3 cross product exceeds the representable numeric range");
 }
 
@@ -140,7 +140,7 @@ Result<Vector3> Vector3::normalized() const {
         return Result<Vector3>::failure(
             invalid_math_input("A Vector3 must contain only finite values"));
     }
-    const auto unit = Storm::Math::normalized(
+    const auto unit = normalize_double(
         to_double(*this),
         "A Vector3 must have non-zero finite magnitude");
     if (!unit) {
@@ -360,28 +360,28 @@ Result<Matrix4> Matrix4::look_at_rh(
     const DoubleVector3 target_value = to_double(target);
     const DoubleVector3 up_value = to_double(up);
     const auto backward = Storm::Math::normalized(
-        subtract(eye_value, target_value),
+        subtract_double(eye_value, target_value),
         "Look-at eye and target must not coincide");
     if (!backward) {
         return Result<Matrix4>::failure(backward.error());
     }
 
     const auto right = Storm::Math::normalized(
-        cross(up_value, backward.value()),
+        cross_double(up_value, backward.value()),
         "Look-at up vector must not be parallel to the view direction");
     if (!right) {
         return Result<Matrix4>::failure(right.error());
     }
 
-    const DoubleVector3 corrected_up = cross(backward.value(), right.value());
+    const DoubleVector3 corrected_up = cross_double(backward.value(), right.value());
     const DoubleVector3 x_axis = right.value();
     const DoubleVector3 y_axis = corrected_up;
     const DoubleVector3 z_axis = backward.value();
 
     const std::array<double, 12U> coefficients{
-        x_axis.x, x_axis.y, x_axis.z, -dot(x_axis, eye_value),
-        y_axis.x, y_axis.y, y_axis.z, -dot(y_axis, eye_value),
-        z_axis.x, z_axis.y, z_axis.z, -dot(z_axis, eye_value),
+        x_axis.x, x_axis.y, x_axis.z, -dot_double(x_axis, eye_value),
+        y_axis.x, y_axis.y, y_axis.z, -dot_double(y_axis, eye_value),
+        z_axis.x, z_axis.y, z_axis.z, -dot_double(z_axis, eye_value),
     };
     for (const double coefficient : coefficients) {
         if (!is_representable_float(coefficient)) {
