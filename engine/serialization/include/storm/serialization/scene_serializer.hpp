@@ -2,6 +2,7 @@
 
 #include "storm/core/scene.hpp"
 #include "storm/math/transform1d.hpp"
+#include "storm/math/transform2d.hpp"
 #include "storm/math/transform3d.hpp"
 #include "storm/serialization/binary_archive.hpp"
 
@@ -142,6 +143,45 @@ struct ComponentCodec<Math::Transform1D> final {
                 "The archived Transform1D position must be finite"));
         }
         return Result<Math::Transform1D>::success(value);
+    }
+};
+
+
+template <>
+struct ComponentCodec<Math::Transform2D> final {
+    static constexpr std::string_view type_id{"storm.math.transform2d"};
+    static constexpr std::uint32_t schema_version{1U};
+    [[nodiscard]] static Result<void> encode(
+        const Math::Transform2D& value, BinaryWriter& writer) {
+        const auto valid = value.to_matrix();
+        if (!valid) return Result<void>::failure(valid.error());
+        const std::array<float, 5U> fields{
+            value.translation.x, value.translation.y, value.rotation_radians,
+            value.scale.x, value.scale.y};
+        for (float field : fields) {
+            const auto result = writer.write_f32(field);
+            if (!result) return result;
+        }
+        return Result<void>::success();
+    }
+    [[nodiscard]] static Result<Math::Transform2D> decode(
+        std::uint32_t version, BinaryReader& reader) {
+        if (version != schema_version) return Result<Math::Transform2D>::failure(
+            Error::make(ErrorCode::Unsupported,
+                "The Transform2D component schema version is unsupported"));
+        std::array<float, 5U> fields{};
+        for (float& field : fields) {
+            const auto result = reader.read_f32();
+            if (!result) return Result<Math::Transform2D>::failure(result.error());
+            field = result.value();
+        }
+        Math::Transform2D value{
+            .translation = {fields[0U], fields[1U]},
+            .rotation_radians = fields[2U],
+            .scale = {fields[3U], fields[4U]}};
+        const auto valid = value.to_matrix();
+        if (!valid) return Result<Math::Transform2D>::failure(valid.error());
+        return Result<Math::Transform2D>::success(value);
     }
 };
 

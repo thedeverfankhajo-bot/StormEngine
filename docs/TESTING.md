@@ -154,6 +154,15 @@ The host suite contains 176 named test cases across fifteen CTest executables. A
 
 These are host-side tests. The Android and iOS lifecycle cases test platform-neutral event policies; they do not invoke Android framework or UIKit callbacks. The GameLoop tests do not exercise an Android/iOS clock, native lifecycle gate, GPU, or physical device.
 
+## Transform2D vertical-slice coverage
+
+This change registers two additional CTest executables (11 named cases total):
+
+- `stormengine_transform2d_tests` (8 cases): Matrix3 identity and bounds; translation, counter-clockwise rotation and T*R*S order; finite-value validation; Scene local/world transforms; parent rotation/scale and identity grouping; stale/foreign entity rejection; corrupt component rejection; hierarchy overflow; iterative deep-chain and Scene-move behavior; independent coexistence with Transform3D.
+- `stormengine_transform2d_serialization_tests` (3 cases): Transform2D Scene round-trip; invalid component rejection during encoding; malformed numeric payload and unsupported schema rejection.
+
+These are host tests. Android arm64-v8a and iOS device arm64 target builds compile the Math, Core, and Serialization implementation, but do not run host test executables or verify physical-device behavior. Check the introducing commit's CI run before reporting these cases as passed.
+
 ## Local host workflow
 
 With CMake 3.24+, Ninja, and a C++20 compiler installed:

@@ -14,7 +14,7 @@ Implemented contracts:
 - Stale/foreign entity rejection and malformed stored-transform diagnostics.
 - Iterative ancestry evaluation, avoiding recursive call-stack growth for deep hierarchies.
 
-This is not a full spatial, rendering, physics, or editor system. There is no transform cache, dirty propagation, 2D-specific API, scalar 1D transform, camera, renderer, or serialization yet.
+This is not a full spatial, rendering, physics, or editor system. There is no transform cache, dirty propagation, scalar 1D transform integration, camera, renderer, or editor integration. The independent planar API is documented in [2D Transform System](TRANSFORM-2D-SYSTEM.md); it is not implemented by this 3D system.
 
 ## Math convention
 

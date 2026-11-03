@@ -29,4 +29,11 @@ SceneSerializer::deserialize<Math::Transform3D>(
     std::span<const std::byte> archive,
     const SceneArchiveLimits& limits);
 
+template Result<std::vector<std::byte>>
+SceneSerializer::serialize<Math::Transform2D>(
+    const Scene& scene, const SceneArchiveLimits& limits);
+template Result<Scene>
+SceneSerializer::deserialize<Math::Transform2D>(
+    std::span<const std::byte> archive, const SceneArchiveLimits& limits);
+
 } // namespace Storm::Serialization

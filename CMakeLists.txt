@@ -52,6 +52,7 @@ target_compile_features(storm_foundation PUBLIC cxx_std_20)
 stormengine_apply_warnings(storm_foundation)
 
 add_library(storm_math STATIC
+    engine/math/src/transform2d.cpp
     engine/math/src/transform3d.cpp
 )
 add_library(Storm::Math ALIAS storm_math)
@@ -93,6 +94,7 @@ add_library(storm_core STATIC
     engine/core/src/game_loop.cpp
     engine/core/src/scene.cpp
     engine/core/src/transform_system.cpp
+    engine/core/src/transform_system_2d.cpp
 )
 add_library(Storm::Core ALIAS storm_core)
 target_include_directories(storm_core
@@ -360,6 +362,20 @@ if(STORMENGINE_BUILD_TESTS)
         target_compile_features(stormengine_one_d_scene_tests PRIVATE cxx_std_20)
         stormengine_apply_warnings(stormengine_one_d_scene_tests)
         add_test(NAME stormengine_one_d_scene_tests COMMAND stormengine_one_d_scene_tests)
+
+        add_executable(stormengine_transform2d_tests tests/transform2d_tests.cpp)
+        target_link_libraries(stormengine_transform2d_tests PRIVATE Storm::Core)
+        target_compile_features(stormengine_transform2d_tests PRIVATE cxx_std_20)
+        stormengine_apply_warnings(stormengine_transform2d_tests)
+        add_test(NAME stormengine_transform2d_tests COMMAND stormengine_transform2d_tests)
+
+        add_executable(stormengine_transform2d_serialization_tests
+            tests/transform2d_serialization_tests.cpp)
+        target_link_libraries(stormengine_transform2d_serialization_tests PRIVATE Storm::Serialization)
+        target_compile_features(stormengine_transform2d_serialization_tests PRIVATE cxx_std_20)
+        stormengine_apply_warnings(stormengine_transform2d_serialization_tests)
+        add_test(NAME stormengine_transform2d_serialization_tests
+            COMMAND stormengine_transform2d_serialization_tests)
 
         add_executable(stormengine_touch_input_tests
             tests/touch_input_tests.cpp
