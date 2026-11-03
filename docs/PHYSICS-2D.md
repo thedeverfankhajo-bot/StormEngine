@@ -12,8 +12,9 @@ contact output, and deterministic body-slot ordering.
 This is an initial physics slice, not a complete 2D engine. It does not yet
 provide capsule/polygon/edge colliders, rotation or angular velocity, joints,
 sleeping, continuous collision detection, overlap/raycast queries, persistent
-Begin/Stay/End events, Scene integration, rendering, or device-runtime
-verification.
+Begin/Stay/End events, rendering, or device-runtime verification. The optional
+Storm::PhysicsScene2D bridge supplies the initial Scene integration described
+below; it does not add missing collision or rendering features.
 
 ## Coordinates and body behavior
 
@@ -82,11 +83,35 @@ Body handles contain a process-unique world ID, slot index, and generation;
 stale and foreign handles are rejected. Slots at generation exhaustion are
 retired instead of wrapping.
 
+## Scene integration
+
+The optional Storm::PhysicsScene2D target connects the independent world to
+Scene entities without making Core depend on physics. Each attached entity must
+be alive, unparented, and own a finite Transform2D. Its local
+Transform2D::translation is authoritative when the body is attached; the body
+definition's initial position is ignored. Successful steps synchronize the
+body's position back to translation while preserving rotation and scale.
+
+The bridge intentionally does not perform parent-space conversion. Parenting a
+bound entity is rejected before the physics world advances. The current physics
+world has no angular dynamics or rotated colliders, so Transform2D rotation and
+scale do not alter collider geometry. Scene translation is stored as float,
+while simulation state is double; the bridge rejects coordinate limits that
+cannot be represented by finite Transform2D values. The bridge and Scene
+structural mutations are single-thread-affine. Destroyed entities and removed
+Transform2D components are retired on the next adapter step invocation.
+Removing and re-adding Transform2D between steps is not observable; detach
+explicitly before replacing the component.
+
+See ADR-0012 for the integration decision and explicit limitations.
+
 ## Validation boundary
 
 The host test executable covers handle lifetime, validation, integration,
 circle and box collision response, friction, triggers, filtering, spatial-hash
 candidate reduction, configured resource limits, and transactional failure.
-Android arm64-v8a and iOS device arm64 builds compile this same platform-neutral
-target. Cross-compilation is not device-runtime verification. There is no
-2D gameplay sample, native renderer, or physical-device physics validation yet.
+The host Physics2D suite covers the world contract; the separate Scene adapter
+has its own integration tests. Android arm64-v8a and iOS device arm64 builds
+compile both platform-neutral targets. Cross-compilation is not device-runtime
+verification. There is no 2D gameplay sample, native renderer, or
+physical-device physics validation yet.

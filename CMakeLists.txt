@@ -176,6 +176,24 @@ target_link_libraries(storm_physics_scene1d
 target_compile_features(storm_physics_scene1d PUBLIC cxx_std_20)
 stormengine_apply_warnings(storm_physics_scene1d)
 
+# Optional bridge: Physics2D remains independent from Core and Scene.
+add_library(storm_physics_scene2d STATIC
+    engine/physics/src/two_d_scene.cpp
+)
+add_library(Storm::PhysicsScene2D ALIAS storm_physics_scene2d)
+target_include_directories(storm_physics_scene2d
+    PUBLIC
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/engine/physics/include>
+)
+target_link_libraries(storm_physics_scene2d
+    PUBLIC
+        Storm::Physics2D
+        Storm::Core
+        Storm::Math
+)
+target_compile_features(storm_physics_scene2d PUBLIC cxx_std_20)
+stormengine_apply_warnings(storm_physics_scene2d)
+
 if(CMAKE_SYSTEM_NAME STREQUAL "iOS")
     find_library(STORMENGINE_UIKIT_FRAMEWORK UIKit REQUIRED)
 
@@ -382,6 +400,14 @@ if(STORMENGINE_BUILD_TESTS)
         target_compile_features(stormengine_one_d_scene_tests PRIVATE cxx_std_20)
         stormengine_apply_warnings(stormengine_one_d_scene_tests)
         add_test(NAME stormengine_one_d_scene_tests COMMAND stormengine_one_d_scene_tests)
+
+        add_executable(stormengine_two_d_scene_tests
+            tests/two_d_scene_tests.cpp
+        )
+        target_link_libraries(stormengine_two_d_scene_tests PRIVATE Storm::PhysicsScene2D)
+        target_compile_features(stormengine_two_d_scene_tests PRIVATE cxx_std_20)
+        stormengine_apply_warnings(stormengine_two_d_scene_tests)
+        add_test(NAME stormengine_two_d_scene_tests COMMAND stormengine_two_d_scene_tests)
 
         add_executable(stormengine_transform2d_tests tests/transform2d_tests.cpp)
         target_link_libraries(stormengine_transform2d_tests PRIVATE Storm::Core)

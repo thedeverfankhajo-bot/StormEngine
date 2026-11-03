@@ -2,7 +2,7 @@
 
 ## Current automated coverage
 
-The host suite currently contains eighteen CTest executables. All eighteen executables passed in the GCC, Clang, Clang ASan/UBSan, and Apple Clang host jobs in [CI run 41610785631](https://github.com/thedeverfankhajo-bot/StormEngine/actions/runs/41610785631). The dedicated Physics2D executable adds sixteen named test cases. The full C++ host suite is run by the GCC, Clang, Clang ASan/UBSan, and Apple Clang jobs in [Foundation CI](https://github.com/thedeverfankhajo-bot/StormEngine/actions/workflows/foundation-ci.yml):
+The host suite currently contains nineteen CTest executables. All eighteen executables passed in the GCC, Clang, Clang ASan/UBSan, and Apple Clang host jobs in [CI run 41610785631](https://github.com/thedeverfankhajo-bot/StormEngine/actions/runs/41610785631). The dedicated Physics2D executable adds sixteen named test cases. The full C++ host suite is run by the GCC, Clang, Clang ASan/UBSan, and Apple Clang jobs in [Foundation CI](https://github.com/thedeverfankhajo-bot/StormEngine/actions/workflows/foundation-ci.yml):
 
 - stormengine_foundation_tests (11 cases):
   - Success and failure paths for typed Result<T> values.
@@ -297,3 +297,29 @@ APK assembly and native-library packaging checks also passed; the iOS job
 produced the repository's unsigned app bundle. These are host tests, target
 builds, and package checks only; they do not verify a renderer, native input,
 Scene integration, or physical-device runtime behavior.
+
+
+## PhysicsScene2D Scene-adapter coverage
+
+The new stormengine_two_d_scene_tests executable adds eleven named
+integration cases for:
+
+- Requiring a live unparented entity with a finite Transform2D.
+- Treating Scene translation as authoritative on body attachment.
+- Synchronizing fixed-step body positions while preserving rotation and scale.
+- Teleport, velocity, force, and impulse operations.
+- Entity/body handle lookup and explicit detach.
+- Cleanup after entity destruction or Transform2D removal.
+- Rejection of foreign Scenes and stale entities.
+- Preserving Scene and body state after an invalid physics step.
+- Rejecting parented entities before simulation state can advance.
+- Preserving bindings through Scene and adapter move operations.
+- Rejecting coordinate limits that cannot fit finite Transform2D values.
+
+The adapter is a separate Storm::PhysicsScene2D CMake library; Core and the
+standalone Physics2D world do not depend on it. The Android arm64-v8a and iOS
+device arm64 CI jobs build and verify its static library. These checks remain
+host integration tests and target cross-compilation, not physical-device
+runtime verification. The adapter maps only local translation; it does not
+synchronize parent transforms, apply rotation/scale to colliders, or provide
+angular physics.
