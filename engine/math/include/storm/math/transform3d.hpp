@@ -13,6 +13,11 @@ struct Vector3 final {
     float z{0.0F};
 
     [[nodiscard]] bool is_finite() const noexcept;
+    [[nodiscard]] double length_squared() const noexcept;
+    [[nodiscard]] double length() const noexcept;
+    [[nodiscard]] double dot(Vector3 other) const noexcept;
+    [[nodiscard]] Result<Vector3> cross(Vector3 other) const;
+    [[nodiscard]] Result<Vector3> normalized() const;
 };
 
 struct Quaternion final {
@@ -32,11 +37,35 @@ struct Quaternion final {
 
 // A 4x4 matrix using column-major storage and column-vector multiplication.
 // at(row, column) is bounds-checked and throws std::out_of_range on invalid indices.
+// Camera constructors use a right-handed view space looking down -Z and a [0, 1]
+// normalized device depth interval (near -> 0, far -> 1).
 class Matrix4 final {
 public:
     [[nodiscard]] static Matrix4 identity() noexcept;
     [[nodiscard]] float at(std::size_t row, std::size_t column) const;
     [[nodiscard]] bool is_finite() const noexcept;
+
+    [[nodiscard]] static Result<Matrix4> perspective_rh_zo(
+        float vertical_fov_radians,
+        float aspect_ratio,
+        float near_plane,
+        float far_plane);
+
+    [[nodiscard]] static Result<Matrix4> orthographic_rh_zo(
+        float left,
+        float right,
+        float bottom,
+        float top,
+        float near_plane,
+        float far_plane);
+
+    [[nodiscard]] static Result<Matrix4> look_at_rh(
+        Vector3 eye,
+        Vector3 target,
+        Vector3 up);
+
+    [[nodiscard]] Result<Vector3> transform_point(Vector3 point) const;
+    [[nodiscard]] Result<Vector3> transform_direction(Vector3 direction) const;
 
     friend Matrix4 operator*(
         const Matrix4& lhs,

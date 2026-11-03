@@ -39,6 +39,43 @@ namespace {
     return std::nullopt;
 }
 
+[[nodiscard]] std::optional<std::string> test_vector3_operations_validate_numeric_range() {
+    const Storm::Math::Vector3 lhs{1.0F, 2.0F, 3.0F};
+    const Storm::Math::Vector3 rhs{4.0F, -5.0F, 6.0F};
+
+    EXPECT(nearly_equal(static_cast<float>(lhs.dot(rhs)), 12.0F));
+    const auto cross = lhs.cross(rhs);
+    EXPECT(cross);
+    EXPECT(nearly_equal(cross.value().x, 27.0F));
+    EXPECT(nearly_equal(cross.value().y, 6.0F));
+    EXPECT(nearly_equal(cross.value().z, -13.0F));
+
+    const auto normalized = Storm::Math::Vector3{0.0F, 3.0F, 4.0F}.normalized();
+    EXPECT(normalized);
+    EXPECT(nearly_equal(normalized.value().x, 0.0F));
+    EXPECT(nearly_equal(normalized.value().y, 0.6F));
+    EXPECT(nearly_equal(normalized.value().z, 0.8F));
+    EXPECT(nearly_equal(
+        static_cast<float>(Storm::Math::Vector3{3.0F, 4.0F, 0.0F}.length()),
+        5.0F));
+    return std::nullopt;
+}
+
+[[nodiscard]] std::optional<std::string> test_vector3_rejects_zero_non_finite_and_overflow() {
+    EXPECT(!Storm::Math::Vector3{}.normalized());
+    EXPECT(!Storm::Math::Vector3{
+        std::numeric_limits<float>::quiet_NaN(), 1.0F, 0.0F}.normalized());
+    const auto overflow = Storm::Math::Vector3{
+        std::numeric_limits<float>::max(),
+        std::numeric_limits<float>::max(),
+        0.0F}.cross(Storm::Math::Vector3{
+            -std::numeric_limits<float>::max(),
+            std::numeric_limits<float>::max(),
+            0.0F});
+    EXPECT(!overflow);
+    return std::nullopt;
+}
+
 [[nodiscard]] std::optional<std::string> test_identity_quaternion_normalizes() {
     const auto normalized = Storm::Math::Quaternion::identity().normalized();
     EXPECT(normalized);
@@ -149,6 +186,103 @@ namespace {
     return std::nullopt;
 }
 
+[[nodiscard]] std::optional<std::string> test_perspective_rh_zero_to_one_projection() {
+    const auto projection = Storm::Math::Matrix4::perspective_rh_zo(
+        1.57079632679F, 1.0F, 1.0F, 10.0F);
+    EXPECT(projection);
+    EXPECT(projection.value().is_finite());
+    EXPECT(nearly_equal(projection.value().at(0U, 0U), 1.0F));
+    EXPECT(nearly_equal(projection.value().at(1U, 1U), 1.0F));
+    EXPECT(nearly_equal(projection.value().at(2U, 2U), -10.0F / 9.0F));
+    EXPECT(nearly_equal(projection.value().at(2U, 3U), -10.0F / 9.0F));
+    EXPECT(nearly_equal(projection.value().at(3U, 2U), -1.0F));
+
+    const auto near_point = projection.value().transform_point({0.0F, 0.0F, -1.0F});
+    const auto far_point = projection.value().transform_point({0.0F, 0.0F, -10.0F});
+    EXPECT(near_point);
+    EXPECT(far_point);
+    EXPECT(nearly_equal(near_point.value().z, 0.0F));
+    EXPECT(nearly_equal(far_point.value().z, 1.0F));
+    return std::nullopt;
+}
+
+[[nodiscard]] std::optional<std::string> test_orthographic_rh_zero_to_one_projection() {
+    const auto projection = Storm::Math::Matrix4::orthographic_rh_zo(
+        -2.0F, 2.0F, -1.0F, 1.0F, 1.0F, 11.0F);
+    EXPECT(projection);
+    EXPECT(projection.value().is_finite());
+    const auto near_corner = projection.value().transform_point({2.0F, 1.0F, -1.0F});
+    const auto far_center = projection.value().transform_point({0.0F, 0.0F, -11.0F});
+    EXPECT(near_corner);
+    EXPECT(far_center);
+    EXPECT(nearly_equal(near_corner.value().x, 1.0F));
+    EXPECT(nearly_equal(near_corner.value().y, 1.0F));
+    EXPECT(nearly_equal(near_corner.value().z, 0.0F));
+    EXPECT(nearly_equal(far_center.value().z, 1.0F));
+    return std::nullopt;
+}
+
+[[nodiscard]] std::optional<std::string> test_look_at_rh_builds_orthonormal_view() {
+    const auto view = Storm::Math::Matrix4::look_at_rh(
+        {1.0F, 2.0F, 3.0F},
+        {1.0F, 2.0F, 2.0F},
+        {0.0F, 1.0F, 0.0F});
+    EXPECT(view);
+    const auto eye = view.value().transform_point({1.0F, 2.0F, 3.0F});
+    const auto target = view.value().transform_point({1.0F, 2.0F, 2.0F});
+    EXPECT(eye);
+    EXPECT(target);
+    EXPECT(nearly_equal(eye.value().x, 0.0F));
+    EXPECT(nearly_equal(eye.value().y, 0.0F));
+    EXPECT(nearly_equal(eye.value().z, 0.0F));
+    EXPECT(nearly_equal(target.value().z, -1.0F));
+    return std::nullopt;
+}
+
+[[nodiscard]] std::optional<std::string> test_camera_matrices_reject_invalid_or_unrepresentable_inputs() {
+    EXPECT(!Storm::Math::Matrix4::perspective_rh_zo(
+        0.0F, 1.0F, 0.1F, 100.0F));
+    EXPECT(!Storm::Math::Matrix4::perspective_rh_zo(
+        1.0F, 0.0F, 0.1F, 100.0F));
+    EXPECT(!Storm::Math::Matrix4::perspective_rh_zo(
+        1.0F, 1.0F, 0.1F, 0.1F));
+    EXPECT(!Storm::Math::Matrix4::perspective_rh_zo(
+        1.0F, std::numeric_limits<float>::denorm_min(), 0.1F, 100.0F));
+    EXPECT(!Storm::Math::Matrix4::orthographic_rh_zo(
+        1.0F, 1.0F, -1.0F, 1.0F, 0.1F, 10.0F));
+    EXPECT(!Storm::Math::Matrix4::orthographic_rh_zo(
+        -1.0F, 1.0F, -1.0F, 1.0F, 10.0F, 1.0F));
+    EXPECT(!Storm::Math::Matrix4::look_at_rh(
+        {1.0F, 2.0F, 3.0F}, {1.0F, 2.0F, 3.0F}, {0.0F, 1.0F, 0.0F}));
+    EXPECT(!Storm::Math::Matrix4::look_at_rh(
+        {0.0F, 0.0F, 0.0F}, {0.0F, 0.0F, -1.0F}, {0.0F, 0.0F, -2.0F}));
+    return std::nullopt;
+}
+
+[[nodiscard]] std::optional<std::string> test_transform_point_and_direction_are_distinct() {
+    const Storm::Math::Transform3D transform{
+        .translation = {4.0F, 5.0F, 6.0F},
+    };
+    const auto matrix = transform.to_matrix();
+    EXPECT(matrix);
+    const auto point = matrix.value().transform_point({1.0F, 2.0F, 3.0F});
+    const auto direction = matrix.value().transform_direction({1.0F, 2.0F, 3.0F});
+    EXPECT(point);
+    EXPECT(direction);
+    EXPECT(nearly_equal(point.value().x, 5.0F));
+    EXPECT(nearly_equal(point.value().y, 7.0F));
+    EXPECT(nearly_equal(point.value().z, 9.0F));
+    EXPECT(nearly_equal(direction.value().x, 1.0F));
+    EXPECT(nearly_equal(direction.value().y, 2.0F));
+    EXPECT(nearly_equal(direction.value().z, 3.0F));
+
+    const auto zero_w = Storm::Math::Matrix4::perspective_rh_zo(
+        1.0F, 1.0F, 0.1F, 100.0F);
+    EXPECT(zero_w);
+    EXPECT(!zero_w.value().transform_point({1.0F, 2.0F, 0.0F}));
+    return std::nullopt;
+}
+
 [[nodiscard]] std::optional<std::string> test_matrix_accessor_checks_bounds() {
     const auto identity = Storm::Math::Matrix4::identity();
     bool threw = false;
@@ -171,6 +305,8 @@ struct TestCase final {
 int main() {
     constexpr std::array tests{
         TestCase{"vector_and_matrix_finiteness", &test_vector_and_matrix_finiteness},
+        TestCase{"vector3_operations_validate_numeric_range", &test_vector3_operations_validate_numeric_range},
+        TestCase{"vector3_rejects_zero_non_finite_and_overflow", &test_vector3_rejects_zero_non_finite_and_overflow},
         TestCase{"identity_quaternion_normalizes", &test_identity_quaternion_normalizes},
         TestCase{"quaternion_normalization", &test_quaternion_normalization},
         TestCase{"zero_quaternion_is_rejected", &test_zero_quaternion_is_rejected},
@@ -179,6 +315,11 @@ int main() {
         TestCase{"transform_translation_and_scale", &test_transform_translation_and_scale},
         TestCase{"transform_uses_scale_then_rotation", &test_transform_uses_scale_then_rotation},
         TestCase{"matrix_multiplication_composes_parent_before_local", &test_matrix_multiplication_composes_parent_before_local},
+        TestCase{"perspective_rh_zero_to_one_projection", &test_perspective_rh_zero_to_one_projection},
+        TestCase{"orthographic_rh_zero_to_one_projection", &test_orthographic_rh_zero_to_one_projection},
+        TestCase{"look_at_rh_builds_orthonormal_view", &test_look_at_rh_builds_orthonormal_view},
+        TestCase{"camera_matrices_reject_invalid_or_unrepresentable_inputs", &test_camera_matrices_reject_invalid_or_unrepresentable_inputs},
+        TestCase{"transform_point_and_direction_are_distinct", &test_transform_point_and_direction_are_distinct},
         TestCase{"matrix_accessor_checks_bounds", &test_matrix_accessor_checks_bounds},
     };
 

@@ -9,15 +9,146 @@ namespace Storm::Math {
 namespace {
 
 constexpr double kMinimumMagnitudeSquared = 1.0e-24;
+constexpr double kMinimumHomogeneousMagnitude = 1.0e-12;
+constexpr double kPi = 3.14159265358979323846264338327950288;
+
+struct DoubleVector3 final {
+    double x{0.0};
+    double y{0.0};
+    double z{0.0};
+};
 
 [[nodiscard]] Error invalid_math_input(const char* message) {
     return Error::make(ErrorCode::InvalidArgument, message);
+}
+
+[[nodiscard]] bool is_representable_float(double value) noexcept {
+    constexpr double maximum =
+        static_cast<double>(std::numeric_limits<float>::max());
+    return std::isfinite(value) && value <= maximum && value >= -maximum;
+}
+
+[[nodiscard]] Result<float> narrow_finite_float(
+    double value,
+    const char* error_message) {
+    if (!is_representable_float(value)) {
+        return Result<float>::failure(invalid_math_input(error_message));
+    }
+    return Result<float>::success(static_cast<float>(value));
+}
+
+[[nodiscard]] DoubleVector3 to_double(Vector3 value) noexcept {
+    return DoubleVector3{
+        static_cast<double>(value.x),
+        static_cast<double>(value.y),
+        static_cast<double>(value.z),
+    };
+}
+
+[[nodiscard]] double dot(DoubleVector3 lhs, DoubleVector3 rhs) noexcept {
+    return (lhs.x * rhs.x) + (lhs.y * rhs.y) + (lhs.z * rhs.z);
+}
+
+[[nodiscard]] DoubleVector3 subtract(
+    DoubleVector3 lhs,
+    DoubleVector3 rhs) noexcept {
+    return DoubleVector3{lhs.x - rhs.x, lhs.y - rhs.y, lhs.z - rhs.z};
+}
+
+[[nodiscard]] DoubleVector3 cross(
+    DoubleVector3 lhs,
+    DoubleVector3 rhs) noexcept {
+    return DoubleVector3{
+        (lhs.y * rhs.z) - (lhs.z * rhs.y),
+        (lhs.z * rhs.x) - (lhs.x * rhs.z),
+        (lhs.x * rhs.y) - (lhs.y * rhs.x),
+    };
+}
+
+[[nodiscard]] Result<DoubleVector3> normalized(
+    DoubleVector3 value,
+    const char* error_message) {
+    const double magnitude_squared = dot(value, value);
+    if (!std::isfinite(magnitude_squared) ||
+        magnitude_squared <= kMinimumMagnitudeSquared) {
+        return Result<DoubleVector3>::failure(invalid_math_input(error_message));
+    }
+
+    const double inverse_magnitude = 1.0 / std::sqrt(magnitude_squared);
+    const DoubleVector3 result{
+        value.x * inverse_magnitude,
+        value.y * inverse_magnitude,
+        value.z * inverse_magnitude,
+    };
+    if (!std::isfinite(result.x) ||
+        !std::isfinite(result.y) ||
+        !std::isfinite(result.z)) {
+        return Result<DoubleVector3>::failure(invalid_math_input(error_message));
+    }
+    return Result<DoubleVector3>::success(result);
+}
+
+[[nodiscard]] Result<Vector3> narrow_vector(
+    DoubleVector3 value,
+    const char* error_message) {
+    const auto x = narrow_finite_float(value.x, error_message);
+    const auto y = narrow_finite_float(value.y, error_message);
+    const auto z = narrow_finite_float(value.z, error_message);
+    if (!x) {
+        return Result<Vector3>::failure(x.error());
+    }
+    if (!y) {
+        return Result<Vector3>::failure(y.error());
+    }
+    if (!z) {
+        return Result<Vector3>::failure(z.error());
+    }
+    return Result<Vector3>::success(Vector3{x.value(), y.value(), z.value()});
 }
 
 } // namespace
 
 bool Vector3::is_finite() const noexcept {
     return std::isfinite(x) && std::isfinite(y) && std::isfinite(z);
+}
+
+double Vector3::length_squared() const noexcept {
+    const DoubleVector3 value = to_double(*this);
+    return dot(value, value);
+}
+
+double Vector3::length() const noexcept {
+    return std::sqrt(length_squared());
+}
+
+double Vector3::dot(Vector3 other) const noexcept {
+    return Storm::Math::dot(to_double(*this), to_double(other));
+}
+
+Result<Vector3> Vector3::cross(Vector3 other) const {
+    if (!is_finite() || !other.is_finite()) {
+        return Result<Vector3>::failure(
+            invalid_math_input("Vector3 cross-product inputs must be finite"));
+    }
+    return narrow_vector(
+        Storm::Math::cross(to_double(*this), to_double(other)),
+        "Vector3 cross product exceeds the representable numeric range");
+}
+
+Result<Vector3> Vector3::normalized() const {
+    if (!is_finite()) {
+        return Result<Vector3>::failure(
+            invalid_math_input("A Vector3 must contain only finite values"));
+    }
+    const auto unit = Storm::Math::normalized(
+        to_double(*this),
+        "A Vector3 must have non-zero finite magnitude");
+    if (!unit) {
+        return Result<Vector3>::failure(unit.error());
+    }
+    return narrow_vector(
+        unit.value(),
+        "Normalized Vector3 exceeds the representable numeric range");
 }
 
 Quaternion Quaternion::identity() noexcept {
@@ -109,6 +240,240 @@ bool Matrix4::is_finite() const noexcept {
         values_.begin(),
         values_.end(),
         [](float value) { return std::isfinite(value); });
+}
+
+Result<Matrix4> Matrix4::perspective_rh_zo(
+    float vertical_fov_radians,
+    float aspect_ratio,
+    float near_plane,
+    float far_plane) {
+    if (!std::isfinite(vertical_fov_radians) ||
+        !std::isfinite(aspect_ratio) ||
+        !std::isfinite(near_plane) ||
+        !std::isfinite(far_plane) ||
+        vertical_fov_radians <= 0.0F ||
+        static_cast<double>(vertical_fov_radians) >= kPi ||
+        aspect_ratio <= 0.0F ||
+        near_plane <= 0.0F ||
+        far_plane <= near_plane) {
+        return Result<Matrix4>::failure(invalid_math_input(
+            "Perspective requires 0 < vertical FOV < pi, positive aspect and near, and far > near"));
+    }
+
+    const double half_fov =
+        static_cast<double>(vertical_fov_radians) * 0.5;
+    const double tangent = std::tan(half_fov);
+    if (!std::isfinite(tangent) || tangent <= 0.0) {
+        return Result<Matrix4>::failure(invalid_math_input(
+            "Perspective field of view produces an invalid tangent"));
+    }
+
+    const double focal_length = 1.0 / tangent;
+    const double aspect = static_cast<double>(aspect_ratio);
+    const double near_value = static_cast<double>(near_plane);
+    const double far_value = static_cast<double>(far_plane);
+    const double depth_range = near_value - far_value;
+
+    const std::array<double, 5U> coefficients{
+        focal_length / aspect,
+        focal_length,
+        far_value / depth_range,
+        (far_value * near_value) / depth_range,
+        -1.0,
+    };
+    for (const double coefficient : coefficients) {
+        if (!is_representable_float(coefficient)) {
+            return Result<Matrix4>::failure(invalid_math_input(
+                "Perspective projection exceeds the representable matrix range"));
+        }
+    }
+
+    Matrix4 matrix;
+    matrix.values_[0U] = static_cast<float>(coefficients[0U]);
+    matrix.values_[5U] = static_cast<float>(coefficients[1U]);
+    matrix.values_[10U] = static_cast<float>(coefficients[2U]);
+    matrix.values_[14U] = static_cast<float>(coefficients[3U]);
+    matrix.values_[11U] = static_cast<float>(coefficients[4U]);
+    return Result<Matrix4>::success(matrix);
+}
+
+Result<Matrix4> Matrix4::orthographic_rh_zo(
+    float left,
+    float right,
+    float bottom,
+    float top,
+    float near_plane,
+    float far_plane) {
+    if (!std::isfinite(left) || !std::isfinite(right) ||
+        !std::isfinite(bottom) || !std::isfinite(top) ||
+        !std::isfinite(near_plane) || !std::isfinite(far_plane) ||
+        right <= left || top <= bottom ||
+        near_plane <= 0.0F || far_plane <= near_plane) {
+        return Result<Matrix4>::failure(invalid_math_input(
+            "Orthographic projection requires ordered finite bounds and 0 < near < far"));
+    }
+
+    const double horizontal_range =
+        static_cast<double>(right) - static_cast<double>(left);
+    const double vertical_range =
+        static_cast<double>(top) - static_cast<double>(bottom);
+    const double depth_range =
+        static_cast<double>(near_plane) - static_cast<double>(far_plane);
+
+    const std::array<double, 6U> coefficients{
+        2.0 / horizontal_range,
+        2.0 / vertical_range,
+        1.0 / depth_range,
+        -(static_cast<double>(right) + static_cast<double>(left)) /
+            horizontal_range,
+        -(static_cast<double>(top) + static_cast<double>(bottom)) /
+            vertical_range,
+        static_cast<double>(near_plane) / depth_range,
+    };
+    for (const double coefficient : coefficients) {
+        if (!is_representable_float(coefficient)) {
+            return Result<Matrix4>::failure(invalid_math_input(
+                "Orthographic projection exceeds the representable matrix range"));
+        }
+    }
+
+    Matrix4 matrix = Matrix4::identity();
+    matrix.values_[0U] = static_cast<float>(coefficients[0U]);
+    matrix.values_[5U] = static_cast<float>(coefficients[1U]);
+    matrix.values_[10U] = static_cast<float>(coefficients[2U]);
+    matrix.values_[12U] = static_cast<float>(coefficients[3U]);
+    matrix.values_[13U] = static_cast<float>(coefficients[4U]);
+    matrix.values_[14U] = static_cast<float>(coefficients[5U]);
+    return Result<Matrix4>::success(matrix);
+}
+
+Result<Matrix4> Matrix4::look_at_rh(
+    Vector3 eye,
+    Vector3 target,
+    Vector3 up) {
+    if (!eye.is_finite() || !target.is_finite() || !up.is_finite()) {
+        return Result<Matrix4>::failure(invalid_math_input(
+            "Look-at eye, target, and up vectors must be finite"));
+    }
+
+    const DoubleVector3 eye_value = to_double(eye);
+    const DoubleVector3 target_value = to_double(target);
+    const DoubleVector3 up_value = to_double(up);
+    const auto backward = Storm::Math::normalized(
+        subtract(eye_value, target_value),
+        "Look-at eye and target must not coincide");
+    if (!backward) {
+        return Result<Matrix4>::failure(backward.error());
+    }
+
+    const auto right = Storm::Math::normalized(
+        cross(up_value, backward.value()),
+        "Look-at up vector must not be parallel to the view direction");
+    if (!right) {
+        return Result<Matrix4>::failure(right.error());
+    }
+
+    const DoubleVector3 corrected_up = cross(backward.value(), right.value());
+    const DoubleVector3 x_axis = right.value();
+    const DoubleVector3 y_axis = corrected_up;
+    const DoubleVector3 z_axis = backward.value();
+
+    const std::array<double, 12U> coefficients{
+        x_axis.x, x_axis.y, x_axis.z, -dot(x_axis, eye_value),
+        y_axis.x, y_axis.y, y_axis.z, -dot(y_axis, eye_value),
+        z_axis.x, z_axis.y, z_axis.z, -dot(z_axis, eye_value),
+    };
+    for (const double coefficient : coefficients) {
+        if (!is_representable_float(coefficient)) {
+            return Result<Matrix4>::failure(invalid_math_input(
+                "Look-at view matrix exceeds the representable matrix range"));
+        }
+    }
+
+    Matrix4 matrix = Matrix4::identity();
+    // Rows contain the camera basis; storage remains column-major.
+    matrix.values_[0U] = static_cast<float>(coefficients[0U]);
+    matrix.values_[4U] = static_cast<float>(coefficients[1U]);
+    matrix.values_[8U] = static_cast<float>(coefficients[2U]);
+    matrix.values_[12U] = static_cast<float>(coefficients[3U]);
+    matrix.values_[1U] = static_cast<float>(coefficients[4U]);
+    matrix.values_[5U] = static_cast<float>(coefficients[5U]);
+    matrix.values_[9U] = static_cast<float>(coefficients[6U]);
+    matrix.values_[13U] = static_cast<float>(coefficients[7U]);
+    matrix.values_[2U] = static_cast<float>(coefficients[8U]);
+    matrix.values_[6U] = static_cast<float>(coefficients[9U]);
+    matrix.values_[10U] = static_cast<float>(coefficients[10U]);
+    matrix.values_[14U] = static_cast<float>(coefficients[11U]);
+    return Result<Matrix4>::success(matrix);
+}
+
+Result<Vector3> Matrix4::transform_point(Vector3 point) const {
+    if (!is_finite() || !point.is_finite()) {
+        return Result<Vector3>::failure(invalid_math_input(
+            "Matrix4 and point must contain only finite values"));
+    }
+
+    const double x = static_cast<double>(point.x);
+    const double y = static_cast<double>(point.y);
+    const double z = static_cast<double>(point.z);
+    const double transformed_x =
+        (static_cast<double>(values_[0U]) * x) +
+        (static_cast<double>(values_[4U]) * y) +
+        (static_cast<double>(values_[8U]) * z) +
+        static_cast<double>(values_[12U]);
+    const double transformed_y =
+        (static_cast<double>(values_[1U]) * x) +
+        (static_cast<double>(values_[5U]) * y) +
+        (static_cast<double>(values_[9U]) * z) +
+        static_cast<double>(values_[13U]);
+    const double transformed_z =
+        (static_cast<double>(values_[2U]) * x) +
+        (static_cast<double>(values_[6U]) * y) +
+        (static_cast<double>(values_[10U]) * z) +
+        static_cast<double>(values_[14U]);
+    const double transformed_w =
+        (static_cast<double>(values_[3U]) * x) +
+        (static_cast<double>(values_[7U]) * y) +
+        (static_cast<double>(values_[11U]) * z) +
+        static_cast<double>(values_[15U]);
+
+    if (!std::isfinite(transformed_w) ||
+        std::fabs(transformed_w) <= kMinimumHomogeneousMagnitude) {
+        return Result<Vector3>::failure(invalid_math_input(
+            "Point transformation produced a zero or invalid homogeneous coordinate"));
+    }
+
+    return narrow_vector(
+        DoubleVector3{
+            transformed_x / transformed_w,
+            transformed_y / transformed_w,
+            transformed_z / transformed_w,
+        },
+        "Transformed point exceeds the representable Vector3 range");
+}
+
+Result<Vector3> Matrix4::transform_direction(Vector3 direction) const {
+    if (!is_finite() || !direction.is_finite()) {
+        return Result<Vector3>::failure(invalid_math_input(
+            "Matrix4 and direction must contain only finite values"));
+    }
+
+    const double x = static_cast<double>(direction.x);
+    const double y = static_cast<double>(direction.y);
+    const double z = static_cast<double>(direction.z);
+    return narrow_vector(
+        DoubleVector3{
+            (static_cast<double>(values_[0U]) * x) +
+                (static_cast<double>(values_[4U]) * y) +
+                (static_cast<double>(values_[8U]) * z),
+            (static_cast<double>(values_[1U]) * x) +
+                (static_cast<double>(values_[5U]) * y) +
+                (static_cast<double>(values_[9U]) * z),
+            (static_cast<double>(values_[2U]) * x) +
+                (static_cast<double>(values_[6U]) * y) +
+                (static_cast<double>(values_[10U]) * z),
+        },
+        "Transformed direction exceeds the representable Vector3 range");
 }
 
 Matrix4 operator*(const Matrix4& lhs, const Matrix4& rhs) noexcept {
