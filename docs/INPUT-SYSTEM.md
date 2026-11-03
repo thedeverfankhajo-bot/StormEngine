@@ -14,10 +14,14 @@ explicit cancellation, and bounded active-pointer/event capacities.
 ## Thread and frame contract
 
 `TouchInput` is single-thread-affine and is not internally synchronized.
-Android/iOS callbacks must be serialized onto its owning thread. At the start
-of each input frame, call `begin_frame()`; then submit the events for that
-frame with `process()`. The ordered events are exposed by `frame_events()`;
-active positions and accumulated deltas are exposed by `active_pointers()`.
+Android/iOS callbacks must be serialized onto its owning thread. The low-level
+API exposes `begin_frame()` to clear old event/delta data before a caller-owned
+event batch. Native callbacks are asynchronous relative to display frames, so
+do not clear the buffer immediately before the gameplay consumer reads it.
+Allow native callbacks to accumulate events until the next input phase; the
+Runtime adapter clears the per-frame data after consumption. The ordered
+events are exposed by `frame_events()`; active positions and accumulated
+deltas are exposed by `active_pointers()`.
 
 Every event carries the currently attached surface generation and a
 monotonic timestamp. This layer does not read a clock, convert pixels to
@@ -30,6 +34,26 @@ Call `cancel_all(timestamp_ns)` when interactive focus is lost. Call
 Cancellation events are appended before active state is cleared. If the event
 buffer cannot hold all cancellation events, the operation fails without
 mutating active pointers; begin a new frame and retry.
+
+## Game-loop consumption
+
+`Storm::Runtime::TouchInputGameLoopAdapter` decorates an application-owned
+`IGameLoopCallbacks` implementation and an `ITouchInputFrameConsumer`.
+During `GameLoop::process_input()`, it supplies a non-owning
+`TouchInputFrameView` containing the ordered pointer events, current active
+pointer snapshots, and optional surface generation. The touch consumer runs
+before the application's existing `process_input()` callback; the remaining
+events, fixed-update, variable-update, and render callbacks are forwarded
+unchanged.
+
+The frame view and its spans are valid only for the duration of
+`process_touch_input()`; consumers must copy data they need to retain. After
+the consumer returns, the adapter clears frame events and movement deltas even
+when the consumer reports an error, preventing stale transitions from being
+replayed on a later frame. The adapter does not own the input object, surface,
+clock, or native callback pump. The input object, consumer, and delegated
+callbacks must outlive the adapter and be accessed on the same serialized
+thread.
 
 ## Limits
 

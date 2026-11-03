@@ -148,13 +148,14 @@ stormengine_apply_warnings(storm_platform)
 
 add_library(storm_runtime STATIC
     engine/runtime/src/mobile_frame_driver.cpp
+    engine/runtime/src/touch_input_game_loop_adapter.cpp
 )
 add_library(Storm::Runtime ALIAS storm_runtime)
 target_include_directories(storm_runtime
     PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/engine/runtime/include>
 )
-target_link_libraries(storm_runtime PUBLIC Storm::Core Storm::Platform)
+target_link_libraries(storm_runtime PUBLIC Storm::Core Storm::Platform Storm::Input)
 target_compile_features(storm_runtime PUBLIC cxx_std_20)
 stormengine_apply_warnings(storm_runtime)
 
@@ -432,5 +433,13 @@ if(STORMENGINE_BUILD_TESTS)
         target_compile_features(stormengine_touch_input_tests PRIVATE cxx_std_20)
         stormengine_apply_warnings(stormengine_touch_input_tests)
         add_test(NAME stormengine_touch_input_tests COMMAND stormengine_touch_input_tests)
+        add_executable(stormengine_touch_input_game_loop_adapter_tests
+            tests/touch_input_game_loop_adapter_tests.cpp
+        )
+        target_link_libraries(stormengine_touch_input_game_loop_adapter_tests PRIVATE Storm::Runtime)
+        target_compile_features(stormengine_touch_input_game_loop_adapter_tests PRIVATE cxx_std_20)
+        stormengine_apply_warnings(stormengine_touch_input_game_loop_adapter_tests)
+        add_test(NAME stormengine_touch_input_game_loop_adapter_tests
+            COMMAND stormengine_touch_input_game_loop_adapter_tests)
     endif()
 endif()
