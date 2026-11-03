@@ -7,12 +7,13 @@ The independent `Storm::Physics2D` CMake target provides a bounded, fixed-step
 and platform SDKs. It currently supports circles and axis-aligned boxes,
 Static/Kinematic/Dynamic bodies, gravity, accumulated force, impulses,
 restitution, Coulomb-style friction, triggers, symmetric layer/mask filtering,
-contact output, and deterministic body-slot ordering.
+contact output, persistent Begin/Stay/End transitions, and deterministic
+body-slot ordering.
 
 This is an initial physics slice, not a complete 2D engine. It does not yet
 provide capsule/polygon/edge colliders, rotation or angular velocity, joints,
-sleeping, continuous collision detection, persistent Begin/Stay/End events,
-rendering, or device-runtime verification. Read-only overlap and raycast
+sleeping, continuous collision detection, rendering, or device-runtime
+verification. Read-only overlap and raycast
 queries are available for the current Circle/AABB shapes. The optional
 Storm::PhysicsScene2D bridge supplies the initial Scene integration described
 below; it does not add missing collision or rendering features.
@@ -73,6 +74,26 @@ Every configured capacity is checked. Exceeding a budget returns a typed
 `ResourceExhausted` error; the implementation does not silently drop bodies,
 pairs, or contacts. Coordinates that cannot be mapped safely to signed
 64-bit cell indices are rejected.
+
+## Contact transition events
+
+Each successful `step()` returns the current `contacts` plus a deterministic
+`contact_events` stream. A newly detected pair emits `Begin`; a pair present
+in the previous successful step emits `Stay`; and a pair that disappeared
+emits `End` carrying the last contact snapshot. If a body slot is destroyed
+and reused with a new generation while the pair remains geometrically
+overlapping, the step emits `End` for the old handle followed by `Begin` for
+the new handle.
+
+Events are ordered by the pair's first and second slot indices. A failed step
+does not update persistent contact history, so retrying the same state cannot
+turn a pending `Begin` into `Stay` or lose an `End`. The event history is
+single-thread-affine and bounded by the previous and current per-step contact
+limits; event allocation failure aborts the step before body state is committed.
+`ContactEvent2D` is the portable polling result; no asynchronous callback or
+Scene event-dispatch integration is implied.
+
+See [ADR-0022](ADR-0022-PHYSICS-2D-CONTACT-TRANSITIONS.md) for the decision.
 
 ## Overlap and raycast queries
 

@@ -80,6 +80,17 @@ struct Contact2D final {
     bool is_trigger{false};
 };
 
+enum class ContactPhase2D : std::uint8_t {
+    Begin,
+    Stay,
+    End,
+};
+
+struct ContactEvent2D final {
+    ContactPhase2D phase{ContactPhase2D::Begin};
+    Contact2D contact{};
+};
+
 // Read-only overlap query. Results are returned in ascending body-slot order.
 struct OverlapQuery2D final {
     Vector2 position{};
@@ -112,6 +123,9 @@ struct StepResult2D final {
     std::vector<Contact2D> contacts;
     // Unique candidate pairs passed to the narrow phase after spatial hashing.
     std::size_t broadphase_candidate_pairs{0U};
+    // Begin/Stay/End transitions, deterministically ordered by body-slot pair.
+    // Kept last to preserve prior aggregate initialization of StepResult2D.
+    std::vector<ContactEvent2D> contact_events;
 };
 
 struct PhysicsWorld2DConfig final {
@@ -191,6 +205,8 @@ private:
     std::size_t body_count_{0U};
     std::vector<Slot> slots_;
     std::vector<std::uint32_t> free_slots_;
+    // Contact pairs from the most recent successful step, in slot-pair order.
+    std::vector<Contact2D> previous_contacts_;
 };
 
 } // namespace Storm::Physics::TwoD

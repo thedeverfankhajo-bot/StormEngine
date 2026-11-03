@@ -15,6 +15,7 @@ namespace {
 using Storm::Physics::TwoD::BodyDefinition2D;
 using Storm::Physics::TwoD::BodyHandle2D;
 using Storm::Physics::TwoD::BodyType2D;
+using Storm::Physics::TwoD::ContactPhase2D;
 using Storm::Physics::TwoD::BoxCollider2D;
 using Storm::Physics::TwoD::CircleCollider2D;
 using Storm::Physics::TwoD::OverlapQuery2D;
@@ -839,6 +840,148 @@ using Storm::Physics::TwoD::Vector2;
     return std::nullopt;
 }
 
+[[nodiscard]] std::optional<std::string> test_contact_events_transition_begin_stay_end() {
+    auto world_result = PhysicsWorld2D::create();
+    EXPECT(world_result);
+    auto world = std::move(world_result).value();
+
+    auto first = world.create_body(BodyDefinition2D{
+        .type = BodyType2D::Static,
+        .position = {0.0, 0.0},
+    });
+    auto second = world.create_body(BodyDefinition2D{
+        .type = BodyType2D::Static,
+        .position = {0.5, 0.0},
+    });
+    EXPECT(first);
+    EXPECT(second);
+
+    auto began = world.step(1.0 / 60.0);
+    EXPECT(began);
+    EXPECT(began.value().contact_events.size() == 1U);
+    EXPECT(began.value().contact_events[0].phase == ContactPhase2D::Begin);
+    EXPECT(began.value().contact_events[0].contact.first == first.value());
+    EXPECT(began.value().contact_events[0].contact.second == second.value());
+
+    auto stayed = world.step(1.0 / 60.0);
+    EXPECT(stayed);
+    EXPECT(stayed.value().contact_events.size() == 1U);
+    EXPECT(stayed.value().contact_events[0].phase == ContactPhase2D::Stay);
+
+    EXPECT(world.set_position(second.value(), {2.0, 0.0}));
+    auto ended = world.step(1.0 / 60.0);
+    EXPECT(ended);
+    EXPECT(ended.value().contacts.empty());
+    EXPECT(ended.value().contact_events.size() == 1U);
+    EXPECT(ended.value().contact_events[0].phase == ContactPhase2D::End);
+    EXPECT(ended.value().contact_events[0].contact.second == second.value());
+    return std::nullopt;
+}
+
+[[nodiscard]] std::optional<std::string> test_trigger_contact_events_preserve_trigger_metadata() {
+    auto world_result = PhysicsWorld2D::create();
+    EXPECT(world_result);
+    auto world = std::move(world_result).value();
+
+    auto first = world.create_body(BodyDefinition2D{
+        .type = BodyType2D::Static,
+        .position = {0.0, 0.0},
+    });
+    auto trigger = world.create_body(BodyDefinition2D{
+        .type = BodyType2D::Static,
+        .position = {0.5, 0.0},
+        .collider = CircleCollider2D{0.5},
+        .is_trigger = true,
+    });
+    EXPECT(first);
+    EXPECT(trigger);
+
+    auto began = world.step(1.0 / 60.0);
+    EXPECT(began);
+    EXPECT(began.value().contact_events.size() == 1U);
+    EXPECT(began.value().contact_events[0].phase == ContactPhase2D::Begin);
+    EXPECT(began.value().contact_events[0].contact.is_trigger);
+
+    auto stayed = world.step(1.0 / 60.0);
+    EXPECT(stayed);
+    EXPECT(stayed.value().contact_events.size() == 1U);
+    EXPECT(stayed.value().contact_events[0].phase == ContactPhase2D::Stay);
+    EXPECT(stayed.value().contact_events[0].contact.is_trigger);
+    return std::nullopt;
+}
+
+[[nodiscard]] std::optional<std::string> test_destroy_and_slot_reuse_emit_end_then_begin() {
+    auto world_result = PhysicsWorld2D::create();
+    EXPECT(world_result);
+    auto world = std::move(world_result).value();
+
+    auto first = world.create_body(BodyDefinition2D{
+        .type = BodyType2D::Static,
+        .position = {0.0, 0.0},
+    });
+    auto old_second = world.create_body(BodyDefinition2D{
+        .type = BodyType2D::Static,
+        .position = {0.5, 0.0},
+    });
+    EXPECT(first);
+    EXPECT(old_second);
+
+    auto began = world.step(1.0 / 60.0);
+    EXPECT(began);
+    EXPECT(began.value().contact_events.size() == 1U);
+    EXPECT(began.value().contact_events[0].phase == ContactPhase2D::Begin);
+
+    EXPECT(world.destroy_body(old_second.value()));
+    auto new_second = world.create_body(BodyDefinition2D{
+        .type = BodyType2D::Static,
+        .position = {0.5, 0.0},
+    });
+    EXPECT(new_second);
+    EXPECT(new_second.value().slot_index == old_second.value().slot_index);
+    EXPECT(new_second.value().generation != old_second.value().generation);
+
+    auto transitions = world.step(1.0 / 60.0);
+    EXPECT(transitions);
+    EXPECT(transitions.value().contact_events.size() == 2U);
+    EXPECT(transitions.value().contact_events[0].phase == ContactPhase2D::End);
+    EXPECT(transitions.value().contact_events[0].contact.second == old_second.value());
+    EXPECT(transitions.value().contact_events[1].phase == ContactPhase2D::Begin);
+    EXPECT(transitions.value().contact_events[1].contact.second == new_second.value());
+    return std::nullopt;
+}
+
+[[nodiscard]] std::optional<std::string> test_failed_step_does_not_advance_contact_history() {
+    auto world_result = PhysicsWorld2D::create();
+    EXPECT(world_result);
+    auto world = std::move(world_result).value();
+
+    auto first = world.create_body(BodyDefinition2D{
+        .type = BodyType2D::Static,
+        .position = {0.0, 0.0},
+    });
+    auto second = world.create_body(BodyDefinition2D{
+        .type = BodyType2D::Static,
+        .position = {0.5, 0.0},
+    });
+    EXPECT(first);
+    EXPECT(second);
+
+    auto began = world.step(1.0 / 60.0);
+    EXPECT(began);
+    EXPECT(began.value().contact_events.size() == 1U);
+    EXPECT(began.value().contact_events[0].phase == ContactPhase2D::Begin);
+
+    const auto failed = world.step(0.0);
+    EXPECT(!failed);
+    EXPECT(failed.error().code == Storm::ErrorCode::InvalidArgument);
+
+    auto retried = world.step(1.0 / 60.0);
+    EXPECT(retried);
+    EXPECT(retried.value().contact_events.size() == 1U);
+    EXPECT(retried.value().contact_events[0].phase == ContactPhase2D::Stay);
+    return std::nullopt;
+}
+
 struct TestCase final {
     const char* name;
     std::optional<std::string> (*run)();
@@ -872,6 +1015,10 @@ int main() {
         TestCase{"raycast_supports_negative_direction_and_inside_origin", &test_raycast_supports_negative_direction_and_inside_origin},
         TestCase{"raycast_filters_layers_and_triggers_with_inclusive_limit", &test_raycast_filters_layers_and_triggers_with_inclusive_limit},
         TestCase{"raycast_tie_order_and_invalid_queries", &test_raycast_tie_order_and_invalid_queries},
+        TestCase{"contact_events_transition_begin_stay_end", &test_contact_events_transition_begin_stay_end},
+        TestCase{"trigger_contact_events_preserve_trigger_metadata", &test_trigger_contact_events_preserve_trigger_metadata},
+        TestCase{"destroy_and_slot_reuse_emit_end_then_begin", &test_destroy_and_slot_reuse_emit_end_then_begin},
+        TestCase{"failed_step_does_not_advance_contact_history", &test_failed_step_does_not_advance_contact_history},
     };
 
     std::size_t failures = 0U;

@@ -573,7 +573,8 @@ PhysicsWorld2D::PhysicsWorld2D(PhysicsWorld2D&& other) noexcept
       world_id_(std::exchange(other.world_id_, 0U)),
       body_count_(std::exchange(other.body_count_, 0U)),
       slots_(std::move(other.slots_)),
-      free_slots_(std::move(other.free_slots_)) {}
+      free_slots_(std::move(other.free_slots_)),
+      previous_contacts_(std::move(other.previous_contacts_)) {}
 
 Result<PhysicsWorld2D> PhysicsWorld2D::create(PhysicsWorld2DConfig config) {
     if (config.maximum_bodies == 0U ||
@@ -1251,9 +1252,79 @@ Result<StepResult2D> PhysicsWorld2D::step(
             }
         }
 
-        // Commit only after integration, broadphase, narrow phase, and all
-        // configured budgets have succeeded. The live world remains unchanged
-        // when any earlier operation returns an error.
+        // Merge the current and previous slot-ordered contact lists. A reused
+        // slot with a new generation is an End for the old handle followed by
+        // a Begin for the new handle, never a false Stay.
+        const auto pair_less = [](const Contact2D& left,
+                                  const Contact2D& right) noexcept {
+            if (left.first.slot_index != right.first.slot_index) {
+                return left.first.slot_index < right.first.slot_index;
+            }
+            return left.second.slot_index < right.second.slot_index;
+        };
+        const auto append_event = [&result](
+                                      ContactPhase2D phase,
+                                      const Contact2D& contact) {
+            result.contact_events.push_back(ContactEvent2D{
+                .phase = phase,
+                .contact = contact,
+            });
+        };
+
+        const std::size_t maximum_event_count = result.contact_events.max_size();
+        if (result.contacts.size() > maximum_event_count ||
+            previous_contacts_.size() > maximum_event_count - result.contacts.size()) {
+            return Result<StepResult2D>::failure(budget_error(
+                "2D contact transition count exceeds the supported result capacity"));
+        }
+        result.contact_events.reserve(
+            result.contacts.size() + previous_contacts_.size());
+
+        std::size_t current_index = 0U;
+        std::size_t previous_index = 0U;
+        while (current_index < result.contacts.size() &&
+               previous_index < previous_contacts_.size()) {
+            const Contact2D& current = result.contacts[current_index];
+            const Contact2D& previous = previous_contacts_[previous_index];
+
+            if (pair_less(current, previous)) {
+                append_event(ContactPhase2D::Begin, current);
+                ++current_index;
+                continue;
+            }
+            if (pair_less(previous, current)) {
+                append_event(ContactPhase2D::End, previous);
+                ++previous_index;
+                continue;
+            }
+
+            if (current.first == previous.first &&
+                current.second == previous.second) {
+                append_event(ContactPhase2D::Stay, current);
+            } else {
+                append_event(ContactPhase2D::End, previous);
+                append_event(ContactPhase2D::Begin, current);
+            }
+            ++current_index;
+            ++previous_index;
+        }
+
+        while (current_index < result.contacts.size()) {
+            append_event(ContactPhase2D::Begin, result.contacts[current_index]);
+            ++current_index;
+        }
+        while (previous_index < previous_contacts_.size()) {
+            append_event(ContactPhase2D::End, previous_contacts_[previous_index]);
+            ++previous_index;
+        }
+
+        // Prepare persistent history before mutating body state. Allocation
+        // failure must leave both the simulation and contact history unchanged.
+        std::vector<Contact2D> next_previous_contacts = result.contacts;
+
+        // Commit only after simulation, transition generation, and all budgets
+        // have succeeded. Swaps are non-throwing, then body state is committed.
+        previous_contacts_.swap(next_previous_contacts);
         for (std::size_t index = 0U; index < slots_.size(); ++index) {
             if (!slots_[index].alive) {
                 continue;
