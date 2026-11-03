@@ -2,7 +2,7 @@
 
 ## Current automated coverage
 
-The current host CMake configuration registers twenty-three CTest executables. Registration is not evidence of a passing run: each compiler, sanitizer, and mobile target result must be taken from the specific [Foundation CI](https://github.com/thedeverfankhajo-bot/StormEngine/actions/workflows/foundation-ci.yml) run for the commit being evaluated. The dedicated Physics2D executable contains twenty-four named world cases.
+The current host CMake configuration registers twenty-four CTest executables. Registration is not evidence of a passing run: each compiler, sanitizer, and mobile target result must be taken from the specific [Foundation CI](https://github.com/thedeverfankhajo-bot/StormEngine/actions/workflows/foundation-ci.yml) run for the commit being evaluated. The dedicated Physics2D executable contains twenty-eight named world cases.
 
 - stormengine_foundation_tests (11 cases):
   - Success and failure paths for typed Result<T> values.
