@@ -2,6 +2,7 @@
 
 #include "storm/math/transform3d.hpp"
 
+#include <array>
 #include <optional>
 
 namespace Storm::Math {
@@ -69,6 +70,26 @@ private:
 
     Vector3 normal_{0.0F, 1.0F, 0.0F};
     float offset_{0.0F};
+};
+
+// A view frustum extracted from a column-vector projection * view matrix.
+// Plane normals point inward. The clip-space depth range is [0, 1], matching
+// Matrix4::perspective_rh_zo() and Matrix4::orthographic_rh_zo().
+// All containment/intersection tests include the frustum boundary.
+class Frustum3D final {
+public:
+    [[nodiscard]] static Result<Frustum3D> from_view_projection(
+        const Matrix4& view_projection);
+
+    [[nodiscard]] bool is_valid() const noexcept;
+    [[nodiscard]] bool contains(Vector3 point) const noexcept;
+    [[nodiscard]] bool intersects(const Aabb3D& bounds) const noexcept;
+    [[nodiscard]] bool intersects(const Sphere3D& sphere) const noexcept;
+
+private:
+    explicit Frustum3D(std::array<Plane3D, 6U> planes) noexcept;
+
+    std::array<Plane3D, 6U> planes_;
 };
 
 struct RayHit3D final {

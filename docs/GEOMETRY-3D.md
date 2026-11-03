@@ -11,6 +11,8 @@ primitives alongside `Vector3`, `Quaternion`, `Matrix4`, and `Transform3D`:
 - `Plane3D`: normalized normal and signed offset, built from a point and normal.
 - `Ray3D`: finite origin and normalized direction created through a checked factory.
 - Ray queries against AABBs, spheres, and planes.
+- `Frustum3D`: six inward-facing planes extracted from a combined
+  projection * view matrix, with inclusive point, AABB, and sphere tests.
 
 This is a math/query foundation only. It is not Physics3D, a broadphase, a
 collision solver, frustum culling, a renderer, or a device-runtime feature.
@@ -37,6 +39,13 @@ direction. Its factory normalizes direction, so query distances and
 `RayHit3D::distance` are world-space distances even when the supplied
 direction has a different magnitude.
 
+A frustum is extracted from a column-vector `projection * view` matrix.
+The clip volume is `-w <= x <= w`, `-w <= y <= w`, and `0 <= z <= w`;
+its normalized plane normals point into the visible volume. Point containment,
+AABB intersection (positive-vertex plane test), and sphere intersection use
+inclusive boundaries. Invalid or degenerate matrices are rejected by the
+factory. These are culling queries only; no renderer consumes them yet.
+
 ## Ray-query contract
 
 All intersections require a finite, non-negative `max_distance`; the limit is
@@ -62,7 +71,9 @@ single-call calculations; they do not own GPU or physics resources.
 The dedicated `stormengine_geometry3d_tests` executable covers bounds,
 inclusive overlap, overflow rejection, sphere containment, plane construction
 and signed distance, ray normalization, AABB slab hits, parallel misses,
-sphere tangent/inside cases, plane orientation, and invalid query limits.
+sphere tangent/inside cases, plane orientation, invalid query limits, frustum
+extraction for right-handed zero-to-one perspective projection, point/AABB/sphere
+classification, inclusive boundary handling, and rejection of degenerate matrices.
 
 The Geometry3D module is compiled as part of `Storm::Math`. Host tests and
 Android/iOS target compilation are validated by the repository CI. A successful
@@ -71,6 +82,6 @@ physical device.
 
 ## Not implemented here
 
-Oriented boxes, frusta, rays against meshes, swept-volume queries, collision
+Oriented boxes, rays against meshes, swept-volume queries, collision
 manifolds, 3D physics, camera culling integration, GPU resources, and device
 rendering remain separate future work.

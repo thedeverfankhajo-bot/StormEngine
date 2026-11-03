@@ -124,6 +124,57 @@ struct DoubleVector3 final {
     return Result<std::optional<RayHit3D>>::success(hit.value());
 }
 
+[[nodiscard]] Result<Plane3D> make_frustum_plane(
+    const std::array<double, 4U>& coefficients) {
+    const DoubleVector3 raw_normal{
+        coefficients[0U], coefficients[1U], coefficients[2U]};
+    const double magnitude_squared = dot(raw_normal, raw_normal);
+    if (!is_finite(raw_normal) || !std::isfinite(coefficients[3U]) ||
+        !std::isfinite(magnitude_squared) ||
+        magnitude_squared <= kMinimumMagnitudeSquared) {
+        return Result<Plane3D>::failure(invalid_geometry_input(
+            "View-projection matrix contains a degenerate frustum plane"));
+    }
+
+    const double magnitude = std::sqrt(magnitude_squared);
+    const DoubleVector3 normalized_normal{
+        raw_normal.x / magnitude,
+        raw_normal.y / magnitude,
+        raw_normal.z / magnitude,
+    };
+    const double normalized_offset = coefficients[3U] / magnitude;
+    if (!is_finite(normalized_normal) ||
+        !is_representable_float(normalized_offset)) {
+        return Result<Plane3D>::failure(invalid_geometry_input(
+            "Frustum plane exceeds the representable numeric range"));
+    }
+
+    const auto point = narrow_vector(
+        DoubleVector3{
+            -normalized_normal.x * normalized_offset,
+            -normalized_normal.y * normalized_offset,
+            -normalized_normal.z * normalized_offset,
+        },
+        "Frustum plane point exceeds the representable Vector3 range");
+    if (!point) {
+        return Result<Plane3D>::failure(point.error());
+    }
+
+    const Vector3 normal{
+        static_cast<float>(normalized_normal.x),
+        static_cast<float>(normalized_normal.y),
+        static_cast<float>(normalized_normal.z),
+    };
+    return Plane3D::from_point_normal(point.value(), normal);
+}
+
+[[nodiscard]] double signed_distance_unchecked(
+    const Plane3D& plane,
+    Vector3 point) noexcept {
+    return dot(to_double(plane.normal()), to_double(point)) +
+        static_cast<double>(plane.offset());
+}
+
 } // namespace
 
 bool Aabb3D::is_valid() const noexcept {
@@ -317,6 +368,126 @@ Result<double> Plane3D::signed_distance(Vector3 point) const {
             "Signed plane distance is not finite"));
     }
     return Result<double>::success(distance);
+}
+
+Frustum3D::Frustum3D(std::array<Plane3D, 6U> planes) noexcept
+    : planes_(planes) {
+}
+
+Result<Frustum3D> Frustum3D::from_view_projection(
+    const Matrix4& view_projection) {
+    if (!view_projection.is_finite()) {
+        return Result<Frustum3D>::failure(invalid_geometry_input(
+            "Frustum extraction requires a finite view-projection matrix"));
+    }
+
+    // Clip inequalities are -w <= x <= w, -w <= y <= w, and 0 <= z <= w.
+    // With column vectors this is projection * view, so the plane coefficients
+    // are formed from rows of the combined matrix.
+    const auto row = [&view_projection](std::size_t row_index) {
+        return std::array<double, 4U>{
+            static_cast<double>(view_projection.at(row_index, 0U)),
+            static_cast<double>(view_projection.at(row_index, 1U)),
+            static_cast<double>(view_projection.at(row_index, 2U)),
+            static_cast<double>(view_projection.at(row_index, 3U)),
+        };
+    };
+    const auto row0 = row(0U);
+    const auto row1 = row(1U);
+    const auto row2 = row(2U);
+    const auto row3 = row(3U);
+    const auto combine = [](
+        const std::array<double, 4U>& lhs,
+        const std::array<double, 4U>& rhs,
+        double rhs_scale) {
+        return std::array<double, 4U>{
+            lhs[0U] + (rhs_scale * rhs[0U]),
+            lhs[1U] + (rhs_scale * rhs[1U]),
+            lhs[2U] + (rhs_scale * rhs[2U]),
+            lhs[3U] + (rhs_scale * rhs[3U]),
+        };
+    };
+
+    const std::array<std::array<double, 4U>, 6U> coefficients{
+        combine(row3, row0, 1.0),
+        combine(row3, row0, -1.0),
+        combine(row3, row1, 1.0),
+        combine(row3, row1, -1.0),
+        row2,
+        combine(row3, row2, -1.0),
+    };
+    const auto left = make_frustum_plane(coefficients[0U]);
+    const auto right = make_frustum_plane(coefficients[1U]);
+    const auto bottom = make_frustum_plane(coefficients[2U]);
+    const auto top = make_frustum_plane(coefficients[3U]);
+    const auto near = make_frustum_plane(coefficients[4U]);
+    const auto far = make_frustum_plane(coefficients[5U]);
+    if (!left) return Result<Frustum3D>::failure(left.error());
+    if (!right) return Result<Frustum3D>::failure(right.error());
+    if (!bottom) return Result<Frustum3D>::failure(bottom.error());
+    if (!top) return Result<Frustum3D>::failure(top.error());
+    if (!near) return Result<Frustum3D>::failure(near.error());
+    if (!far) return Result<Frustum3D>::failure(far.error());
+
+    return Result<Frustum3D>::success(Frustum3D{
+        std::array<Plane3D, 6U>{
+            left.value(), right.value(), bottom.value(),
+            top.value(), near.value(), far.value(),
+        },
+    });
+}
+
+bool Frustum3D::is_valid() const noexcept {
+    return std::all_of(
+        planes_.begin(),
+        planes_.end(),
+        [](const Plane3D& plane) { return plane.is_valid(); });
+}
+
+bool Frustum3D::contains(Vector3 point) const noexcept {
+    if (!is_valid() || !point.is_finite()) {
+        return false;
+    }
+    for (const Plane3D& plane : planes_) {
+        const double distance = signed_distance_unchecked(plane, point);
+        if (!std::isfinite(distance) || distance < 0.0) {
+            return false;
+        }
+    }
+    return true;
+}
+
+bool Frustum3D::intersects(const Aabb3D& bounds) const noexcept {
+    if (!is_valid() || !bounds.is_valid()) {
+        return false;
+    }
+    for (const Plane3D& plane : planes_) {
+        const Vector3 normal = plane.normal();
+        const Vector3 positive_vertex{
+            normal.x >= 0.0F ? bounds.maximum.x : bounds.minimum.x,
+            normal.y >= 0.0F ? bounds.maximum.y : bounds.minimum.y,
+            normal.z >= 0.0F ? bounds.maximum.z : bounds.minimum.z,
+        };
+        const double distance = signed_distance_unchecked(plane, positive_vertex);
+        if (!std::isfinite(distance) || distance < 0.0) {
+            return false;
+        }
+    }
+    return true;
+}
+
+bool Frustum3D::intersects(const Sphere3D& sphere) const noexcept {
+    if (!is_valid() || !sphere.is_valid()) {
+        return false;
+    }
+    const double radius = static_cast<double>(sphere.radius);
+    for (const Plane3D& plane : planes_) {
+        const double distance = signed_distance_unchecked(plane, sphere.center);
+        if (!std::isfinite(distance) || distance < -radius) {
+            return false;
+        }
+    }
+    return true;
 }
 
 Result<std::optional<RayHit3D>> intersect_ray_aabb(

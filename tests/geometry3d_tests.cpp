@@ -263,6 +263,89 @@ namespace {
     return std::nullopt;
 }
 
+[[nodiscard]] std::optional<std::string> test_frustum_extracts_rh_zero_to_one_perspective_planes() {
+    using Storm::Math::Frustum3D;
+    using Storm::Math::Matrix4;
+
+    constexpr float half_pi = 1.5707963267948966F;
+    const auto projection = Matrix4::perspective_rh_zo(
+        half_pi, 1.0F, 1.0F, 10.0F);
+    EXPECT(projection);
+    const auto view = Matrix4::look_at_rh(
+        {0.0F, 0.0F, 0.0F},
+        {0.0F, 0.0F, -1.0F},
+        {0.0F, 1.0F, 0.0F});
+    EXPECT(view);
+    const auto view_projection = Matrix4::multiply_checked(
+        projection.value(), view.value());
+    EXPECT(view_projection);
+
+    const auto frustum = Frustum3D::from_view_projection(
+        view_projection.value());
+    EXPECT(frustum);
+    EXPECT(frustum.value().is_valid());
+    EXPECT(frustum.value().contains({0.0F, 0.0F, -1.0F}));
+    EXPECT(frustum.value().contains({0.0F, 0.0F, -2.0F}));
+    EXPECT(frustum.value().contains({0.0F, 0.0F, -10.0F}));
+    EXPECT(!frustum.value().contains({0.0F, 0.0F, -0.99F}));
+    EXPECT(!frustum.value().contains({0.0F, 0.0F, -10.01F}));
+    EXPECT(!frustum.value().contains({5.0F, 0.0F, -2.0F}));
+    EXPECT(!frustum.value().contains({0.0F, 5.0F, -2.0F}));
+    EXPECT(!frustum.value().contains({
+        std::numeric_limits<float>::quiet_NaN(), 0.0F, -2.0F}));
+    return std::nullopt;
+}
+
+[[nodiscard]] std::optional<std::string> test_frustum_intersects_aabbs_and_spheres_inclusively() {
+    using Storm::Math::Aabb3D;
+    using Storm::Math::Frustum3D;
+    using Storm::Math::Matrix4;
+    using Storm::Math::Sphere3D;
+
+    const auto frustum = Frustum3D::from_view_projection(Matrix4::identity());
+    EXPECT(frustum);
+    const Aabb3D inside{
+        .minimum = {-0.5F, -0.5F, 0.25F},
+        .maximum = {0.5F, 0.5F, 0.75F},
+    };
+    const Aabb3D outside{
+        .minimum = {1.1F, -0.5F, 0.25F},
+        .maximum = {1.5F, 0.5F, 0.75F},
+    };
+    const Aabb3D touching{
+        .minimum = {1.0F, 0.0F, 0.5F},
+        .maximum = {1.0F, 0.0F, 0.5F},
+    };
+    EXPECT(frustum.value().intersects(inside));
+    EXPECT(!frustum.value().intersects(outside));
+    EXPECT(frustum.value().intersects(touching));
+    EXPECT(!frustum.value().intersects(Aabb3D{
+        .minimum = {1.0F, 0.0F, 0.0F},
+        .maximum = {-1.0F, 0.0F, 1.0F},
+    }));
+
+    EXPECT(frustum.value().intersects(Sphere3D{
+        .center = {0.0F, 0.0F, 0.5F}, .radius = 0.25F}));
+    EXPECT(!frustum.value().intersects(Sphere3D{
+        .center = {1.5F, 0.0F, 0.5F}, .radius = 0.25F}));
+    EXPECT(frustum.value().intersects(Sphere3D{
+        .center = {1.25F, 0.0F, 0.5F}, .radius = 0.25F}));
+    EXPECT(!frustum.value().intersects(Sphere3D{
+        .center = {0.0F, 0.0F, 0.5F},
+        .radius = std::numeric_limits<float>::infinity()}));
+    return std::nullopt;
+}
+
+[[nodiscard]] std::optional<std::string> test_frustum_rejects_degenerate_view_projection_matrix() {
+    using Storm::Math::Frustum3D;
+    using Storm::Math::Matrix4;
+
+    const auto frustum = Frustum3D::from_view_projection(Matrix4{});
+    EXPECT(!frustum);
+    EXPECT(frustum.error().code == Storm::ErrorCode::InvalidArgument);
+    return std::nullopt;
+}
+
 [[nodiscard]] std::optional<std::string> test_ray_plane_hit_oriented_normal_parallel_and_behind() {
     using Storm::Math::Plane3D;
     using Storm::Math::Ray3D;
@@ -325,6 +408,9 @@ int main() {
         TestCase{"ray_aabb_hit_distance_normal_and_inside_origin", &test_ray_aabb_hit_distance_normal_and_inside_origin},
         TestCase{"ray_aabb_parallel_miss_and_invalid_query", &test_ray_aabb_parallel_miss_and_invalid_query},
         TestCase{"ray_sphere_hit_tangent_inside_and_miss", &test_ray_sphere_hit_tangent_inside_and_miss},
+        TestCase{"frustum_extracts_rh_zero_to_one_perspective_planes", &test_frustum_extracts_rh_zero_to_one_perspective_planes},
+        TestCase{"frustum_intersects_aabbs_and_spheres_inclusively", &test_frustum_intersects_aabbs_and_spheres_inclusively},
+        TestCase{"frustum_rejects_degenerate_view_projection_matrix", &test_frustum_rejects_degenerate_view_projection_matrix},
         TestCase{"ray_plane_hit_oriented_normal_parallel_and_behind", &test_ray_plane_hit_oriented_normal_parallel_and_behind},
     };
 
