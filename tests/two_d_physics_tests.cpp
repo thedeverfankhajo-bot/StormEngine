@@ -109,8 +109,8 @@ using Storm::Physics::TwoD::Vector2;
     auto world = std::move(world_result).value();
 
     auto body = world.create_body(BodyDefinition2D{
-        .mass = 2.0,
         .collider = CircleCollider2D{0.25},
+        .mass = 2.0,
     });
     EXPECT(body);
     EXPECT(world.apply_force(body.value(), Vector2{4.0, 0.0}));
@@ -282,16 +282,16 @@ using Storm::Physics::TwoD::Vector2;
 
     auto trigger = world.create_body(BodyDefinition2D{
         .type = BodyType2D::Static,
+        .collider = CircleCollider2D{1.0},
         .is_trigger = true,
         .collision_layer = 0x1U,
         .collision_mask = 0x2U,
-        .collider = CircleCollider2D{1.0},
     });
     auto actor = world.create_body(BodyDefinition2D{
         .position = {0.5, 0.0},
+        .collider = CircleCollider2D{0.5},
         .collision_layer = 0x2U,
         .collision_mask = 0x1U,
-        .collider = CircleCollider2D{0.5},
     });
     EXPECT(trigger);
     EXPECT(actor);
@@ -305,16 +305,16 @@ using Storm::Physics::TwoD::Vector2;
     auto filtered = std::move(filtered_result).value();
     auto first = filtered.create_body(BodyDefinition2D{
         .type = BodyType2D::Static,
+        .collider = CircleCollider2D{1.0},
         .collision_layer = 0x1U,
         .collision_mask = 0x1U,
-        .collider = CircleCollider2D{1.0},
     });
     auto second = filtered.create_body(BodyDefinition2D{
         .type = BodyType2D::Static,
         .position = {0.5, 0.0},
+        .collider = CircleCollider2D{1.0},
         .collision_layer = 0x2U,
         .collision_mask = 0x2U,
-        .collider = CircleCollider2D{1.0},
     });
     EXPECT(first);
     EXPECT(second);
