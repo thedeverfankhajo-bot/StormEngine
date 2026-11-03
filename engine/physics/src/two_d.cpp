@@ -399,6 +399,157 @@ struct CandidatePair final {
     return false;
 }
 
+
+struct RayIntersection2D final {
+    double distance{0.0};
+    Vector2 normal{};
+};
+
+[[nodiscard]] bool raycast_circle(
+    Vector2 origin,
+    Vector2 direction,
+    double maximum_distance,
+    Vector2 center,
+    double radius,
+    RayIntersection2D& intersection) noexcept {
+    if (!is_finite(origin) || !is_finite(direction) ||
+        !is_finite(center) || !is_finite(radius) || radius <= 0.0) {
+        return false;
+    }
+
+    const long double offset_x =
+        static_cast<long double>(origin.x) - static_cast<long double>(center.x);
+    const long double offset_y =
+        static_cast<long double>(origin.y) - static_cast<long double>(center.y);
+    const long double direction_x = static_cast<long double>(direction.x);
+    const long double direction_y = static_cast<long double>(direction.y);
+    const long double wide_radius = static_cast<long double>(radius);
+    const long double c =
+        (offset_x * offset_x) + (offset_y * offset_y) -
+        (wide_radius * wide_radius);
+
+    if (!std::isfinite(c)) {
+        return false;
+    }
+    if (c <= 0.0L) {
+        intersection.distance = 0.0;
+        intersection.normal = negate(direction);
+        return true;
+    }
+
+    const long double b =
+        (offset_x * direction_x) + (offset_y * direction_y);
+    const long double discriminant = (b * b) - c;
+    if (!std::isfinite(discriminant) || discriminant < 0.0L) {
+        return false;
+    }
+
+    const long double hit_distance = -b - std::sqrt(discriminant);
+    if (!std::isfinite(hit_distance) ||
+        hit_distance < 0.0L ||
+        hit_distance > static_cast<long double>(maximum_distance)) {
+        return false;
+    }
+
+    const long double hit_x = offset_x + (direction_x * hit_distance);
+    const long double hit_y = offset_y + (direction_y * hit_distance);
+    const long double normal_length = std::hypot(hit_x, hit_y);
+    if (!std::isfinite(normal_length) || normal_length <= 0.0L) {
+        return false;
+    }
+
+    intersection.distance = static_cast<double>(hit_distance);
+    intersection.normal = {
+        static_cast<double>(hit_x / normal_length),
+        static_cast<double>(hit_y / normal_length),
+    };
+    return is_finite(intersection.distance) && is_finite(intersection.normal);
+}
+
+[[nodiscard]] bool raycast_box(
+    Vector2 origin,
+    Vector2 direction,
+    double maximum_distance,
+    Vector2 position,
+    const BoxCollider2D& collider,
+    RayIntersection2D& intersection) noexcept {
+    BodyDefinition2D definition;
+    definition.collider = collider;
+    Bounds bounds;
+    if (!calculate_bounds(definition, position, bounds)) {
+        return false;
+    }
+
+    const bool origin_inside =
+        origin.x >= bounds.minimum.x && origin.x <= bounds.maximum.x &&
+        origin.y >= bounds.minimum.y && origin.y <= bounds.maximum.y;
+    if (origin_inside) {
+        intersection.distance = 0.0;
+        intersection.normal = negate(direction);
+        return true;
+    }
+
+    long double entry = -std::numeric_limits<long double>::infinity();
+    long double exit = std::numeric_limits<long double>::infinity();
+    Vector2 entry_normal{};
+
+    const auto update_axis = [&entry, &exit, &entry_normal](
+        double ray_origin,
+        double ray_direction,
+        double minimum,
+        double maximum,
+        Vector2 negative_normal,
+        Vector2 positive_normal) noexcept {
+        if (ray_direction == 0.0) {
+            return ray_origin >= minimum && ray_origin <= maximum;
+        }
+
+        const long double first =
+            (static_cast<long double>(minimum) -
+             static_cast<long double>(ray_origin)) /
+            static_cast<long double>(ray_direction);
+        const long double second =
+            (static_cast<long double>(maximum) -
+             static_cast<long double>(ray_origin)) /
+            static_cast<long double>(ray_direction);
+        long double near_distance = first;
+        long double far_distance = second;
+        const Vector2 near_normal =
+            ray_direction > 0.0 ? negative_normal : positive_normal;
+        if (near_distance > far_distance) {
+            std::swap(near_distance, far_distance);
+        }
+
+        if (near_distance > entry) {
+            entry = near_distance;
+            entry_normal = near_normal;
+        }
+        exit = std::min(exit, far_distance);
+        return entry <= exit;
+    };
+
+    if (!update_axis(
+            origin.x, direction.x,
+            bounds.minimum.x, bounds.maximum.x,
+            Vector2{-1.0, 0.0}, Vector2{1.0, 0.0}) ||
+        !update_axis(
+            origin.y, direction.y,
+            bounds.minimum.y, bounds.maximum.y,
+            Vector2{0.0, -1.0}, Vector2{0.0, 1.0})) {
+        return false;
+    }
+
+    if (!std::isfinite(entry) || !std::isfinite(exit) ||
+        exit < 0.0L || entry < 0.0L ||
+        entry > static_cast<long double>(maximum_distance)) {
+        return false;
+    }
+
+    intersection.distance = static_cast<double>(entry);
+    intersection.normal = entry_normal;
+    return is_finite(intersection.distance) && is_finite(intersection.normal);
+}
+
 [[nodiscard]] Error invalid_handle_error() {
     return Error::make(
         ErrorCode::InvalidState,
@@ -671,6 +822,169 @@ Result<BodySnapshot2D> PhysicsWorld2D::body_snapshot(BodyHandle2D handle) const 
         .collision_layer = slot->definition.collision_layer,
         .collision_mask = slot->definition.collision_mask,
     });
+}
+
+
+Result<std::vector<BodyHandle2D>> PhysicsWorld2D::overlap_query(
+    const OverlapQuery2D& query) const {
+    if (world_id_ == 0U) {
+        return Result<std::vector<BodyHandle2D>>::failure(Error::make(
+            ErrorCode::InvalidState,
+            "A moved-from PhysicsWorld2D cannot execute overlap queries"));
+    }
+
+    const std::optional<Vector2> query_extents =
+        collider_half_extents(query.collider);
+    if (!within_coordinate_limit(query.position) ||
+        !query_extents.has_value() ||
+        !within_coordinate_limit(*query_extents)) {
+        return Result<std::vector<BodyHandle2D>>::failure(Error::make(
+            ErrorCode::InvalidArgument,
+            "A 2D overlap query requires a valid collider and finite position within configured limits"));
+    }
+
+    BodyDefinition2D query_definition;
+    query_definition.collider = query.collider;
+    Bounds query_bounds;
+    if (!calculate_bounds(query_definition, query.position, query_bounds)) {
+        return Result<std::vector<BodyHandle2D>>::failure(Error::make(
+            ErrorCode::InvalidArgument,
+            "The 2D overlap query bounds exceed the supported numeric range"));
+    }
+
+    std::vector<BodyHandle2D> matches;
+    if (query.collision_mask == 0U || body_count_ == 0U) {
+        return Result<std::vector<BodyHandle2D>>::success(std::move(matches));
+    }
+
+    try {
+        matches.reserve(body_count_);
+        for (std::size_t index = 0U; index < slots_.size(); ++index) {
+            const Slot& slot = slots_[index];
+            if (!slot.alive ||
+                (!query.include_triggers && slot.definition.is_trigger) ||
+                (query.collision_mask & slot.definition.collision_layer) == 0U) {
+                continue;
+            }
+
+            Bounds body_bounds;
+            if (!calculate_bounds(slot.definition, slot.position, body_bounds)) {
+                return Result<std::vector<BodyHandle2D>>::failure(Error::make(
+                    ErrorCode::ResourceExhausted,
+                    "A stored 2D collider bound exceeds the supported numeric range"));
+            }
+            if (query_bounds.maximum.x < body_bounds.minimum.x ||
+                body_bounds.maximum.x < query_bounds.minimum.x ||
+                query_bounds.maximum.y < body_bounds.minimum.y ||
+                body_bounds.maximum.y < query_bounds.minimum.y) {
+                continue;
+            }
+
+            Contact2D ignored_contact;
+            if (detect_contact(
+                    query_definition, query.position,
+                    slot.definition, slot.position,
+                    ignored_contact)) {
+                matches.push_back(make_handle(
+                    static_cast<std::uint32_t>(index), slot));
+            }
+        }
+        return Result<std::vector<BodyHandle2D>>::success(std::move(matches));
+    } catch (const std::bad_alloc&) {
+        return Result<std::vector<BodyHandle2D>>::failure(budget_error(
+            "Could not allocate results for a 2D overlap query"));
+    }
+}
+
+Result<std::optional<RaycastHit2D>> PhysicsWorld2D::raycast(
+    const RaycastQuery2D& query) const {
+    if (world_id_ == 0U) {
+        return Result<std::optional<RaycastHit2D>>::failure(Error::make(
+            ErrorCode::InvalidState,
+            "A moved-from PhysicsWorld2D cannot execute raycasts"));
+    }
+    if (!within_coordinate_limit(query.origin) ||
+        !is_finite(query.direction) ||
+        !is_finite(query.maximum_distance) ||
+        query.maximum_distance < 0.0) {
+        return Result<std::optional<RaycastHit2D>>::failure(Error::make(
+            ErrorCode::InvalidArgument,
+            "A 2D raycast requires a finite origin, direction, and non-negative finite maximum distance"));
+    }
+
+    const double direction_length = length(query.direction);
+    if (!is_finite(direction_length) || direction_length <= 0.0) {
+        return Result<std::optional<RaycastHit2D>>::failure(Error::make(
+            ErrorCode::InvalidArgument,
+            "A 2D raycast direction must be non-zero and have a finite length"));
+    }
+    const Vector2 direction = multiply(query.direction, 1.0 / direction_length);
+    const Vector2 ray_end = add(
+        query.origin,
+        multiply(direction, query.maximum_distance));
+    if (!is_finite(direction) || !within_coordinate_limit(ray_end)) {
+        return Result<std::optional<RaycastHit2D>>::failure(Error::make(
+            ErrorCode::InvalidArgument,
+            "The 2D ray endpoint exceeds the configured coordinate range"));
+    }
+
+    if (query.collision_mask == 0U || body_count_ == 0U) {
+        return Result<std::optional<RaycastHit2D>>::success(std::nullopt);
+    }
+
+    std::optional<RaycastHit2D> nearest;
+    for (std::size_t index = 0U; index < slots_.size(); ++index) {
+        const Slot& slot = slots_[index];
+        if (!slot.alive ||
+            (!query.include_triggers && slot.definition.is_trigger) ||
+            (query.collision_mask & slot.definition.collision_layer) == 0U) {
+            continue;
+        }
+
+        RayIntersection2D intersection;
+        bool hit = false;
+        if (const auto* circle =
+                std::get_if<CircleCollider2D>(&slot.definition.collider)) {
+            hit = raycast_circle(
+                query.origin, direction, query.maximum_distance,
+                slot.position, circle->radius, intersection);
+        } else if (const auto* box =
+                       std::get_if<BoxCollider2D>(&slot.definition.collider)) {
+            hit = raycast_box(
+                query.origin, direction, query.maximum_distance,
+                slot.position, *box, intersection);
+        } else {
+            return Result<std::optional<RaycastHit2D>>::failure(Error::make(
+                ErrorCode::InvalidState,
+                "A stored 2D body has an unsupported collider state"));
+        }
+
+        if (!hit ||
+            (nearest.has_value() &&
+             intersection.distance >= nearest->distance)) {
+            continue;
+        }
+
+        const Vector2 point = add(
+            query.origin,
+            multiply(direction, intersection.distance));
+        if (!is_finite(point) ||
+            !is_finite(intersection.normal) ||
+            !is_finite(intersection.distance)) {
+            return Result<std::optional<RaycastHit2D>>::failure(budget_error(
+                "A 2D raycast hit exceeds the supported numeric range"));
+        }
+
+        nearest = RaycastHit2D{
+            .body = make_handle(static_cast<std::uint32_t>(index), slot),
+            .point = point,
+            .normal = intersection.normal,
+            .distance = intersection.distance,
+            .is_trigger = slot.definition.is_trigger,
+        };
+    }
+
+    return Result<std::optional<RaycastHit2D>>::success(std::move(nearest));
 }
 
 Result<StepResult2D> PhysicsWorld2D::step(

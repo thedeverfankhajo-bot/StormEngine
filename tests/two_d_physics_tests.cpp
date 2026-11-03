@@ -17,8 +17,10 @@ using Storm::Physics::TwoD::BodyHandle2D;
 using Storm::Physics::TwoD::BodyType2D;
 using Storm::Physics::TwoD::BoxCollider2D;
 using Storm::Physics::TwoD::CircleCollider2D;
+using Storm::Physics::TwoD::OverlapQuery2D;
 using Storm::Physics::TwoD::PhysicsWorld2D;
 using Storm::Physics::TwoD::PhysicsWorld2DConfig;
+using Storm::Physics::TwoD::RaycastQuery2D;
 using Storm::Physics::TwoD::Vector2;
 
 #define EXPECT(...) \
@@ -508,6 +510,335 @@ using Storm::Physics::TwoD::Vector2;
     return std::nullopt;
 }
 
+
+[[nodiscard]] std::optional<std::string> test_overlap_query_supports_circle_and_box_shapes() {
+    auto world_result = PhysicsWorld2D::create();
+    EXPECT(world_result);
+    auto world = std::move(world_result).value();
+
+    const auto circle = world.create_body(BodyDefinition2D{
+        .position = {1.25, 0.0},
+        .collider = CircleCollider2D{0.5},
+    });
+    const auto box = world.create_body(BodyDefinition2D{
+        .position = {-1.25, 0.0},
+        .collider = BoxCollider2D{{0.5, 0.5}},
+    });
+    const auto distant = world.create_body(BodyDefinition2D{
+        .position = {4.0, 0.0},
+        .collider = CircleCollider2D{0.25},
+    });
+    EXPECT(circle);
+    EXPECT(box);
+    EXPECT(distant);
+
+    const auto hits = world.overlap_query(OverlapQuery2D{
+        .position = {},
+        .collider = CircleCollider2D{0.8},
+    });
+    EXPECT(hits);
+    EXPECT(hits.value().size() == 2U);
+    EXPECT(hits.value()[0U] == circle.value());
+    EXPECT(hits.value()[1U] == box.value());
+    return std::nullopt;
+}
+
+[[nodiscard]] std::optional<std::string> test_overlap_query_filters_layers_and_triggers() {
+    auto world_result = PhysicsWorld2D::create();
+    EXPECT(world_result);
+    auto world = std::move(world_result).value();
+
+    const auto trigger = world.create_body(BodyDefinition2D{
+        .collider = CircleCollider2D{0.5},
+        .is_trigger = true,
+        .collision_layer = 0x2U,
+    });
+    const auto solid = world.create_body(BodyDefinition2D{
+        .collider = BoxCollider2D{{0.5, 0.5}},
+        .collision_layer = 0x2U,
+    });
+    const auto other_layer = world.create_body(BodyDefinition2D{
+        .collider = CircleCollider2D{0.5},
+        .collision_layer = 0x4U,
+    });
+    EXPECT(trigger);
+    EXPECT(solid);
+    EXPECT(other_layer);
+
+    const auto all = world.overlap_query(OverlapQuery2D{
+        .collider = CircleCollider2D{1.0},
+        .collision_mask = 0x2U,
+    });
+    EXPECT(all);
+    EXPECT(all.value().size() == 2U);
+    EXPECT(all.value()[0U] == trigger.value());
+    EXPECT(all.value()[1U] == solid.value());
+
+    const auto without_triggers = world.overlap_query(OverlapQuery2D{
+        .collider = CircleCollider2D{1.0},
+        .collision_mask = 0x2U,
+        .include_triggers = false,
+    });
+    EXPECT(without_triggers);
+    EXPECT(without_triggers.value().size() == 1U);
+    EXPECT(without_triggers.value()[0U] == solid.value());
+    return std::nullopt;
+}
+
+[[nodiscard]] std::optional<std::string> test_overlap_query_includes_touching_shapes() {
+    auto world_result = PhysicsWorld2D::create();
+    EXPECT(world_result);
+    auto world = std::move(world_result).value();
+
+    const auto touching = world.create_body(BodyDefinition2D{
+        .position = {1.5, 0.0},
+        .collider = BoxCollider2D{{0.5, 0.5}},
+    });
+    EXPECT(touching);
+
+    const auto hits = world.overlap_query(OverlapQuery2D{
+        .position = {},
+        .collider = CircleCollider2D{1.0},
+    });
+    EXPECT(hits);
+    EXPECT(hits.value().size() == 1U);
+    EXPECT(hits.value()[0U] == touching.value());
+    return std::nullopt;
+}
+
+[[nodiscard]] std::optional<std::string> test_overlap_query_rejects_invalid_input_and_moved_from_world() {
+    auto world_result = PhysicsWorld2D::create(
+        PhysicsWorld2DConfig{.maximum_absolute_coordinate = 10.0});
+    EXPECT(world_result);
+    auto world = std::move(world_result).value();
+
+    auto invalid = world.overlap_query(OverlapQuery2D{
+        .position = {std::numeric_limits<double>::quiet_NaN(), 0.0},
+    });
+    EXPECT(!invalid);
+    EXPECT(invalid.error().code == Storm::ErrorCode::InvalidArgument);
+
+    invalid = world.overlap_query(OverlapQuery2D{
+        .collider = CircleCollider2D{0.0},
+    });
+    EXPECT(!invalid);
+
+    invalid = world.overlap_query(OverlapQuery2D{
+        .position = {11.0, 0.0},
+        .collider = CircleCollider2D{0.5},
+    });
+    EXPECT(!invalid);
+
+    PhysicsWorld2D moved(std::move(world));
+    const auto moved_from = world.overlap_query({});
+    EXPECT(!moved_from);
+    EXPECT(moved_from.error().code == Storm::ErrorCode::InvalidState);
+    return std::nullopt;
+}
+
+[[nodiscard]] std::optional<std::string> test_raycast_hits_nearest_circle_and_box() {
+    auto world_result = PhysicsWorld2D::create();
+    EXPECT(world_result);
+    auto world = std::move(world_result).value();
+
+    const auto circle = world.create_body(BodyDefinition2D{
+        .position = {0.0, 0.0},
+        .collider = CircleCollider2D{1.0},
+    });
+    const auto box = world.create_body(BodyDefinition2D{
+        .position = {4.0, 0.0},
+        .collider = BoxCollider2D{{0.5, 0.5}},
+    });
+    EXPECT(circle);
+    EXPECT(box);
+
+    const auto circle_hit = world.raycast(RaycastQuery2D{
+        .origin = {-5.0, 0.0},
+        .direction = {10.0, 0.0},
+        .maximum_distance = 10.0,
+    });
+    EXPECT(circle_hit);
+    EXPECT(circle_hit.value().has_value());
+    EXPECT(circle_hit.value()->body == circle.value());
+    EXPECT(std::abs(circle_hit.value()->distance - 4.0) < 1.0e-9);
+    EXPECT(std::abs(circle_hit.value()->point.x - (-1.0)) < 1.0e-9);
+    EXPECT(std::abs(circle_hit.value()->normal.x - (-1.0)) < 1.0e-9);
+
+    const auto box_hit = world.raycast(RaycastQuery2D{
+        .origin = {2.0, 0.0},
+        .direction = {7.0, 0.0},
+        .maximum_distance = 5.0,
+    });
+    EXPECT(box_hit);
+    EXPECT(box_hit.value().has_value());
+    EXPECT(box_hit.value()->body == box.value());
+    EXPECT(std::abs(box_hit.value()->distance - 1.5) < 1.0e-9);
+    EXPECT(std::abs(box_hit.value()->point.x - 3.5) < 1.0e-9);
+    EXPECT(std::abs(box_hit.value()->normal.x - (-1.0)) < 1.0e-9);
+    return std::nullopt;
+}
+
+[[nodiscard]] std::optional<std::string> test_raycast_supports_negative_direction_and_inside_origin() {
+    auto world_result = PhysicsWorld2D::create();
+    EXPECT(world_result);
+    auto world = std::move(world_result).value();
+
+    const auto circle = world.create_body(BodyDefinition2D{
+        .collider = CircleCollider2D{1.0},
+    });
+    EXPECT(circle);
+
+    const auto negative = world.raycast(RaycastQuery2D{
+        .origin = {5.0, 0.0},
+        .direction = {-2.0, 0.0},
+        .maximum_distance = 10.0,
+    });
+    EXPECT(negative);
+    EXPECT(negative.value().has_value());
+    EXPECT(negative.value()->body == circle.value());
+    EXPECT(std::abs(negative.value()->distance - 4.0) < 1.0e-9);
+    EXPECT(std::abs(negative.value()->normal.x - 1.0) < 1.0e-9);
+
+    const auto inside = world.raycast(RaycastQuery2D{
+        .origin = {},
+        .direction = {0.0, 3.0},
+        .maximum_distance = 2.0,
+    });
+    EXPECT(inside);
+    EXPECT(inside.value().has_value());
+    EXPECT(inside.value()->distance == 0.0);
+    EXPECT(inside.value()->normal == Vector2{0.0, -1.0});
+
+    const auto boundary = world.raycast(RaycastQuery2D{
+        .origin = {1.0, 0.0},
+        .direction = {1.0, 0.0},
+        .maximum_distance = 2.0,
+    });
+    EXPECT(boundary);
+    EXPECT(boundary.value().has_value());
+    EXPECT(boundary.value()->distance == 0.0);
+    return std::nullopt;
+}
+
+[[nodiscard]] std::optional<std::string> test_raycast_filters_layers_and_triggers_with_inclusive_limit() {
+    auto world_result = PhysicsWorld2D::create();
+    EXPECT(world_result);
+    auto world = std::move(world_result).value();
+
+    const auto trigger = world.create_body(BodyDefinition2D{
+        .position = {2.0, 0.0},
+        .collider = CircleCollider2D{0.5},
+        .is_trigger = true,
+        .collision_layer = 0x2U,
+    });
+    const auto solid = world.create_body(BodyDefinition2D{
+        .position = {4.0, 0.0},
+        .collider = CircleCollider2D{0.5},
+        .collision_layer = 0x2U,
+    });
+    const auto other_layer = world.create_body(BodyDefinition2D{
+        .position = {1.0, 0.0},
+        .collider = CircleCollider2D{0.25},
+        .collision_layer = 0x4U,
+    });
+    EXPECT(trigger);
+    EXPECT(solid);
+    EXPECT(other_layer);
+
+    const auto exact_limit = world.raycast(RaycastQuery2D{
+        .origin = {},
+        .direction = {2.0, 0.0},
+        .maximum_distance = 1.5,
+        .collision_mask = 0x2U,
+    });
+    EXPECT(exact_limit);
+    EXPECT(exact_limit.value().has_value());
+    EXPECT(exact_limit.value()->body == trigger.value());
+    EXPECT(std::abs(exact_limit.value()->distance - 1.5) < 1.0e-9);
+
+    const auto without_trigger = world.raycast(RaycastQuery2D{
+        .origin = {},
+        .direction = {1.0, 0.0},
+        .maximum_distance = 3.5,
+        .collision_mask = 0x2U,
+        .include_triggers = false,
+    });
+    EXPECT(without_trigger);
+    EXPECT(without_trigger.value().has_value());
+    EXPECT(without_trigger.value()->body == solid.value());
+    EXPECT(std::abs(without_trigger.value()->distance - 3.5) < 1.0e-9);
+
+    const auto no_layers = world.raycast(RaycastQuery2D{
+        .origin = {},
+        .direction = {1.0, 0.0},
+        .maximum_distance = 5.0,
+        .collision_mask = 0U,
+    });
+    EXPECT(no_layers);
+    EXPECT(!no_layers.value().has_value());
+    return std::nullopt;
+}
+
+[[nodiscard]] std::optional<std::string> test_raycast_tie_order_and_invalid_queries() {
+    auto world_result = PhysicsWorld2D::create(
+        PhysicsWorld2DConfig{.maximum_absolute_coordinate = 10.0});
+    EXPECT(world_result);
+    auto world = std::move(world_result).value();
+
+    const auto first = world.create_body(BodyDefinition2D{
+        .position = {2.0, 0.0},
+        .collider = CircleCollider2D{0.5},
+    });
+    const auto second = world.create_body(BodyDefinition2D{
+        .position = {2.0, 0.0},
+        .collider = CircleCollider2D{0.5},
+    });
+    EXPECT(first);
+    EXPECT(second);
+
+    const auto tie = world.raycast(RaycastQuery2D{
+        .origin = {},
+        .direction = {1.0, 0.0},
+        .maximum_distance = 5.0,
+    });
+    EXPECT(tie);
+    EXPECT(tie.value().has_value());
+    EXPECT(tie.value()->body == first.value());
+
+    auto invalid = world.raycast(RaycastQuery2D{
+        .direction = {},
+        .maximum_distance = 5.0,
+    });
+    EXPECT(!invalid);
+    EXPECT(invalid.error().code == Storm::ErrorCode::InvalidArgument);
+
+    invalid = world.raycast(RaycastQuery2D{
+        .origin = {std::numeric_limits<double>::quiet_NaN(), 0.0},
+        .direction = {1.0, 0.0},
+        .maximum_distance = 5.0,
+    });
+    EXPECT(!invalid);
+
+    invalid = world.raycast(RaycastQuery2D{
+        .direction = {1.0, 0.0},
+        .maximum_distance = -1.0,
+    });
+    EXPECT(!invalid);
+
+    invalid = world.raycast(RaycastQuery2D{
+        .origin = {9.0, 0.0},
+        .direction = {1.0, 0.0},
+        .maximum_distance = 2.0,
+    });
+    EXPECT(!invalid);
+
+    PhysicsWorld2D moved(std::move(world));
+    const auto moved_from = world.raycast({});
+    EXPECT(!moved_from);
+    EXPECT(moved_from.error().code == Storm::ErrorCode::InvalidState);
+    return std::nullopt;
+}
+
 struct TestCase final {
     const char* name;
     std::optional<std::string> (*run)();
@@ -533,6 +864,14 @@ int main() {
         TestCase{"invalid_step_preserves_state", &test_invalid_step_preserves_state},
         TestCase{"coordinate_overflow_rolls_back", &test_coordinate_overflow_rolls_back},
         TestCase{"moved_from_world_is_inert", &test_moved_from_world_is_inert},
+        TestCase{"overlap_query_supports_circle_and_box_shapes", &test_overlap_query_supports_circle_and_box_shapes},
+        TestCase{"overlap_query_filters_layers_and_triggers", &test_overlap_query_filters_layers_and_triggers},
+        TestCase{"overlap_query_includes_touching_shapes", &test_overlap_query_includes_touching_shapes},
+        TestCase{"overlap_query_rejects_invalid_input_and_moved_from_world", &test_overlap_query_rejects_invalid_input_and_moved_from_world},
+        TestCase{"raycast_hits_nearest_circle_and_box", &test_raycast_hits_nearest_circle_and_box},
+        TestCase{"raycast_supports_negative_direction_and_inside_origin", &test_raycast_supports_negative_direction_and_inside_origin},
+        TestCase{"raycast_filters_layers_and_triggers_with_inclusive_limit", &test_raycast_filters_layers_and_triggers_with_inclusive_limit},
+        TestCase{"raycast_tie_order_and_invalid_queries", &test_raycast_tie_order_and_invalid_queries},
     };
 
     std::size_t failures = 0U;

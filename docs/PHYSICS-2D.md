@@ -11,8 +11,9 @@ contact output, and deterministic body-slot ordering.
 
 This is an initial physics slice, not a complete 2D engine. It does not yet
 provide capsule/polygon/edge colliders, rotation or angular velocity, joints,
-sleeping, continuous collision detection, overlap/raycast queries, persistent
-Begin/Stay/End events, rendering, or device-runtime verification. The optional
+sleeping, continuous collision detection, persistent Begin/Stay/End events,
+rendering, or device-runtime verification. Read-only overlap and raycast
+queries are available for the current Circle/AABB shapes. The optional
 Storm::PhysicsScene2D bridge supplies the initial Scene integration described
 below; it does not add missing collision or rendering features.
 
@@ -73,6 +74,23 @@ Every configured capacity is checked. Exceeding a budget returns a typed
 pairs, or contacts. Coordinates that cannot be mapped safely to signed
 64-bit cell indices are rejected.
 
+## Overlap and raycast queries
+
+The overlap_query API accepts a position and a Circle or axis-aligned Box query
+shape. It returns every live body whose shape touches or overlaps the query, in
+ascending body-slot order. The raycast API accepts a finite origin, a non-zero
+direction (normalized internally), and a non-negative maximum distance. It
+returns the nearest Circle or AABB hit, including the body handle, hit point,
+unit normal, distance, and trigger flag. A ray beginning inside or on a
+collider reports a zero-distance hit.
+
+Both query APIs test the query mask against each body's collision layer and can
+include or exclude triggers. They are read-only and single-thread-affine. The
+implementation uses a stable O(n) scan bounded by maximum_bodies (512 by
+default); simulation still uses the spatial-hash broadphase. Invalid query
+values return InvalidArgument, a moved-from world returns InvalidState, and
+allocation failure in overlap-result storage returns ResourceExhausted.
+
 ## Transaction and threading contract
 
 `PhysicsWorld2D` is single-thread-affine. A step works on temporary body state,
@@ -109,7 +127,8 @@ See ADR-0012 for the integration decision and explicit limitations.
 
 The host test executable covers handle lifetime, validation, integration,
 circle and box collision response, friction, triggers, filtering, spatial-hash
-candidate reduction, configured resource limits, and transactional failure.
+candidate reduction, overlap queries, raycasts, configured resource limits,
+and transactional failure.
 The host Physics2D suite covers the world contract; the separate Scene adapter
 has its own integration tests. Android arm64-v8a and iOS device arm64 builds
 compile both platform-neutral targets. Cross-compilation is not device-runtime

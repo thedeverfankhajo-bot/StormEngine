@@ -4,6 +4,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <optional>
 #include <variant>
 #include <vector>
 
@@ -79,6 +80,32 @@ struct Contact2D final {
     bool is_trigger{false};
 };
 
+// Read-only overlap query. Results are returned in ascending body-slot order.
+struct OverlapQuery2D final {
+    Vector2 position{};
+    ColliderShape2D collider{BoxCollider2D{}};
+    std::uint32_t collision_mask{0xFFFFFFFFU};
+    bool include_triggers{true};
+};
+
+// Any finite non-zero direction is accepted and normalized internally.
+struct RaycastQuery2D final {
+    Vector2 origin{};
+    Vector2 direction{1.0, 0.0};
+    double maximum_distance{0.0};
+    std::uint32_t collision_mask{0xFFFFFFFFU};
+    bool include_triggers{true};
+};
+
+struct RaycastHit2D final {
+    BodyHandle2D body{};
+    Vector2 point{};
+    // Unit surface normal. A zero-distance inside hit opposes the ray direction.
+    Vector2 normal{-1.0, 0.0};
+    double distance{0.0};
+    bool is_trigger{false};
+};
+
 struct StepResult2D final {
     double delta_seconds{0.0};
     // Narrow-phase contacts in deterministic ascending body-slot pair order.
@@ -116,6 +143,12 @@ public:
     [[nodiscard]] Result<void> apply_force(BodyHandle2D handle, Vector2 force);
     [[nodiscard]] Result<void> apply_impulse(BodyHandle2D handle, Vector2 impulse);
     [[nodiscard]] Result<BodySnapshot2D> body_snapshot(BodyHandle2D handle) const;
+
+    // Queries are read-only, single-thread-affine, and bounded by maximum_bodies.
+    [[nodiscard]] Result<std::vector<BodyHandle2D>> overlap_query(
+        const OverlapQuery2D& query) const;
+    [[nodiscard]] Result<std::optional<RaycastHit2D>> raycast(
+        const RaycastQuery2D& query) const;
 
     // Call from a fixed-update phase. Forces are consumed only by a successful
     // step; any validation, allocation, or configured-budget failure is atomic.
