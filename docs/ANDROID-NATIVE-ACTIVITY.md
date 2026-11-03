@@ -4,7 +4,7 @@ Last reviewed: 2026-11-01
 
 ## Scope and status
 
-StormEngine now has an Android-specific NativeActivity entry point built with the Android NDK's android_native_app_glue. It is a narrow lifecycle and native-window metadata bridge, not an Android game runtime.
+StormEngine has an Android-specific NativeActivity entry point built with the Android NDK's android_native_app_glue. It handles lifecycle, native-window metadata, and translates NDK MotionEvent touch callbacks into the portable Storm::Input::TouchInput contract. It is not an Android game runtime.
 
 The bridge currently:
 
@@ -13,6 +13,10 @@ The bridge currently:
 - Attaches, resizes, and detaches the current window through SurfaceLifecycle.
 - Queries only the window pixel extent and configuration density.
 - Generates opaque, monotonically increasing surface identity values. It does not store an ANativeWindow pointer in SurfaceDescriptor.
+- Registers NativeActivity onInputEvent and maps Down/PointerDown, Move, PointerUp/Up, and Cancel into bounded pointer batches.
+- Converts window-relative pixel coordinates to logical units using the active surface density; uses the NDK event nanosecond timestamp and stable pointer IDs.
+- Ignores mouse/palm/non-touch tool sources while accepting unknown, finger, stylus, and eraser tools.
+- Cancels active pointers on focus loss, surface detachment, and surface geometry/density changes.
 - Uses the NativeActivity glue event pump while no game loop exists.
 
 The transition policy is host-tested. The Android shared library is compiled and linked by the Android NDK CI job. No Android device or emulator execution has yet been performed.
@@ -78,7 +82,7 @@ The adapter does not acquire, release, or retain the ANativeWindow pointer. The 
 
 - A game loop, frame pacing, or gameplay update scheduler.
 - Rendering, swapchain creation, Vulkan, OpenGL ES, or GPU resource management.
-- Touch/input queue processing or sensor integration.
+- Core game-loop/gameplay input consumption, gesture recognition, action mapping, or sensor integration.
 - Android Java/Kotlin UI, custom JNI APIs, permissions, audio, or background task policy.
 - Gradle project generation, APK/AAB packaging, signing, deployment, or Play distribution.
 - Device runtime, lifecycle stress, rotation, low-memory, or surface-recreation validation on physical hardware.

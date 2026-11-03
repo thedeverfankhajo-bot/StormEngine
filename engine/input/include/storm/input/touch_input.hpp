@@ -3,6 +3,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <optional>
+#include <span>
 #include <vector>
 
 namespace Storm::Input {
@@ -52,6 +53,8 @@ public:
     [[nodiscard]] Result<void> detach_surface(
         std::uint64_t generation, std::uint64_t timestamp_ns);
     [[nodiscard]] Result<void> process(const PointerEvent& event);
+    // On a failed transition, partial events are discarded and active pointers cancelled.
+    [[nodiscard]] Result<void> process_batch(std::span<const PointerEvent> events);
     [[nodiscard]] Result<void> cancel_all(std::uint64_t timestamp_ns);
 
     // Call once at the start of each input frame.

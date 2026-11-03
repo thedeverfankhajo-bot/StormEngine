@@ -21,7 +21,9 @@ active positions and accumulated deltas are exposed by `active_pointers()`.
 
 Every event carries the currently attached surface generation and a
 monotonic timestamp. This layer does not read a clock, convert pixels to
-logical points, or own native surface handles.
+logical points, or own native surface handles. Native callback batches use
+process_batch(); a rejected batch drops partial frame events and cancels all
+active pointers so malformed OS input cannot strand a pointer in the engine.
 
 Call `cancel_all(timestamp_ns)` when interactive focus is lost. Call
 `detach_surface(generation, timestamp_ns)` when the surface is destroyed.
@@ -38,12 +40,36 @@ are reserved at creation; processing within configured limits does not require
 vector growth. Capacity exhaustion returns a typed error rather than silently
 dropping events.
 
+## Native callback adapters
+
+The Android NativeActivity host maps NDK MotionEvent Down/PointerDown, Move,
+PointerUp/Up, and Cancel actions into bounded pointer batches. It accepts
+unknown, finger, stylus, and eraser tools and ignores mouse/palm/non-touch
+motion sources. NDK X/Y values are pixels relative to the receiving window,
+so the adapter divides by the active surface's validated
+pixels-per-logical-unit scale. If the density scale changes, active pointers
+are cancelled before the new logical-coordinate scale is applied. It forwards the NDK
+event timestamp in the System.nanoTime nanosecond time base and uses pointer IDs,
+not transient pointer indices. See the [Android NDK Input reference](https://developer.android.com/ndk/reference/group/input).
+
+The iOS host view enables multi-touch and maps UIKit
+`touchesBegan`, `touchesMoved`, `touchesEnded`, and `touchesCancelled` callbacks.
+It uses view-local point coordinates, UITouch object identity for pointer IDs,
+and the enclosing UIEvent timestamp converted from seconds since system
+startup to nanoseconds. See [Apple's UIEvent timestamp documentation](https://developer.apple.com/documentation/uikit/uievent/timestamp).
+
+Both adapters bind events to the current surface generation and cancel active
+pointers on Android focus loss or surface detachment. Callback batches are
+single-thread-affine and pass through `TouchInput::process_batch`; a rejected
+batch clears partial events and cancels pointers that were already active.
+
 ## Limitations
 
-No Android MotionEvent or UIKit callback adapters, gesture recognizers,
-virtual controls, action mapping, sensor/haptics integration, or physical-device
-input tests exist yet. The API is experimental and has no compatibility
-guarantee.
+The native callbacks update a portable TouchInput instance owned by each host;
+they are not yet exposed to Core game-loop phases or gameplay systems. Gesture
+recognizers, virtual controls, action mapping, sensor/haptics integration, and
+physical-device input tests do not exist yet. The API is experimental and has
+no compatibility guarantee. See [ADR-0013](ADR-0013-NATIVE-TOUCH-ADAPTERS.md) for the native adapter boundary and clock/coordinate decisions.
 
 ## Example
 

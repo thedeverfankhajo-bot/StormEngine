@@ -178,6 +178,60 @@ std::optional<std::string> moved_from_is_inert() {
     return std::nullopt;
 }
 
+
+std::optional<std::string> batch_multiple_pointer_events() {
+    auto r = TouchInput::create(TouchInputConfig{3U, 12U}); EXPECT(r);
+    auto input = std::move(r).value(); EXPECT(input.attach_surface(1U));
+    input.begin_frame();
+    const std::array batch{
+        event(1U, PointerPhase::Down, 1.0, 2.0, 10U),
+        event(2U, PointerPhase::Down, 4.0, 5.0, 11U),
+        event(1U, PointerPhase::Move, 3.0, 4.0, 12U),
+        event(2U, PointerPhase::Move, 6.0, 7.0, 12U),
+    };
+    EXPECT(input.process_batch(batch));
+    EXPECT(input.active_pointer_count() == 2U);
+    EXPECT(input.frame_events().size() == 4U);
+    EXPECT(input.active_pointers()[0].delta_x == 2.0);
+    EXPECT(input.active_pointers()[0].delta_y == 2.0);
+    EXPECT(input.active_pointers()[1].delta_x == 2.0);
+    EXPECT(input.active_pointers()[1].delta_y == 2.0);
+    return std::nullopt;
+}
+std::optional<std::string> failed_batch_cancels_partial_state() {
+    auto r = TouchInput::create(TouchInputConfig{3U, 12U}); EXPECT(r);
+    auto input = std::move(r).value(); EXPECT(input.attach_surface(1U));
+    input.begin_frame();
+    const std::array batch{
+        event(1U, PointerPhase::Down, 1.0, 2.0, 10U),
+        event(2U, PointerPhase::Down, 4.0, 5.0, 11U),
+        event(1U, PointerPhase::Down, 9.0, 9.0, 12U),
+    };
+    auto result = input.process_batch(batch);
+    EXPECT(!result);
+    EXPECT(input.active_pointer_count() == 0U);
+    EXPECT(input.frame_events().size() == 2U);
+    EXPECT(input.frame_events()[0].phase == PointerPhase::Cancel);
+    EXPECT(input.frame_events()[1].phase == PointerPhase::Cancel);
+    EXPECT(input.frame_events()[0].timestamp_ns == 11U);
+    EXPECT(input.frame_events()[1].timestamp_ns == 11U);
+    return std::nullopt;
+}
+std::optional<std::string> failed_out_of_order_batch_clears_existing_pointers() {
+    auto r = TouchInput::create(); EXPECT(r);
+    auto input = std::move(r).value(); EXPECT(input.attach_surface(1U));
+    EXPECT(input.process(event(7U, PointerPhase::Down, 1.0, 1.0, 100U)));
+    input.begin_frame();
+    const std::array batch{event(7U, PointerPhase::Move, 2.0, 2.0, 99U)};
+    auto result = input.process_batch(batch);
+    EXPECT(!result);
+    EXPECT(input.active_pointer_count() == 0U);
+    EXPECT(input.frame_events().size() == 1U);
+    EXPECT(input.frame_events()[0].phase == PointerPhase::Cancel);
+    EXPECT(input.frame_events()[0].timestamp_ns == 100U);
+    return std::nullopt;
+}
+
 struct TestCase { const char* name; std::optional<std::string> (*run)(); };
 } // namespace
 
@@ -197,6 +251,9 @@ int main() {
         TestCase{"cancel_capacity_transaction", &cancellation_capacity_is_transactional},
         TestCase{"invalid_phase", &invalid_phase_rejected},
         TestCase{"moved_from_inert", &moved_from_is_inert},
+        TestCase{"batch_multiple_pointer_events", &batch_multiple_pointer_events},
+        TestCase{"failed_batch_cancels_partial_state", &failed_batch_cancels_partial_state},
+        TestCase{"failed_out_of_order_batch", &failed_out_of_order_batch_clears_existing_pointers},
     };
     std::size_t failures = 0U;
     for (const auto& item : cases) {

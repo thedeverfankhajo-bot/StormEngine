@@ -223,6 +223,7 @@ if(CMAKE_SYSTEM_NAME STREQUAL "iOS")
         Storm::Serialization
         Storm::Physics1D
         Storm::Platform
+        Storm::Input
     )
     set_target_properties(storm_ios_app PROPERTIES
         MACOSX_BUNDLE TRUE
@@ -268,6 +269,7 @@ if(ANDROID)
     target_link_libraries(storm_android_native_activity
         PRIVATE
             Storm::Platform
+            Storm::Input
             android
             log
     )

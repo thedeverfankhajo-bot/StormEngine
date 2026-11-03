@@ -176,6 +176,33 @@ Result<void> TouchInput::process(const PointerEvent& event) {
     }
 }
 
+Result<void> TouchInput::process_batch(std::span<const PointerEvent> events) {
+    auto initialized = ensure_initialized();
+    if (!initialized) return initialized;
+    if (events.empty()) return Result<void>::success();
+
+    for (const PointerEvent& event : events) {
+        auto result = process(event);
+        if (result) continue;
+
+        const Error original_error = result.error();
+        // Native multi-pointer callbacks are one logical batch. If a later
+        // pointer is invalid, never leave a partially applied gesture active.
+        begin_frame();
+        if (!active_pointers_.empty()) {
+            auto cancelled = cancel_all(last_event_timestamp_ns_);
+            if (!cancelled) {
+                return Result<void>::failure(Error::make(
+                    ErrorCode::Internal,
+                    "TouchInput batch failed and active-pointer cleanup also failed: " +
+                        cancelled.error().message));
+            }
+        }
+        return Result<void>::failure(original_error);
+    }
+    return Result<void>::success();
+}
+
 Result<void> TouchInput::cancel_all(std::uint64_t timestamp_ns) {
     auto initialized = ensure_initialized();
     if (!initialized) return initialized;

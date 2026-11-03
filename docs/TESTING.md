@@ -254,7 +254,7 @@ and both target builds passed in CI run [41340647156](https://github.com/thedeve
 
 ## Portable touch input coverage added in the current change
 
-The new `stormengine_touch_input_tests` executable adds fourteen named cases for:
+The `stormengine_touch_input_tests` executable contains seventeen named cases for:
 - Configuration and buffer-capacity validation.
 - Attached-surface and generation validation.
 - Down/Move/Up lifecycle and accumulated per-frame deltas.
@@ -270,13 +270,14 @@ The new `stormengine_touch_input_tests` executable adds fourteen named cases for
 - Transactional cancellation failure when capacity is insufficient.
 - Invalid pointer-phase rejection.
 - Safe rejection of mutations on a moved-from input instance.
+- Multi-pointer callback batch processing with stable frame order and accumulated deltas.
+- Transactional cleanup of partially applied batches after duplicate transitions.
+- Active-pointer cancellation when a batch contains a backwards timestamp.
 
 The target is added to the CMake host-test graph and Android/iOS native
-cross-compilation jobs. All fourteen cases passed, and the portable library
-built for Android arm64-v8a and iOS device arm64 in CI run
-[41373342369](https://github.com/thedeverfankhajo-bot/StormEngine/actions/runs/41373342369).
-These tests exercise the portable C++ contract only, not Android MotionEvent,
-UIKit callbacks, or physical devices.
+cross-compilation jobs. The seventeen cases exercise the portable C++ contract
+on host CI; they do not invoke Android MotionEvent or UIKit callbacks on a
+physical device.
 
 
 ## Initial Physics2D vertical slice
@@ -323,3 +324,32 @@ host integration tests and target cross-compilation, not physical-device
 runtime verification. The adapter maps only local translation; it does not
 synchronize parent transforms, apply rotation/scale to colliders, or provide
 angular physics.
+
+
+## TouchInput callback batch coverage
+
+The portable touch tests add three cases for multi-pointer batch ingestion:
+ordered Down/Move batches and per-pointer deltas; cancellation of partial state
+when a later transition is duplicated; and cleanup when a batch timestamp
+moves backwards. A failed batch discards its partial event list and retains
+only cancellation events for pointers that had already become active.
+
+
+## Native touch integration scope
+
+The Android NativeActivity adapter consumes NDK MotionEvent Down,
+PointerDown, Move, PointerUp, Up, and Cancel callbacks. Android input coordinates
+are window-relative pixels and are converted to logical units using the active
+SurfaceLifecycle density. The NDK event timestamp is forwarded in the
+System.nanoTime nanosecond time base.
+
+The iOS host view enables multiple touches and forwards
+touchesBegan/Moved/Ended/Cancelled callbacks. Touch positions use view-local
+UIKit points; one UIEvent timestamp is shared by the event's pointer batch and
+converted from seconds since system startup to nanoseconds.
+
+Both host adapters validate the active surface generation and cancel active
+pointers on focus loss or surface detachment. They update a host-owned
+TouchInput instance only; no Core game-loop or gameplay consumer is connected.
+The CI cross-compilation jobs validate linkage and target compilation, not
+physical-device callback behavior.
