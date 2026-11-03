@@ -99,7 +99,7 @@ The native callbacks update a portable TouchInput instance owned by each host;
 they are not yet exposed to Core game-loop phases or gameplay systems. Gesture
 recognizers, virtual controls, action mapping, sensor/haptics integration, and
 physical-device input tests do not exist yet. The API is experimental and has
-no compatibility guarantee. See [ADR-0013](ADR-0013-NATIVE-TOUCH-ADAPTERS.md) for the native adapter boundary and clock/coordinate decisions.
+no compatibility guarantee. See [ADR-0013](ADR-0013-NATIVE-TOUCH-ADAPTERS.md) for the native adapter boundary and clock/coordinate decisions. Gesture semantics and validation are recorded in [ADR-0015](ADR-0015-PORTABLE-TOUCH-GESTURE-RECOGNITION.md).
 
 ## Example
 

@@ -90,6 +90,7 @@ stormengine_apply_warnings(storm_physics2d)
 
 add_library(storm_input STATIC
     engine/input/src/touch_input.cpp
+    engine/input/src/gesture_recognizer.cpp
 )
 add_library(Storm::Input ALIAS storm_input)
 target_include_directories(storm_input
@@ -433,6 +434,16 @@ if(STORMENGINE_BUILD_TESTS)
         target_compile_features(stormengine_touch_input_tests PRIVATE cxx_std_20)
         stormengine_apply_warnings(stormengine_touch_input_tests)
         add_test(NAME stormengine_touch_input_tests COMMAND stormengine_touch_input_tests)
+
+        add_executable(stormengine_gesture_recognizer_tests
+            tests/gesture_recognizer_tests.cpp
+        )
+        target_link_libraries(stormengine_gesture_recognizer_tests PRIVATE Storm::Input)
+        target_compile_features(stormengine_gesture_recognizer_tests PRIVATE cxx_std_20)
+        stormengine_apply_warnings(stormengine_gesture_recognizer_tests)
+        add_test(NAME stormengine_gesture_recognizer_tests
+            COMMAND stormengine_gesture_recognizer_tests)
+
         add_executable(stormengine_touch_input_game_loop_adapter_tests
             tests/touch_input_game_loop_adapter_tests.cpp
         )
