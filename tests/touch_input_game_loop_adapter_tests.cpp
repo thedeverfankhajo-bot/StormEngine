@@ -273,6 +273,73 @@ private:
     return std::nullopt;
 }
 
+
+[[nodiscard]] std::optional<std::string> native_batches_accumulate_until_consumed() {
+    auto input_result = make_touch_input();
+    EXPECT(input_result);
+    auto input = std::move(input_result).value();
+    EXPECT(input.attach_surface(9U));
+
+    const std::array first_callback{
+        Storm::Input::PointerEvent{
+            .pointer_id = 2U,
+            .phase = Storm::Input::PointerPhase::Down,
+            .x = 10.0,
+            .y = 20.0,
+            .timestamp_ns = 100U,
+            .surface_generation = 9U,
+        },
+        Storm::Input::PointerEvent{
+            .pointer_id = 2U,
+            .phase = Storm::Input::PointerPhase::Move,
+            .x = 13.0,
+            .y = 24.0,
+            .timestamp_ns = 101U,
+            .surface_generation = 9U,
+        },
+    };
+    const std::array second_callback{
+        Storm::Input::PointerEvent{
+            .pointer_id = 2U,
+            .phase = Storm::Input::PointerPhase::Move,
+            .x = 17.0,
+            .y = 29.0,
+            .timestamp_ns = 102U,
+            .surface_generation = 9U,
+        },
+    };
+
+    EXPECT(input.process_batch(first_callback));
+    EXPECT(input.process_batch(second_callback));
+    EXPECT(input.frame_events().size() == 3U);
+    EXPECT(input.active_pointers().size() == 1U);
+    EXPECT(input.active_pointers()[0].delta_x == 7.0);
+    EXPECT(input.active_pointers()[0].delta_y == 9.0);
+
+    // A native CANCEL/lifecycle cancellation is part of the same pending
+    // frame and must not erase the earlier Down/Move transitions.
+    EXPECT(input.cancel_all(103U));
+
+    auto loop_result = make_game_loop();
+    EXPECT(loop_result);
+    auto loop = std::move(loop_result).value();
+    Trace trace;
+    RecordingCallbacks callbacks(trace);
+    RecordingTouchConsumer consumer(trace);
+    Storm::Runtime::TouchInputGameLoopAdapter adapter(callbacks, input, consumer);
+
+    EXPECT(loop.tick(0ns, adapter));
+    EXPECT(consumer.events.size() == 4U);
+    EXPECT(consumer.events[0].phase == Storm::Input::PointerPhase::Down);
+    EXPECT(consumer.events[1].phase == Storm::Input::PointerPhase::Move);
+    EXPECT(consumer.events[2].phase == Storm::Input::PointerPhase::Move);
+    EXPECT(consumer.events[3].phase == Storm::Input::PointerPhase::Cancel);
+    EXPECT(consumer.events[3].timestamp_ns == 103U);
+    EXPECT(consumer.active_pointers.empty());
+    EXPECT(input.frame_events().empty());
+    return std::nullopt;
+}
+
 struct TestCase final {
     const char* name;
     std::optional<std::string> (*run)();
@@ -290,6 +357,8 @@ int main() {
                  &touch_consumer_failure_clears_events_without_replay},
         TestCase{"application_input_failure_does_not_replay_touch_events",
                  &application_input_failure_does_not_replay_touch_events},
+        TestCase{"native_batches_accumulate_until_consumed",
+                 &native_batches_accumulate_until_consumed},
     };
 
     std::size_t failures = 0U;

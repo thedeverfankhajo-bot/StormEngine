@@ -27,6 +27,35 @@ constexpr Storm::Platform::NativeSurfaceId kIOSHostSurfaceId = 1U;
     return true;
 }
 
+[[nodiscard]] Storm::Result<void> cancel_touch_input(
+    Storm::Input::TouchInput& input,
+    std::uint64_t timestamp_ns) {
+    auto cancelled = input.cancel_all(timestamp_ns);
+    if (!cancelled &&
+        cancelled.error().code == Storm::ErrorCode::ResourceExhausted) {
+        // Preserve all prior events unless capacity prevents reporting every
+        // cancellation. In that case the cancellation state takes priority.
+        input.begin_frame();
+        cancelled = input.cancel_all(timestamp_ns);
+    }
+    return cancelled;
+}
+
+[[nodiscard]] Storm::Result<void> detach_touch_input(
+    Storm::Input::TouchInput& input,
+    std::uint64_t surface_generation,
+    std::uint64_t timestamp_ns) {
+    auto detached = input.detach_surface(surface_generation, timestamp_ns);
+    if (!detached &&
+        detached.error().code == Storm::ErrorCode::ResourceExhausted) {
+        // Surface teardown must not strand pointers. Retry after discarding
+        // older buffered moves only when the cancellation batch cannot fit.
+        input.begin_frame();
+        detached = input.detach_surface(surface_generation, timestamp_ns);
+    }
+    return detached;
+}
+
 } // namespace
 
 @interface StormEngineHostViewController : UIViewController {
@@ -211,10 +240,9 @@ constexpr Storm::Platform::NativeSurfaceId kIOSHostSurfaceId = 1U;
     const NSUInteger count = touches.count;
     if (count == 0U) return;
     if (count > Storm::Input::TouchInput::maximum_supported_pointers) {
-        touch_input->begin_frame();
         std::uint64_t cleanup_timestamp = 0U;
         if (timestamp_to_nanoseconds([[NSProcessInfo processInfo] systemUptime], cleanup_timestamp)) {
-            const auto cancelled = touch_input->cancel_all(cleanup_timestamp);
+            const auto cancelled = cancel_touch_input(*touch_input, cleanup_timestamp);
             if (!cancelled) [self _reportTouchError:cancelled.error()];
         }
         return;
@@ -228,10 +256,9 @@ constexpr Storm::Platform::NativeSurfaceId kIOSHostSurfaceId = 1U;
         if (!timestamp_to_nanoseconds(static_cast<double>(timestamp), timestamp_ns)) {
             [self _reportTouchError:Storm::Error::make(
                 Storm::ErrorCode::InvalidArgument, "UIKit supplied an invalid event timestamp.")];
-            touch_input->begin_frame();
             std::uint64_t cleanup_timestamp = 0U;
             if (timestamp_to_nanoseconds([[NSProcessInfo processInfo] systemUptime], cleanup_timestamp)) {
-                const auto cancelled = touch_input->cancel_all(cleanup_timestamp);
+                const auto cancelled = cancel_touch_input(*touch_input, cleanup_timestamp);
                 if (!cancelled) [self _reportTouchError:cancelled.error()];
             }
             return;
@@ -254,7 +281,8 @@ constexpr Storm::Platform::NativeSurfaceId kIOSHostSurfaceId = 1U;
             return first.pointer_id < second.pointer_id;
         });
 
-    touch_input->begin_frame();
+    // Keep separate UIKit callbacks in the same pending display frame.
+    // The GameLoop adapter owns frame-buffer clearing after consumption.
     const auto processed = touch_input->process_batch(
         std::span<const Storm::Input::PointerEvent>{events.data(), event_count});
     if (!processed) [self _reportTouchError:processed.error()];
@@ -281,8 +309,7 @@ constexpr Storm::Platform::NativeSurfaceId kIOSHostSurfaceId = 1U;
             Storm::ErrorCode::Internal, "Could not read a monotonic timestamp while cancelling iOS touches.")];
         return;
     }
-    touch_input->begin_frame();
-    const auto cancelled = touch_input->cancel_all(timestamp_ns);
+    const auto cancelled = cancel_touch_input(*touch_input, timestamp_ns);
     if (!cancelled) [self _reportTouchError:cancelled.error()];
 }
 
@@ -313,9 +340,8 @@ constexpr Storm::Platform::NativeSurfaceId kIOSHostSurfaceId = 1U;
                 Storm::ErrorCode::Internal, "Could not read a monotonic UIKit timestamp while detaching.")];
             return;
         }
-        touch_input->begin_frame();
-        const auto input_detached = touch_input->detach_surface(
-            current->generation, timestamp_ns);
+        const auto input_detached = detach_touch_input(
+            *touch_input, current->generation, timestamp_ns);
         if (!input_detached) {
             [self _reportTouchError:input_detached.error()];
             return;

@@ -31,7 +31,9 @@ For each eligible GameLoop input phase, the adapter:
    `process_input()` callback.
 3. Clears per-frame events and pointer deltas after the touch consumer returns,
    including when it returns an error, so stale transitions are not replayed.
-4. Forwards events, fixed updates, variable updates, and render callbacks to
+4. Native adapters must append separate OS callback batches until this input
+   phase runs; they must not clear the pending frame before each callback.
+5. Forwards events, fixed updates, variable updates, and render callbacks to
    the wrapped application unchanged.
 
 The adapter is single-thread-affine and borrows all three dependencies. The

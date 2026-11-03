@@ -64,8 +64,15 @@ void fail(
 [[nodiscard]] bool cancel_touch_input(
     NativeActivityState& state, std::uint64_t timestamp_ns) {
     if (!state.touch_input.has_value()) return true;
-    state.touch_input->begin_frame();
-    const auto cancelled = state.touch_input->cancel_all(timestamp_ns);
+    auto cancelled = state.touch_input->cancel_all(timestamp_ns);
+    if (!cancelled &&
+        cancelled.error().code == Storm::ErrorCode::ResourceExhausted) {
+        // Preserve the cancellation transition even when accumulated native
+        // events filled the frame buffer. Older transitions are superseded
+        // only when there is no room left to report all active-pointer cancels.
+        state.touch_input->begin_frame();
+        cancelled = state.touch_input->cancel_all(timestamp_ns);
+    }
     if (!cancelled) {
         static_cast<void>(__android_log_write(
             ANDROID_LOG_WARN, kLogTag, cancelled.error().message.c_str()));
@@ -234,9 +241,16 @@ void fail(
     }
     if (state.touch_input.has_value() && state.touch_input->surface_generation() ==
             std::optional<std::uint64_t>{current->generation}) {
-        state.touch_input->begin_frame();
-        const auto input_detached =
+        auto input_detached =
             state.touch_input->detach_surface(current->generation, timestamp_ns);
+        if (!input_detached &&
+            input_detached.error().code == Storm::ErrorCode::ResourceExhausted) {
+            // A detach must report Cancel for every active pointer. If the
+            // accumulated event buffer is full, discard old moves and retry.
+            state.touch_input->begin_frame();
+            input_detached =
+                state.touch_input->detach_surface(current->generation, timestamp_ns);
+        }
         if (!input_detached) {
             fail(state, input_detached.error());
             return false;
@@ -315,9 +329,7 @@ std::int32_t handle_input_event(android_app* app, AInputEvent* event) {
             last_index = first_index + 1U;
             break;
         case AMOTION_EVENT_ACTION_CANCEL:
-            state->touch_input->begin_frame();
-            if (!state->touch_input->cancel_all(timestamp_ns)) return 0;
-            return 1;
+            return cancel_touch_input(*state, timestamp_ns) ? 1 : 0;
         default:
             return 0;
     }
@@ -351,7 +363,8 @@ std::int32_t handle_input_event(android_app* app, AInputEvent* event) {
     }
 
     if (event_count == 0U) return 0;
-    state->touch_input->begin_frame();
+    // Native callbacks are asynchronous relative to the display frame. Keep
+    // appending transitions until TouchInputGameLoopAdapter consumes them.
     const auto processed = state->touch_input->process_batch(
         std::span<const PointerEvent>{events.data(), event_count});
     if (!processed) {

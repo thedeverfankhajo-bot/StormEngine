@@ -84,8 +84,14 @@ startup to nanoseconds. See [Apple's UIEvent timestamp documentation](https://de
 
 Both adapters bind events to the current surface generation and cancel active
 pointers on Android focus loss or surface detachment. Callback batches are
-single-thread-affine and pass through `TouchInput::process_batch`; a rejected
-batch clears partial events and cancels pointers that were already active.
+single-thread-affine and pass through `TouchInput::process_batch`. Separate
+native callbacks accumulate in the same pending input frame; neither adapter
+calls `begin_frame()` before each OS callback. The
+`TouchInputGameLoopAdapter` clears events and deltas only after the gameplay
+consumer has observed the frame. A rejected batch clears partial transitions
+and cancels pointers that were already active. When a lifecycle cancellation
+cannot fit in the bounded event buffer, older buffered transitions are
+discarded only to guarantee delivery of all required cancellation events.
 
 ## Limitations
 

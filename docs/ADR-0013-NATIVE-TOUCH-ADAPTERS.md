@@ -49,11 +49,19 @@ Both adapters:
 - Attach TouchInput to the SurfaceLifecycle generation and reject stale surface
   events.
 - Serialize callback processing on their owning native thread.
-- Use the bounded TouchInput::process_batch API. If any event in a batch fails,
-  partial frame events are discarded and active pointers are cancelled.
-- Keep the host-owned TouchInput instance separate from Core/gameplay. A
-  later vertical slice must define a frame-level consumer that transfers
-  completed input state/events into Runtime/Core without exposing native SDKs.
+- Use the bounded TouchInput::process_batch API. Separate native callbacks
+  accumulate until the Runtime frame consumer calls begin_frame() after
+  observing the complete frame. A rejected batch discards partial transitions
+  and cancels active pointers.
+- Do not clear frame events before each OS callback: multiple MotionEvent or
+  UIKit callback batches may arrive between display frames.
+- On lifecycle/surface cancellation, preserve prior events when capacity
+  permits. If all cancellation events cannot fit, discard older buffered
+  transitions and retry so no pointer is left logically active.
+- Keep the host-owned TouchInput instance separate from Core/gameplay. The
+  Runtime frame adapter transfers the pending input view without exposing
+  native SDKs; the current host shells still do not instantiate a gameplay
+  consumer or native frame source.
 
 ## Consequences and validation boundary
 
