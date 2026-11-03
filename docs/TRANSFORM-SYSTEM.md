@@ -9,7 +9,7 @@ Implemented contracts:
 - Finite-value validation for translation, rotation, and scale.
 - Vector3 length, dot, cross, and checked normalization using double-precision intermediates.
 - Quaternion identity, normalization, and axis-angle construction.
-- 4x4 affine matrix construction and multiplication.
+- 4x4 affine matrix construction, plus checked multiplication that rejects non-finite operands and results outside the float range.
 - Right-handed perspective and orthographic camera projections with a zero-to-one depth range.
 - Right-handed look-at view matrix construction.
 - Checked homogeneous point transforms and translation-free direction transforms.
@@ -71,7 +71,7 @@ Use `local_transform(scene, entity)` to read a local transform. It returns ident
 
 World matrices are evaluated on demand in O(depth) time and O(depth) temporary memory. The evaluation is iterative and validates each transform. This deliberately avoids cache invalidation rules while hierarchy mutation and component editing are still evolving. It is suitable as a correctness baseline, not a promise of high-throughput scene rendering. A cache or dirty-propagation system requires benchmarks and a documented invalidation contract before introduction.
 
-The camera constructors use double-precision intermediate calculations, then reject values that cannot be represented by finite floats. Vector normalization and cross products follow the same checked-narrowing rule. These APIs are platform-neutral and do not include graphics headers or device queries.
+The camera constructors and `Matrix4::multiply_checked` use double-precision intermediate calculations, then reject values that cannot be represented by finite floats. The ordinary `operator*` remains an unchecked convenience operation and may produce a non-finite matrix on overflow; Core hierarchy composition uses the checked API and propagates its typed error. Vector normalization and cross products follow the same checked-narrowing rule. These APIs are platform-neutral and do not include graphics headers or device queries.
 
 Scene and component APIs remain single-thread-affine. Do not mutate the Scene concurrently with TransformSystem queries. Transform3D data is stored in the Scene's typed component storage and is removed automatically when its entity is destroyed.
 
@@ -81,4 +81,4 @@ Transform3D is a general 3D affine transform usable by 3D content and as the spa
 
 ## Validation
 
-The `stormengine_math_tests` executable covers Vector3 arithmetic validation, quaternion operations, right-handed axis-angle rotation, TRS matrix construction, matrix composition, right-handed zero-to-one camera projections, look-at construction, homogeneous point/direction transformation, invalid numeric inputs, overflow rejection, and matrix bounds. `stormengine_transform_system_tests` covers identity defaults, component replacement, handle validation, invalid values, parent composition, rotation/scale inheritance, grouping nodes, parent destruction, deep iterative ancestry, corrupt stored data, and Scene moves. Android and iOS CI compile the Math and Core libraries for their device architectures; no on-device transform or camera behavior has been verified.
+The `stormengine_math_tests` executable covers Vector3 arithmetic validation, quaternion operations, right-handed axis-angle rotation, TRS matrix construction, matrix composition, right-handed zero-to-one camera projections, look-at construction, homogeneous point/direction transformation, invalid numeric inputs, overflow rejection, and matrix bounds. `stormengine_transform_system_tests` covers identity defaults, component replacement, handle validation, invalid values, parent composition, rotation/scale inheritance, grouping nodes, parent destruction, deep iterative ancestry, corrupt stored data, Scene moves, and rejection of hierarchy scale overflow during checked matrix composition. Android and iOS CI compile the Math and Core libraries for their device architectures; no on-device transform or camera behavior has been verified.

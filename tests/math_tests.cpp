@@ -295,6 +295,45 @@ namespace {
     return std::nullopt;
 }
 
+[[nodiscard]] std::optional<std::string> test_checked_matrix_multiplication_validates_inputs_and_overflow() {
+    const auto parent = Storm::Math::Transform3D{
+        .translation = {10.0F, 0.0F, 0.0F},
+    }.to_matrix();
+    const auto child = Storm::Math::Transform3D{
+        .translation = {0.0F, 2.0F, 0.0F},
+    }.to_matrix();
+    EXPECT(parent);
+    EXPECT(child);
+
+    const auto composed = Storm::Math::Matrix4::multiply_checked(
+        parent.value(), child.value());
+    EXPECT(composed);
+    EXPECT(nearly_equal(composed.value().at(0U, 3U), 10.0F));
+    EXPECT(nearly_equal(composed.value().at(1U, 3U), 2.0F));
+
+    const auto large_scale = Storm::Math::Transform3D{
+        .scale = {std::numeric_limits<float>::max(), 1.0F, 1.0F},
+    }.to_matrix();
+    const auto double_scale = Storm::Math::Transform3D{
+        .scale = {2.0F, 1.0F, 1.0F},
+    }.to_matrix();
+    EXPECT(large_scale);
+    EXPECT(double_scale);
+
+    const auto overflow = Storm::Math::Matrix4::multiply_checked(
+        large_scale.value(), double_scale.value());
+    EXPECT(!overflow);
+    EXPECT(overflow.error().code == Storm::ErrorCode::InvalidArgument);
+
+    const Storm::Math::Matrix4 non_finite =
+        large_scale.value() * double_scale.value();
+    EXPECT(!non_finite.is_finite());
+    const auto invalid_input = Storm::Math::Matrix4::multiply_checked(
+        non_finite, Storm::Math::Matrix4::identity());
+    EXPECT(!invalid_input);
+    EXPECT(invalid_input.error().code == Storm::ErrorCode::InvalidArgument);
+    return std::nullopt;
+}
 struct TestCase final {
     const char* name;
     std::optional<std::string> (*run)();
@@ -321,6 +360,7 @@ int main() {
         TestCase{"camera_matrices_reject_invalid_or_unrepresentable_inputs", &test_camera_matrices_reject_invalid_or_unrepresentable_inputs},
         TestCase{"transform_point_and_direction_are_distinct", &test_transform_point_and_direction_are_distinct},
         TestCase{"matrix_accessor_checks_bounds", &test_matrix_accessor_checks_bounds},
+        TestCase{"checked_matrix_multiplication_validates_inputs_and_overflow", &test_checked_matrix_multiplication_validates_inputs_and_overflow},
     };
 
     std::size_t failures = 0U;

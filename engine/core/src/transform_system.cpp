@@ -126,7 +126,13 @@ Result<Math::Matrix4> TransformSystem::world_matrix(
             return Result<Math::Matrix4>::failure(local_matrix.error());
         }
 
-        world = world * local_matrix.value();
+        const auto composed = Math::Matrix4::multiply_checked(
+            world,
+            local_matrix.value());
+        if (!composed) {
+            return Result<Math::Matrix4>::failure(composed.error());
+        }
+        world = composed.value();
         if (!world.is_finite()) {
             return Result<Math::Matrix4>::failure(Error::make(
                 ErrorCode::InvalidArgument,

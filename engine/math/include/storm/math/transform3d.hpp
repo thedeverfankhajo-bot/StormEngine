@@ -42,6 +42,11 @@ struct Quaternion final {
 class Matrix4 final {
 public:
     [[nodiscard]] static Matrix4 identity() noexcept;
+
+    // Validates both operands and rejects non-finite or out-of-float-range products.
+    [[nodiscard]] static Result<Matrix4> multiply_checked(
+        const Matrix4& lhs,
+        const Matrix4& rhs);
     [[nodiscard]] float at(std::size_t row, std::size_t column) const;
     [[nodiscard]] bool is_finite() const noexcept;
 
@@ -67,6 +72,8 @@ public:
     [[nodiscard]] Result<Vector3> transform_point(Vector3 point) const;
     [[nodiscard]] Result<Vector3> transform_direction(Vector3 direction) const;
 
+    // Unchecked convenience operator; the result may be non-finite on overflow.
+    // Use multiply_checked() when errors must be propagated.
     friend Matrix4 operator*(
         const Matrix4& lhs,
         const Matrix4& rhs) noexcept;

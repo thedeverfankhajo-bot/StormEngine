@@ -312,6 +312,34 @@ namespace {
     return std::nullopt;
 }
 
+[[nodiscard]] std::optional<std::string> test_world_matrix_rejects_hierarchy_scale_overflow() {
+    auto scene_result = Storm::Scene::create("OverflowingHierarchy");
+    EXPECT(scene_result);
+    auto scene = std::move(scene_result).value();
+    auto parent = scene.create_entity("Parent");
+    auto child = scene.create_entity("Child");
+    EXPECT(parent);
+    EXPECT(child);
+    EXPECT(scene.set_parent(child.value(), parent.value()));
+
+    EXPECT(Storm::TransformSystem::set_local_transform(
+        scene,
+        parent.value(),
+        Storm::Math::Transform3D{
+            .scale = {std::numeric_limits<float>::max(), 1.0F, 1.0F},
+        }));
+    EXPECT(Storm::TransformSystem::set_local_transform(
+        scene,
+        child.value(),
+        Storm::Math::Transform3D{
+            .scale = {2.0F, 1.0F, 1.0F},
+        }));
+
+    const auto world = Storm::TransformSystem::world_matrix(scene, child.value());
+    EXPECT(!world);
+    EXPECT(world.error().code == Storm::ErrorCode::InvalidArgument);
+    return std::nullopt;
+}
 struct TestCase final {
     const char* name;
     std::optional<std::string> (*run)();
@@ -333,6 +361,7 @@ int main() {
         TestCase{"deep_hierarchy_is_evaluated_iteratively", &test_deep_hierarchy_is_evaluated_iteratively},
         TestCase{"invalid_stored_component_is_reported", &test_invalid_stored_component_is_reported},
         TestCase{"scene_move_preserves_world_transform", &test_scene_move_preserves_world_transform},
+        TestCase{"world_matrix_rejects_hierarchy_scale_overflow", &test_world_matrix_rejects_hierarchy_scale_overflow},
     };
 
     std::size_t failures = 0U;

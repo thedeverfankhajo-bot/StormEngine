@@ -476,6 +476,32 @@ Result<Vector3> Matrix4::transform_direction(Vector3 direction) const {
         "Transformed direction exceeds the representable Vector3 range");
 }
 
+Result<Matrix4> Matrix4::multiply_checked(
+    const Matrix4& lhs,
+    const Matrix4& rhs) {
+    if (!lhs.is_finite() || !rhs.is_finite()) {
+        return Result<Matrix4>::failure(invalid_math_input(
+            "Matrix4 multiplication requires finite input matrices"));
+    }
+
+    Matrix4 result;
+    for (std::size_t column = 0U; column < 4U; ++column) {
+        for (std::size_t row = 0U; row < 4U; ++row) {
+            double value = 0.0;
+            for (std::size_t inner = 0U; inner < 4U; ++inner) {
+                value +=
+                    static_cast<double>(lhs.values_[(inner * 4U) + row]) *
+                    static_cast<double>(rhs.values_[(column * 4U) + inner]);
+            }
+            if (!is_representable_float(value)) {
+                return Result<Matrix4>::failure(invalid_math_input(
+                    "Matrix4 multiplication exceeds the representable float range"));
+            }
+            result.values_[(column * 4U) + row] = static_cast<float>(value);
+        }
+    }
+    return Result<Matrix4>::success(result);
+}
 Matrix4 operator*(const Matrix4& lhs, const Matrix4& rhs) noexcept {
     Matrix4 result;
     for (std::size_t column = 0U; column < 4U; ++column) {
