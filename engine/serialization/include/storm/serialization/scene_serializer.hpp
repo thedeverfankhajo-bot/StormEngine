@@ -365,22 +365,24 @@ template <typename... Components>
     std::size_t total_records = 0U;
     std::optional<Error> block_error;
 
-    auto append = [&]<typename Component>() {
-        if (block_error.has_value()) {
-            return;
-        }
-        const Result<std::optional<EncodedComponentBlock>> block =
-            encode_component_block<Component>(scene, entities, limits, total_records);
-        if (!block) {
-            block_error = block.error();
-            return;
-        }
-        if (block.value().has_value()) {
-            blocks.push_back(std::move(*block.value()));
-        }
-    };
-
-    (append.template operator()<Components>(), ...);
+    if constexpr (sizeof...(Components) > 0U) {
+        auto append = [&]<typename Component>() {
+            if (block_error.has_value()) {
+                return;
+            }
+            const Result<std::optional<EncodedComponentBlock>> block =
+                encode_component_block<Component>(scene, entities, limits, total_records);
+            if (!block) {
+                block_error = block.error();
+                return;
+            }
+            if (block.value().has_value()) {
+                blocks.push_back(std::move(*block.value()));
+            }
+        };
+    
+        (append.template operator()<Components>(), ...);
+    }
 
     if (block_error.has_value()) {
         return Result<void>::failure(std::move(*block_error));

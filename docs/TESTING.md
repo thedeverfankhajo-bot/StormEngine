@@ -161,7 +161,7 @@ This change registers two additional CTest executables (11 named cases total):
 - `stormengine_transform2d_tests` (8 cases): Matrix3 identity and bounds; translation, counter-clockwise rotation and T*R*S order; finite-value validation; Scene local/world transforms; parent rotation/scale and identity grouping; stale/foreign entity rejection; corrupt component rejection; hierarchy overflow; iterative deep-chain and Scene-move behavior; independent coexistence with Transform3D.
 - `stormengine_transform2d_serialization_tests` (3 cases): Transform2D Scene round-trip; invalid component rejection during encoding; malformed numeric payload and unsupported schema rejection.
 
-These are host tests. Android arm64-v8a and iOS device arm64 target builds compile the Math, Core, and Serialization implementation, but do not run host test executables or verify physical-device behavior. Check the introducing commit's CI run before reporting these cases as passed.
+These are host tests. Android arm64-v8a and iOS device arm64 target builds compile the Math, Core, and Serialization implementation, but do not run host test executables or verify physical-device behavior. Validation: Foundation CI run [41603833151](https://github.com/thedeverfankhajo-bot/StormEngine/actions/runs/41603833151) for commit `8652eeb4d3d8cc75db75f8c081a40e1e52b7b1d0` completed all seven jobs successfully. All 17 CTest executables passed under GCC, Clang, Apple Clang, and Clang ASan/UBSan; clang-tidy passed; Android arm64 target libraries and the arm64 debug APK/native-library packaging checks passed; iOS device arm64 libraries and the unsigned app bundle built successfully. This is host/CI evidence only, not physical-device runtime verification.
 
 ## Local host workflow
 

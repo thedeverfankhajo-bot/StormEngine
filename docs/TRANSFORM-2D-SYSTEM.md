@@ -55,4 +55,4 @@ The built-in codec ID is `storm.math.transform2d`, schema version 1. It stores f
 
 ## Validation boundary
 
-Two host CTest executables register 8 transform and 3 serialization test cases. Android arm64-v8a and iOS device arm64 CI compile the Math, Core, and Serialization implementation. Cross-compilation is not runtime verification; no physical-device test is claimed.
+Two host CTest executables register 8 transform and 3 serialization test cases. In Foundation CI run [41603833151](https://github.com/thedeverfankhajo-bot/StormEngine/actions/runs/41603833151), all 17 CTest executables passed under GCC, Clang, Apple Clang, and Clang ASan/UBSan; clang-tidy passed; Android arm64-v8a and iOS device arm64 targets compiled successfully. Android debug APK packaging and iOS unsigned app-bundle creation also passed. Cross-compilation and packaging are not runtime verification; no physical-device test is claimed.
