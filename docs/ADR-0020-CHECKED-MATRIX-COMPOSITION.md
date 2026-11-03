@@ -1,4 +1,4 @@
-# ADR-0018: Checked 4x4 Matrix Composition
+# ADR-0020: Checked 4x4 Matrix Composition
 
 - Status: Accepted
 - Date: 2026-11-03

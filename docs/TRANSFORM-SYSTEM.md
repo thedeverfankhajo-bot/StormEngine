@@ -82,3 +82,7 @@ Transform3D is a general 3D affine transform usable by 3D content and as the spa
 ## Validation
 
 The `stormengine_math_tests` executable covers Vector3 arithmetic validation, quaternion operations, right-handed axis-angle rotation, TRS matrix construction, matrix composition, right-handed zero-to-one camera projections, look-at construction, homogeneous point/direction transformation, invalid numeric inputs, overflow rejection, and matrix bounds. `stormengine_transform_system_tests` covers identity defaults, component replacement, handle validation, invalid values, parent composition, rotation/scale inheritance, grouping nodes, parent destruction, deep iterative ancestry, corrupt stored data, Scene moves, and rejection of hierarchy scale overflow during checked matrix composition. Android and iOS CI compile the Math and Core libraries for their device architectures; no on-device transform or camera behavior has been verified.
+
+## Decision record
+
+Checked 4x4 matrix composition and overflow propagation are documented in [ADR-0020](ADR-0020-CHECKED-MATRIX-COMPOSITION.md).
