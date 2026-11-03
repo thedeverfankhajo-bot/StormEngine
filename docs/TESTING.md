@@ -2,7 +2,7 @@
 
 ## Current automated coverage
 
-The host suite contains 176 named test cases across fifteen CTest executables. All fifteen executables passed in the GCC, Clang, Clang ASan/UBSan, and Apple Clang host jobs in CI run [41373342369](https://github.com/thedeverfankhajo-bot/StormEngine/actions/runs/41373342369). The full C++ host suite is run by the GCC, Clang, Clang ASan/UBSan, and Apple Clang jobs in [Foundation CI](https://github.com/thedeverfankhajo-bot/StormEngine/actions/workflows/foundation-ci.yml):
+The host suite currently contains eighteen CTest executables. All eighteen executables passed in the GCC, Clang, Clang ASan/UBSan, and Apple Clang host jobs in [CI run 41610785631](https://github.com/thedeverfankhajo-bot/StormEngine/actions/runs/41610785631). The dedicated Physics2D executable adds sixteen named test cases. The full C++ host suite is run by the GCC, Clang, Clang ASan/UBSan, and Apple Clang jobs in [Foundation CI](https://github.com/thedeverfankhajo-bot/StormEngine/actions/workflows/foundation-ci.yml):
 
 - stormengine_foundation_tests (11 cases):
   - Success and failure paths for typed Result<T> values.
@@ -290,7 +290,10 @@ filters, spatial-hash candidate reduction, cell/candidate/contact/body budgets,
 transactional failure, coordinate bounds, and moved-from world behavior.
 
 The new `Storm::Physics2D` target is registered as a separate CMake library.
-The Android arm64-v8a and iOS device arm64 jobs also build and verify its static
-library. Validation is pending the introducing commit's CI run. These tests
-are host-side physics contract tests; they do not verify a renderer, native
-input, Scene integration, or physical-device runtime behavior.
+CI run [41610785631](https://github.com/thedeverfankhajo-bot/StormEngine/actions/runs/41610785631) passed all sixteen Physics2D cases in the GCC,
+Clang, Apple Clang, and ASan/UBSan host configurations. The Android arm64-v8a
+and iOS device arm64 jobs built and verified its static library. Android debug
+APK assembly and native-library packaging checks also passed; the iOS job
+produced the repository's unsigned app bundle. These are host tests, target
+builds, and package checks only; they do not verify a renderer, native input,
+Scene integration, or physical-device runtime behavior.
