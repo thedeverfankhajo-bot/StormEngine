@@ -43,8 +43,10 @@ A frustum is extracted from a column-vector `projection * view` matrix.
 The clip volume is `-w <= x <= w`, `-w <= y <= w`, and `0 <= z <= w`;
 its normalized plane normals point into the visible volume. Point containment,
 AABB intersection (positive-vertex plane test), and sphere intersection use
-inclusive boundaries. Invalid or degenerate matrices are rejected by the
-factory. These are culling queries only; no renderer consumes them yet.
+inclusive boundaries, with a scale-aware tolerance based on float precision
+to avoid rejecting points exactly on a plane after matrix/plane normalization.
+Invalid or degenerate matrices are rejected by the factory. These are culling
+queries only; no renderer consumes them yet.
 
 ## Ray-query contract
 

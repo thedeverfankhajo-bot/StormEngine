@@ -175,6 +175,22 @@ struct DoubleVector3 final {
         static_cast<double>(plane.offset());
 }
 
+[[nodiscard]] double plane_distance_tolerance(
+    const Plane3D& plane,
+    Vector3 point,
+    double additional_scale = 0.0) noexcept {
+    const Vector3 normal = plane.normal();
+    const double scale =
+        std::fabs(static_cast<double>(normal.x) * static_cast<double>(point.x)) +
+        std::fabs(static_cast<double>(normal.y) * static_cast<double>(point.y)) +
+        std::fabs(static_cast<double>(normal.z) * static_cast<double>(point.z)) +
+        std::fabs(static_cast<double>(plane.offset())) +
+        std::fabs(additional_scale);
+    constexpr double tolerance_factor =
+        8.0 * static_cast<double>(std::numeric_limits<float>::epsilon());
+    return tolerance_factor * std::max(1.0, scale);
+}
+
 } // namespace
 
 bool Aabb3D::is_valid() const noexcept {
@@ -450,13 +466,13 @@ bool Frustum3D::contains(Vector3 point) const noexcept {
     }
     for (const Plane3D& plane : planes_) {
         const double distance = signed_distance_unchecked(plane, point);
-        if (!std::isfinite(distance) || distance < 0.0) {
+        const double tolerance = plane_distance_tolerance(plane, point);
+        if (!std::isfinite(distance) || distance < -tolerance) {
             return false;
         }
     }
     return true;
 }
-
 bool Frustum3D::intersects(const Aabb3D& bounds) const noexcept {
     if (!is_valid() || !bounds.is_valid()) {
         return false;
@@ -469,13 +485,13 @@ bool Frustum3D::intersects(const Aabb3D& bounds) const noexcept {
             normal.z >= 0.0F ? bounds.maximum.z : bounds.minimum.z,
         };
         const double distance = signed_distance_unchecked(plane, positive_vertex);
-        if (!std::isfinite(distance) || distance < 0.0) {
+        const double tolerance = plane_distance_tolerance(plane, positive_vertex);
+        if (!std::isfinite(distance) || distance < -tolerance) {
             return false;
         }
     }
     return true;
 }
-
 bool Frustum3D::intersects(const Sphere3D& sphere) const noexcept {
     if (!is_valid() || !sphere.is_valid()) {
         return false;
@@ -483,13 +499,14 @@ bool Frustum3D::intersects(const Sphere3D& sphere) const noexcept {
     const double radius = static_cast<double>(sphere.radius);
     for (const Plane3D& plane : planes_) {
         const double distance = signed_distance_unchecked(plane, sphere.center);
-        if (!std::isfinite(distance) || distance < -radius) {
+        const double tolerance =
+            plane_distance_tolerance(plane, sphere.center, radius);
+        if (!std::isfinite(distance) || distance < -radius - tolerance) {
             return false;
         }
     }
     return true;
 }
-
 Result<std::optional<RayHit3D>> intersect_ray_aabb(
     const Ray3D& ray,
     const Aabb3D& bounds,
