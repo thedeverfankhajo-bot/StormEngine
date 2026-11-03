@@ -32,7 +32,7 @@ Result<Math::Matrix3> TransformSystem2D::world_matrix(const Scene& scene,EntityH
    if(chain.size()>=maximum)return Result<Math::Matrix3>::failure(Error::make(ErrorCode::InvalidState,"Scene hierarchy cycle or invalid depth"));
    chain.push_back(current);auto parent=scene.parent_of(current);
    if(!parent)return Result<Math::Matrix3>::failure(parent.error());
-   if(!parent.value())break;current=*parent.value();
+   if (!parent.value().has_value()) {\n    break;\n   }\n   current = *parent.value();
   }
  }catch(const std::bad_alloc&){return Result<Math::Matrix3>::failure(exhausted("Unable to allocate Transform2D ancestry"));}
  catch(const std::length_error&){return Result<Math::Matrix3>::failure(exhausted("Transform2D ancestry exceeds container limits"));}

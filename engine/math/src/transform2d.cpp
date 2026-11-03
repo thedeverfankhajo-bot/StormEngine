@@ -10,7 +10,7 @@ namespace {
  constexpr double max=static_cast<double>(std::numeric_limits<float>::max());
  if(std::isnan(value))return std::numeric_limits<float>::quiet_NaN();
  if(!std::isfinite(value)||value>max||value< -max)
-  return std::copysign(std::numeric_limits<float>::infinity(),value);
+  return std::signbit(value) ? -std::numeric_limits<float>::infinity() : std::numeric_limits<float>::infinity();
  return static_cast<float>(value);
 }
 }

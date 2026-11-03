@@ -48,7 +48,7 @@ std::optional<std::string> deep_chain_and_scene_move(){
  for(std::size_t i=0;i<128;++i){auto e=scene.create_entity("N");EXPECT(e);chain.push_back(e.value());EXPECT(TransformSystem2D::set_local_transform(scene,e.value(),Transform2D{.translation={1,0}}));if(i)EXPECT(scene.set_parent(e.value(),chain[i-1]));}
  Storm::Scene moved=std::move(scene);auto w=TransformSystem2D::world_matrix(moved,chain.back());EXPECT(w);EXPECT(near(w.value().at(0,2),128));EXPECT(!TransformSystem2D::world_matrix(scene,chain.back()));return {};
 }
-std::optional<std::string> 2d_and_3d_are_separate(){
+std::optional<std::string> two_d_and_three_d_are_separate(){
  auto s=Storm::Scene::create("Mixed");EXPECT(s);auto scene=std::move(s).value();auto e=scene.create_entity("E");EXPECT(e);
  EXPECT(TransformSystem2D::set_local_transform(scene,e.value(),Transform2D{.translation={2,3}}));
  EXPECT(Storm::TransformSystem::set_local_transform(scene,e.value(),Storm::Math::Transform3D{.translation={0,0,8}}));
