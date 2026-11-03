@@ -114,7 +114,7 @@ bool Vector3::is_finite() const noexcept {
 
 double Vector3::length_squared() const noexcept {
     const DoubleVector3 value = to_double(*this);
-    return dot(value, value);
+    return dot_double(value, value);
 }
 
 double Vector3::length() const noexcept {
@@ -359,14 +359,14 @@ Result<Matrix4> Matrix4::look_at_rh(
     const DoubleVector3 eye_value = to_double(eye);
     const DoubleVector3 target_value = to_double(target);
     const DoubleVector3 up_value = to_double(up);
-    const auto backward = Storm::Math::normalized(
+    const auto backward = normalize_double(
         subtract_double(eye_value, target_value),
         "Look-at eye and target must not coincide");
     if (!backward) {
         return Result<Matrix4>::failure(backward.error());
     }
 
-    const auto right = Storm::Math::normalized(
+    const auto right = normalize_double(
         cross_double(up_value, backward.value()),
         "Look-at up vector must not be parallel to the view direction");
     if (!right) {
