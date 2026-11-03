@@ -93,12 +93,49 @@ and cancels pointers that were already active. When a lifecycle cancellation
 cannot fit in the bounded event buffer, older buffered transitions are
 discarded only to guarantee delivery of all required cancellation events.
 
+## Game action mapping
+
+`InputActionMap` maps recognized `GestureEvent` records to caller-defined,
+non-zero 32-bit `InputActionId` values. A binding is one
+`(GestureType, InputActionId)` pair; one gesture can intentionally trigger
+multiple distinct actions, and output order follows input gesture order then
+binding declaration order. Duplicate pairs are rejected.
+
+Action phases are derived consistently from gesture lifecycle:
+`DragBegin`/`PanBegin`/`PinchBegin` become `Started`; gesture updates and
+one-shot gestures become `Performed`; normal Drag/Pan/Pinch endings become
+`Completed`; cancelled endings and explicit cancellation become `Cancelled`.
+Each action event retains the original gesture payload and pointer identities.
+
+Bindings may be replaced at runtime with `replace_bindings()`. Replacement is
+validated and built separately before swapping into place, so an invalid
+replacement or allocation failure leaves the previous binding set unchanged.
+An empty binding list intentionally disables all action mappings.
+
+The map is single-thread-affine. Binding replacement is an explicit
+configuration operation; `update()` clears and fills a pre-reserved output
+buffer and does not allocate within its configured limits. Defaults are 128
+bindings, 4096 gesture events per update, and 256 action events per update.
+Hard limits are 1024 bindings, 4096 gesture events, and 8192 action events.
+Inputs are validated for known gesture types, finite numeric values, positive
+scale, cancellation consistency, and monotonic timestamps across updates.
+An invalid batch or output-capacity overflow returns a typed error and exposes
+no partial action output. The result span is valid only until the next update
+or binding replacement.
+
+This is a portable mapping primitive, not yet a complete action-context
+system: context stacking, device-specific bindings, configurable dead zones,
+virtual joysticks/buttons, and a gameplay action consumer in the Android/iOS
+hosts remain unimplemented.
+
 ## Limitations
 
 The native callbacks update a portable TouchInput instance owned by each host;
-they are not yet exposed to Core game-loop phases or gameplay systems. Gesture
-recognizers, virtual controls, action mapping, sensor/haptics integration, and
-physical-device input tests do not exist yet. The API is experimental and has
+they are not yet exposed to Core game-loop phases or gameplay systems. Gesture recognition and portable action mapping now have host-tested
+implementations, but neither is connected to an application-owned gameplay
+consumer in the mobile hosts. Virtual controls, action contexts, device-specific
+bindings, sensor/haptics integration, and physical-device input tests remain
+unimplemented. The API is experimental and has
 no compatibility guarantee. See [ADR-0013](ADR-0013-NATIVE-TOUCH-ADAPTERS.md) for the native adapter boundary and clock/coordinate decisions. Gesture semantics and validation are recorded in [ADR-0015](ADR-0015-PORTABLE-TOUCH-GESTURE-RECOGNITION.md).
 
 ## Example
