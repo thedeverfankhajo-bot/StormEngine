@@ -9,7 +9,7 @@ The current implementation contains:
 - `runtime`: a mobile frame driver that gates Core callbacks on active lifecycle and surface readiness, with lifecycle-revision and surface-generation based timing resets.
 - `serialization`: a separate bounded archive layer that depends on Core and Math, with little-endian binary primitives, a versioned Scene archive, stable component codec IDs, and per-component schema versions. Core does not depend on Serialization.
 - `math / 2D transforms`: independent planar Vector2, column-major Matrix3, finite-validated Transform2D, and hierarchy-aware TransformSystem2D. This slice coexists with Transform3D components but is not a renderer or Physics2D implementation.
-- `physics`: an optional `Storm::Physics1D` target depending only on Foundation. Its initial scalar world provides 1D dynamic integration, interval contacts, triggers, filters, and one-axis resolution; it does not depend on Scene, Transform3D, Platform, or Rendering.
+- `physics`: independent optional `Storm::Physics1D` and `Storm::Physics2D` targets, each depending only on Foundation. Physics1D owns scalar 1D intervals; Physics2D owns planar circle/axis-aligned-box rigid bodies and a bounded uniform spatial-hash broadphase. Neither depends on Scene, Platform, or Rendering.
 - `physics scene bridge`: an optional `Storm::PhysicsScene1D` target depending on Physics1D, Core, and Math. It maps generation-checked Scene entities to scalar Transform1D components without adding a Core-to-Physics or Physics1D-to-Core dependency.
 - Host CTest executables covering the implemented contracts.
 

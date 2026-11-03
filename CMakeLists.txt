@@ -76,6 +76,18 @@ target_link_libraries(storm_physics PUBLIC Storm::Foundation)
 target_compile_features(storm_physics PUBLIC cxx_std_20)
 stormengine_apply_warnings(storm_physics)
 
+add_library(storm_physics2d STATIC
+    engine/physics/src/two_d.cpp
+)
+add_library(Storm::Physics2D ALIAS storm_physics2d)
+target_include_directories(storm_physics2d
+    PUBLIC
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/engine/physics/include>
+)
+target_link_libraries(storm_physics2d PUBLIC Storm::Foundation)
+target_compile_features(storm_physics2d PUBLIC cxx_std_20)
+stormengine_apply_warnings(storm_physics2d)
+
 add_library(storm_input STATIC
     engine/input/src/touch_input.cpp
 )
@@ -354,6 +366,14 @@ if(STORMENGINE_BUILD_TESTS)
         target_compile_features(stormengine_one_d_physics_tests PRIVATE cxx_std_20)
         stormengine_apply_warnings(stormengine_one_d_physics_tests)
         add_test(NAME stormengine_one_d_physics_tests COMMAND stormengine_one_d_physics_tests)
+
+        add_executable(stormengine_two_d_physics_tests
+            tests/two_d_physics_tests.cpp
+        )
+        target_link_libraries(stormengine_two_d_physics_tests PRIVATE Storm::Physics2D)
+        target_compile_features(stormengine_two_d_physics_tests PRIVATE cxx_std_20)
+        stormengine_apply_warnings(stormengine_two_d_physics_tests)
+        add_test(NAME stormengine_two_d_physics_tests COMMAND stormengine_two_d_physics_tests)
 
         add_executable(stormengine_one_d_scene_tests
             tests/one_d_scene_tests.cpp

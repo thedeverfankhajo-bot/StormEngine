@@ -38,6 +38,17 @@ stale historical handles. Failed steps do not advance contact history. These
 interfaces are not stable API guarantees and are not yet bridged to the Core
 EventDispatcher or Scene components. See [1D Game Development](1D-GAME-DEVELOPMENT.md).
 
+The `Storm::Physics::TwoD::PhysicsWorld2D`, `BodyHandle2D`,
+`BodyDefinition2D`, collider, contact, and configuration types are development
+interfaces with no stability guarantee. Handles include a world identity,
+slot index, and generation. The initial collider set is limited to circles and
+axis-aligned boxes; bodies support Static/Kinematic/Dynamic modes, fixed-step
+force/impulse integration, restitution, friction, triggers, and symmetric
+collision filtering. A bounded uniform spatial hash generates candidate pairs.
+The API is single-thread-affine and does not yet expose queries, persistent
+contact transitions, CCD, rotation, Scene integration, or renderer integration.
+See [2D Physics](PHYSICS-2D.md) and [ADR-0011](ADR-0011-PHYSICS-2D-SPATIAL-HASH-BROADPHASE.md).
+
 ## Intended policy before the first stable release
 The `Storm::Input::TouchInput`, `PointerEvent`, `PointerSnapshot`, and `TouchInputConfig` types are experimental development interfaces with no compatibility guarantee. They provide bounded, single-thread-affine ingestion of multi-pointer Down/Move/Up/Cancel events, surface-generation validation, monotonic timestamp checks, and per-frame movement deltas. The implementation does not acquire native events or clocks and is not connected to Android MotionEvent or iOS UIKit callbacks; gesture recognition and action mapping are not included. See [Mobile Input Foundation](INPUT-SYSTEM.md).
 

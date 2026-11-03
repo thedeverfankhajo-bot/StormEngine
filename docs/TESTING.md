@@ -277,3 +277,20 @@ built for Android arm64-v8a and iOS device arm64 in CI run
 [41373342369](https://github.com/thedeverfankhajo-bot/StormEngine/actions/runs/41373342369).
 These tests exercise the portable C++ contract only, not Android MotionEvent,
 UIKit callbacks, or physical devices.
+
+
+## Initial Physics2D vertical slice
+
+The new `stormengine_two_d_physics_tests` executable registers sixteen named
+cases covering configuration and body validation, world-scoped generation
+handles, semi-implicit fixed-step integration, force and impulse behavior,
+Static/Kinematic/Dynamic bodies, circle-circle, circle-box and axis-aligned
+box-box contacts, normal and friction impulses, triggers, symmetric collision
+filters, spatial-hash candidate reduction, cell/candidate/contact/body budgets,
+transactional failure, coordinate bounds, and moved-from world behavior.
+
+The new `Storm::Physics2D` target is registered as a separate CMake library.
+The Android arm64-v8a and iOS device arm64 jobs also build and verify its static
+library. Validation is pending the introducing commit's CI run. These tests
+are host-side physics contract tests; they do not verify a renderer, native
+input, Scene integration, or physical-device runtime behavior.
