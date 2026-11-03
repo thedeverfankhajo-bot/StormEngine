@@ -53,6 +53,7 @@ stormengine_apply_warnings(storm_foundation)
 
 add_library(storm_math STATIC
     engine/math/src/transform2d.cpp
+    engine/math/src/camera2d.cpp
     engine/math/src/transform3d.cpp
 )
 add_library(Storm::Math ALIAS storm_math)

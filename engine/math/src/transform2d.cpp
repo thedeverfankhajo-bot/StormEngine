@@ -23,6 +23,31 @@ float Matrix3::at(std::size_t r,std::size_t c) const{
 bool Matrix3::is_finite() const noexcept{
  return std::all_of(values_.begin(),values_.end(),[](float x){return std::isfinite(x);});
 }
+Result<Matrix3> Matrix3::multiply_checked(const Matrix3& lhs,const Matrix3& rhs){
+ if(!lhs.is_finite()||!rhs.is_finite())return Result<Matrix3>::failure(bad_input("Matrix3 multiplication requires finite inputs"));
+ constexpr double max=static_cast<double>(std::numeric_limits<float>::max());
+ Matrix3 out;
+ for(std::size_t c=0;c<3U;++c)for(std::size_t r=0;r<3U;++r){
+  double sum=0.0;
+  for(std::size_t k=0;k<3U;++k)sum+=static_cast<double>(lhs.values_[(k*3U)+r])*static_cast<double>(rhs.values_[(c*3U)+k]);
+  if(!std::isfinite(sum)||sum>max||sum< -max)return Result<Matrix3>::failure(bad_input("Matrix3 multiplication exceeds the finite float range"));
+  out.values_[(c*3U)+r]=static_cast<float>(sum);
+ }
+ return Result<Matrix3>::success(out);
+}
+Result<Vector2> Matrix3::transform_point(Vector2 point) const{
+ if(!is_finite()||!point.is_finite())return Result<Vector2>::failure(bad_input("Matrix3 and point must contain finite values"));
+ const double x=static_cast<double>(point.x),y=static_cast<double>(point.y);
+ const double tx=static_cast<double>(values_[0])*x+static_cast<double>(values_[3])*y+static_cast<double>(values_[6]);
+ const double ty=static_cast<double>(values_[1])*x+static_cast<double>(values_[4])*y+static_cast<double>(values_[7]);
+ const double tw=static_cast<double>(values_[2])*x+static_cast<double>(values_[5])*y+static_cast<double>(values_[8]);
+ constexpr double min_w=1.0e-12;
+ constexpr double max=static_cast<double>(std::numeric_limits<float>::max());
+ if(!std::isfinite(tw)||std::fabs(tw)<=min_w)return Result<Vector2>::failure(bad_input("Matrix3 point transform has a zero or invalid homogeneous coordinate"));
+ const double ox=tx/tw,oy=ty/tw;
+ if(!std::isfinite(ox)||!std::isfinite(oy)||ox>max||ox< -max||oy>max||oy< -max)return Result<Vector2>::failure(bad_input("Transformed point exceeds the finite Vector2 range"));
+ return Result<Vector2>::success(Vector2{static_cast<float>(ox),static_cast<float>(oy)});
+}
 Matrix3 operator*(const Matrix3& a,const Matrix3& b) noexcept{
  Matrix3 out;
  for(std::size_t c=0;c<3U;++c)for(std::size_t r=0;r<3U;++r){

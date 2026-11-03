@@ -54,6 +54,35 @@ std::optional<std::string> two_d_and_three_d_are_separate(){
  EXPECT(Storm::TransformSystem::set_local_transform(scene,e.value(),Storm::Math::Transform3D{.translation={0,0,8}}));
  auto p=TransformSystem2D::world_matrix(scene,e.value());auto q=Storm::TransformSystem::world_matrix(scene,e.value());EXPECT(p);EXPECT(q);EXPECT(near(p.value().at(0,2),2));EXPECT(near(p.value().at(1,2),3));EXPECT(near(q.value().at(2,3),8));return {};
 }
+std::optional<std::string> matrix3_checked_math(){
+ auto large=Transform2D{.scale={std::numeric_limits<float>::max(),1}}.to_matrix();
+ auto twice=Transform2D{.scale={2,1}}.to_matrix();EXPECT(large);EXPECT(twice);
+ auto overflow=Matrix3::multiply_checked(large.value(),twice.value());EXPECT(!overflow);EXPECT(overflow.error().code==Storm::ErrorCode::InvalidArgument);
+ auto unchecked=large.value()*twice.value();EXPECT(!unchecked.is_finite());
+ EXPECT(!Matrix3::multiply_checked(unchecked,Matrix3::identity()));
+ auto point=Matrix3::identity().transform_point({3,-4});EXPECT(point);EXPECT(near(point.value().x,3));EXPECT(near(point.value().y,-4));
+ EXPECT(!Matrix3::identity().transform_point({std::numeric_limits<float>::infinity(),0}));
+ return {};
+}
+std::optional<std::string> camera2d_center_edges_and_rotation(){
+ using Storm::Math::Camera2D;
+ Camera2D camera{.position={10,20},.viewport_size={200,100},.zoom=1};
+ auto center=camera.world_to_ndc({10,20});EXPECT(center);EXPECT(near(center.value().x,0));EXPECT(near(center.value().y,0));
+ auto upper_right=camera.world_to_ndc({110,70});EXPECT(upper_right);EXPECT(near(upper_right.value().x,1));EXPECT(near(upper_right.value().y,1));
+ camera.rotation_radians=1.57079632679F;
+ auto rotated_right=camera.world_to_ndc({10,120});EXPECT(rotated_right);EXPECT(near(rotated_right.value().x,1));EXPECT(near(rotated_right.value().y,0));
+ auto rotated_center=camera.world_to_ndc({10,20});EXPECT(rotated_center);EXPECT(near(rotated_center.value().x,0));EXPECT(near(rotated_center.value().y,0));
+ return {};
+}
+std::optional<std::string> camera2d_rejects_invalid_and_unrepresentable_state(){
+ using Storm::Math::Camera2D;
+ Camera2D camera{};EXPECT(camera.view_projection());
+ camera.zoom=0;EXPECT(!camera.view_matrix());camera.zoom=1;
+ camera.viewport_size.x=0;EXPECT(!camera.projection_matrix());camera.viewport_size={1,1};
+ camera.rotation_radians=std::numeric_limits<float>::quiet_NaN();EXPECT(!camera.view_projection());
+ camera.rotation_radians=0;camera.viewport_size.x=std::numeric_limits<float>::denorm_min();EXPECT(!camera.projection_matrix());
+ return {};
+}
 struct Test{const char*name;std::optional<std::string>(*fn)();};
 }
 int main(){
@@ -61,7 +90,9 @@ int main(){
  Test{"matrix_and_rotation",matrix_and_rotation},Test{"invalid_values_and_bounds",invalid_values_and_bounds},
  Test{"hierarchy_composition",hierarchy_composition},Test{"inheritance_and_identity_group",inheritance_and_identity_group},
  Test{"stale_foreign_and_corrupt_component",stale_foreign_and_corrupt_component},Test{"hierarchy_overflow",hierarchy_overflow},
- Test{"deep_chain_and_scene_move",deep_chain_and_scene_move},Test{"2d_and_3d_are_separate",two_d_and_three_d_are_separate}};
+ Test{"deep_chain_and_scene_move",deep_chain_and_scene_move},Test{"2d_and_3d_are_separate",two_d_and_three_d_are_separate},
+ Test{"matrix3_checked_math",matrix3_checked_math},Test{"camera2d_center_edges_and_rotation",camera2d_center_edges_and_rotation},
+ Test{"camera2d_rejects_invalid_and_unrepresentable_state",camera2d_rejects_invalid_and_unrepresentable_state}};
  std::size_t failed=0;for(const auto&t:tests){auto r=t.fn();if(r){++failed;std::cerr<<"[FAIL] "<<t.name<<": "<<*r<<'\n';}else std::cout<<"[PASS] "<<t.name<<'\n';}
  std::cout<<"Executed "<<tests.size()<<" tests; failures: "<<failed<<'\n';return failed==0?EXIT_SUCCESS:EXIT_FAILURE;
 }

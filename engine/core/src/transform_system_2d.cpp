@@ -41,8 +41,9 @@ Result<Math::Matrix3> TransformSystem2D::world_matrix(const Scene& scene,EntityH
   const auto* local=scene.try_get_component<Math::Transform2D>(*it);
   if(local==nullptr)continue;
   auto matrix=local->to_matrix();if(!matrix)return Result<Math::Matrix3>::failure(matrix.error());
-  world=world*matrix.value();
-  if(!world.is_finite())return Result<Math::Matrix3>::failure(Error::make(ErrorCode::InvalidArgument,"Transform2D world matrix overflowed"));
+  auto composed=Math::Matrix3::multiply_checked(world,matrix.value());
+  if(!composed)return Result<Math::Matrix3>::failure(composed.error());
+  world=composed.value();
  }
  return Result<Math::Matrix3>::success(world);
 }
