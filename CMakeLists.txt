@@ -54,6 +54,7 @@ stormengine_apply_warnings(storm_foundation)
 add_library(storm_math STATIC
     engine/math/src/transform2d.cpp
     engine/math/src/camera2d.cpp
+    engine/math/src/geometry3d.cpp
     engine/math/src/transform3d.cpp
 )
 add_library(Storm::Math ALIAS storm_math)
@@ -359,6 +360,14 @@ if(STORMENGINE_BUILD_TESTS)
         target_compile_features(stormengine_math_tests PRIVATE cxx_std_20)
         stormengine_apply_warnings(stormengine_math_tests)
         add_test(NAME stormengine_math_tests COMMAND stormengine_math_tests)
+
+        add_executable(stormengine_geometry3d_tests
+            tests/geometry3d_tests.cpp
+        )
+        target_link_libraries(stormengine_geometry3d_tests PRIVATE Storm::Math)
+        target_compile_features(stormengine_geometry3d_tests PRIVATE cxx_std_20)
+        stormengine_apply_warnings(stormengine_geometry3d_tests)
+        add_test(NAME stormengine_geometry3d_tests COMMAND stormengine_geometry3d_tests)
 
         add_executable(stormengine_transform_system_tests
             tests/transform_system_tests.cpp
