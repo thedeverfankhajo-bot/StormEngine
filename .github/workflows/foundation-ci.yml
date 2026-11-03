@@ -103,12 +103,75 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Gradle 9.6
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "9.6.0"
+
+      - name: Install Android application SDK packages
+        run: |
+          SDK_ROOT="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
+          SDKMANAGER="$SDK_ROOT/cmdline-tools/latest/bin/sdkmanager"
+          if [ ! -x "$SDKMANAGER" ]; then
+            SDKMANAGER="$(find "$SDK_ROOT/cmdline-tools" -maxdepth 3 -type f -name sdkmanager -perm -u+x | sort | tail -n 1)"
+          fi
+          test -x "$SDKMANAGER"
+          "$SDKMANAGER" --sdk_root="$SDK_ROOT" --install \
+            "platforms;android-36" \
+            "build-tools;36.0.0" \
+            "cmake;3.31.0"
+
+      - name: Install the pinned Android NDK
+        env:
+          ANDROID_NDK_VERSION: "28.2.13676358"
+        run: |
+          SDK_ROOT="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
+          SDKMANAGER="$SDK_ROOT/cmdline-tools/latest/bin/sdkmanager"
+          if [ ! -x "$SDKMANAGER" ]; then
+            SDKMANAGER="$(find "$SDK_ROOT/cmdline-tools" -maxdepth 3 -type f -name sdkmanager -perm -u+x | sort | tail -n 1)"
+          fi
+          test -x "$SDKMANAGER"
+
+          NDK_ROOT="$SDK_ROOT/ndk/$ANDROID_NDK_VERSION"
+          if [ -f "$NDK_ROOT/source.properties" ] && \
+             grep -Fqx "Pkg.Revision = $ANDROID_NDK_VERSION" "$NDK_ROOT/source.properties"; then
+            echo "Using already-installed Android NDK $ANDROID_NDK_VERSION"
+          else
+            installed=false
+            for attempt in 1 2 3; do
+              if "$SDKMANAGER" --sdk_root="$SDK_ROOT" --install "ndk;$ANDROID_NDK_VERSION"; then
+                installed=true
+                break
+              fi
+              if [ "$attempt" -lt 3 ]; then
+                echo "NDK installation attempt $attempt failed; retrying." >&2
+                sleep 5
+              fi
+            done
+            if [ "$installed" != true ]; then
+              echo "Unable to install Android NDK $ANDROID_NDK_VERSION after 3 attempts." >&2
+              exit 1
+            fi
+          fi
+
+          test -f "$NDK_ROOT/build/cmake/android.toolchain.cmake"
+          grep -Fqx "Pkg.Revision = $ANDROID_NDK_VERSION" "$NDK_ROOT/source.properties"
+          test -f "$NDK_ROOT/sources/android/native_app_glue/android_native_app_glue.c"
+          echo "ANDROID_NDK_HOME=$NDK_ROOT" >> "$GITHUB_ENV"
+          echo "ANDROID_NDK_VERSION=$ANDROID_NDK_VERSION" >> "$GITHUB_ENV"
+
       - name: Verify Android NDK toolchain
         run: |
           test -f "$ANDROID_NDK_HOME/build/cmake/android.toolchain.cmake"
           test -f "$ANDROID_NDK_HOME/source.properties"
           test -f "$ANDROID_NDK_HOME/sources/android/native_app_glue/android_native_app_glue.c"
-          grep -E '^Pkg.Revision[[:space:]]*=' "$ANDROID_NDK_HOME/source.properties"
+          grep -Fqx "Pkg.Revision = $ANDROID_NDK_VERSION" "$ANDROID_NDK_HOME/source.properties"
 
       - name: Configure Android target libraries
         run: >-
@@ -139,31 +202,6 @@ jobs:
           test -s build-android-arm64/libstorm_platform.a
           test -s build-android-arm64/libstorm_runtime.a
           test -s build-android-arm64/libstorm_android_native_activity.so
-
-      - name: Set up JDK 17
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: "17"
-
-      - name: Set up Gradle 9.6
-        uses: gradle/actions/setup-gradle@v4
-        with:
-          gradle-version: "9.6.0"
-
-      - name: Install Android application SDK packages
-        run: |
-          SDK_ROOT="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
-          SDKMANAGER="$SDK_ROOT/cmdline-tools/latest/bin/sdkmanager"
-          if [ ! -x "$SDKMANAGER" ]; then
-            SDKMANAGER="$(find "$SDK_ROOT/cmdline-tools" -maxdepth 3 -type f -name sdkmanager -perm -u+x | sort | tail -n 1)"
-          fi
-          test -x "$SDKMANAGER"
-          "$SDKMANAGER" --install \
-            "platforms;android-36" \
-            "build-tools;36.0.0" \
-            "cmake;3.31.0" \
-            "ndk;28.2.13676358"
 
       - name: Assemble Android arm64 debug APK
         run: gradle -p platforms/android :app:assembleDebug

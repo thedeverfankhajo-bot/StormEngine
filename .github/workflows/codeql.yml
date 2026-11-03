@@ -1,0 +1,45 @@
+name: CodeQL
+
+on:
+  push:
+    branches:
+      - main
+  schedule:
+    - cron: "17 5 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  analyze:
+    name: CodeQL / C and C++
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v4
+        with:
+          languages: c-cpp
+          build-mode: manual
+
+      - name: Configure CMake for CodeQL
+        run: >-
+          cmake -S . -B build-codeql -G Ninja
+          -DSTORMENGINE_BUILD_TESTS=OFF
+          -DCMAKE_BUILD_TYPE=Debug
+
+      - name: Build C++ targets for CodeQL
+        run: cmake --build build-codeql --parallel 2
+
+      - name: Perform CodeQL analysis
+        uses: github/codeql-action/analyze@v4
