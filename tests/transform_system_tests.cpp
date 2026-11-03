@@ -340,6 +340,7 @@ namespace {
     EXPECT(world.error().code == Storm::ErrorCode::InvalidArgument);
     return std::nullopt;
 }
+
 struct TestCase final {
     const char* name;
     std::optional<std::string> (*run)();

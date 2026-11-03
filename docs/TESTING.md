@@ -2,7 +2,7 @@
 
 ## Current automated coverage
 
-The host suite currently contains nineteen CTest executables. All eighteen executables passed in the GCC, Clang, Clang ASan/UBSan, and Apple Clang host jobs in [CI run 41610785631](https://github.com/thedeverfankhajo-bot/StormEngine/actions/runs/41610785631). The dedicated Physics2D executable adds sixteen named test cases. The full C++ host suite is run by the GCC, Clang, Clang ASan/UBSan, and Apple Clang jobs in [Foundation CI](https://github.com/thedeverfankhajo-bot/StormEngine/actions/workflows/foundation-ci.yml):
+The current host CMake configuration registers twenty-three CTest executables. Registration is not evidence of a passing run: each compiler, sanitizer, and mobile target result must be taken from the specific [Foundation CI](https://github.com/thedeverfankhajo-bot/StormEngine/actions/workflows/foundation-ci.yml) run for the commit being evaluated. The dedicated Physics2D executable contains twenty-four named world cases.
 
 - stormengine_foundation_tests (11 cases):
   - Success and failure paths for typed Result<T> values.
@@ -61,7 +61,7 @@ The host suite currently contains nineteen CTest executables. All eighteen execu
   - Rejection of an empty std::function handler.
   - Safe subscription destruction after the dispatcher is gone.
   - Idempotent explicit disconnection.
-- stormengine_math_tests (10 cases):
+- stormengine_math_tests (18 cases):
   - Vector and matrix finite-value checks and identity matrix values.
   - Quaternion identity and normalization.
   - Zero-quaternion rejection.
@@ -71,7 +71,7 @@ The host suite currently contains nineteen CTest executables. All eighteen execu
   - TRS scale-before-rotation behavior.
   - Parent-before-local matrix multiplication order.
   - Bounds-checked matrix access.
-- stormengine_transform_system_tests (12 cases):
+- stormengine_transform_system_tests (13 cases):
   - Identity defaults for entities without Transform3D.
   - Local Transform3D insertion, readback, and replacement.
   - Rejection of stale and foreign EntityHandles.

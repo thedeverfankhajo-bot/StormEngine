@@ -512,7 +512,9 @@ Matrix4 operator*(const Matrix4& lhs, const Matrix4& rhs) noexcept {
                     static_cast<double>(lhs.values_[(inner * 4U) + row]) *
                     static_cast<double>(rhs.values_[(column * 4U) + inner]);
             }
-            result.values_[(column * 4U) + row] = static_cast<float>(value);
+            result.values_[(column * 4U) + row] = is_representable_float(value)
+                ? static_cast<float>(value)
+                : std::numeric_limits<float>::quiet_NaN();
         }
     }
     return result;

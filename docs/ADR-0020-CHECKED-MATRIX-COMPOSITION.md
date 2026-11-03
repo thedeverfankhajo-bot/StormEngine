@@ -13,7 +13,7 @@
 - Reject non-finite input matrices before multiplication.
 - Accumulate each output coefficient in `double` and verify it is representable as a finite `float` before narrowing.
 - Make `TransformSystem::world_matrix` use the checked operation and return its typed error immediately.
-- Keep the existing `operator*` for source compatibility and low-level convenience. Its declaration explicitly documents that it is unchecked; runtime-facing code that needs error propagation must use `multiply_checked`.
+- Keep the existing `operator*` for source compatibility and low-level convenience. Its declaration explicitly documents that it is unchecked; runtime-facing code that needs error propagation must use `multiply_checked`. The unchecked operator writes a quiet-NaN sentinel instead of narrowing a coefficient that is non-finite or outside the finite `float` range.
 
 ## Validation
 
@@ -25,5 +25,5 @@
 ## Consequences
 
 - Core transform composition fails deterministically with `InvalidArgument` instead of carrying a non-finite world matrix.
-- Existing callers of `operator*` remain source-compatible, but must inspect `is_finite()` or migrate to `multiply_checked` when inputs may be runtime-controlled.
+- Existing callers of `operator*` remain source-compatible. An invalid coefficient is marked with a quiet-NaN sentinel, so callers must inspect `is_finite()` or migrate to `multiply_checked` when inputs may be runtime-controlled.
 - No rendering backend, device support, or performance claim is implied by this math hardening change.
