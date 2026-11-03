@@ -63,8 +63,8 @@ namespace {
 
 [[nodiscard]] std::optional<std::string> test_vector3_rejects_zero_non_finite_and_overflow() {
     EXPECT(!Storm::Math::Vector3{}.normalized());
-    EXPECT(!Storm::Math::Vector3{
-        std::numeric_limits<float>::quiet_NaN(), 1.0F, 0.0F}.normalized());
+    EXPECT((!Storm::Math::Vector3{
+        std::numeric_limits<float>::quiet_NaN(), 1.0F, 0.0F}.normalized()));
     const auto overflow = Storm::Math::Vector3{
         std::numeric_limits<float>::max(),
         std::numeric_limits<float>::max(),
