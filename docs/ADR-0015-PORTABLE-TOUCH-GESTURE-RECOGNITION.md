@@ -29,7 +29,9 @@ The initial supported gesture vocabulary is:
 - two-pointer Pan and Pinch Begin/Update/End
 
 A pinch event carries both stable pointer IDs and a scale relative to the
-distance at pinch start. Two-pointer pan reports the centroid and centroid
+distance at pinch start. If either pointer was already in a single-pointer Drag,
+the recognizer emits its DragEnd before PanBegin/PinchBegin so a gesture
+consumer never receives an unfinished drag lifecycle. Two-pointer pan reports the centroid and centroid
 delta. DoubleTap emits the second Tap as well as a DoubleTap event so callers
 can choose whether to react to individual taps or the recognized pair.
 
@@ -77,7 +79,8 @@ Limitations:
 
 The host test executable covers configuration validation, Tap/DoubleTap,
 stationary LongPress, Drag/Swipe, two-pointer Pan/Pinch, surface-generation
-cancellation, bounded-output exhaustion, and monotonic-frame rejection.
+cancellation, bounded-output exhaustion, monotonic-frame rejection, and clean Drag-to-Pinch
+transition.
 CI must compile and execute these cases under the existing GCC, Clang, Apple
 Clang, and ASan/UBSan host configurations before the implementation is
 reported as tested. Android/iOS cross-compilation checks the portable Input

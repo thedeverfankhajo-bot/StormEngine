@@ -125,6 +125,33 @@ bool GestureRecognizer::begin_pinch_if_possible(std::uint64_t timestamp_ns) noex
         .last_center_x = center_x,
         .last_center_y = center_y,
     };
+    // A pointer that was already dragging must receive a terminal transition
+    // before it is absorbed into the two-pointer gesture.
+    if (first->dragging) {
+        if (!emit(GestureEvent{
+                .type = GestureType::DragEnd,
+                .pointer_id = first->id,
+                .timestamp_ns = timestamp_ns,
+                .x = first->x,
+                .y = first->y,
+            })) {
+            return false;
+        }
+        first->dragging = false;
+    }
+    if (second->dragging) {
+        if (!emit(GestureEvent{
+                .type = GestureType::DragEnd,
+                .pointer_id = second->id,
+                .timestamp_ns = timestamp_ns,
+                .x = second->x,
+                .y = second->y,
+            })) {
+            return false;
+        }
+        second->dragging = false;
+    }
+
     first->participated_in_pinch = true;
     second->participated_in_pinch = true;
 

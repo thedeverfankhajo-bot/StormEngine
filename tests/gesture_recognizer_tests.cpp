@@ -218,6 +218,38 @@ std::optional<std::string> bounded_output_and_monotonic_validation() {
     return std::nullopt;
 }
 
+
+std::optional<std::string> drag_ends_when_pinch_begins() {
+    GestureRecognizerConfig config{};
+    config.movement_threshold = 5.0;
+    auto created = GestureRecognizer::create(config);
+    EXPECT(created);
+    auto recognizer = std::move(created).value();
+
+    const PointerEvent first_down = event(50U, PointerPhase::Down, 0.0, 0.0, 1U);
+    EXPECT(recognizer.update(
+        std::span<const PointerEvent>{&first_down, 1U}, 1U, 1U));
+
+    const PointerEvent first_move = event(50U, PointerPhase::Move, 10.0, 0.0, 2U);
+    auto frame = recognizer.update(
+        std::span<const PointerEvent>{&first_move, 1U}, 2U, 1U);
+    EXPECT(frame);
+    EXPECT(frame.value().size() == 2U);
+    EXPECT(frame.value()[0].type == GestureType::DragBegin);
+    EXPECT(frame.value()[1].type == GestureType::DragUpdate);
+
+    const PointerEvent second_down = event(51U, PointerPhase::Down, 30.0, 0.0, 3U);
+    frame = recognizer.update(
+        std::span<const PointerEvent>{&second_down, 1U}, 3U, 1U);
+    EXPECT(frame);
+    EXPECT(frame.value().size() == 3U);
+    EXPECT(frame.value()[0].type == GestureType::DragEnd);
+    EXPECT(frame.value()[0].pointer_id == 50U);
+    EXPECT(frame.value()[1].type == GestureType::PanBegin);
+    EXPECT(frame.value()[2].type == GestureType::PinchBegin);
+    return std::nullopt;
+}
+
 struct TestCase final {
     const char* name;
     std::optional<std::string> (*run)();
@@ -235,6 +267,7 @@ int main() {
         TestCase{"cancellation_and_surface_generation", &cancellation_and_surface_generation},
         TestCase{"bounded_output_and_monotonic_validation",
                  &bounded_output_and_monotonic_validation},
+        TestCase{"drag_ends_when_pinch_begins", &drag_ends_when_pinch_begins},
     };
 
     std::size_t failures = 0U;
