@@ -151,6 +151,7 @@ stormengine_apply_warnings(storm_platform)
 add_library(storm_runtime STATIC
     engine/runtime/src/mobile_frame_driver.cpp
     engine/runtime/src/touch_input_game_loop_adapter.cpp
+    engine/runtime/src/gesture_action_input_pipeline.cpp
 )
 add_library(Storm::Runtime ALIAS storm_runtime)
 target_include_directories(storm_runtime
@@ -463,5 +464,14 @@ if(STORMENGINE_BUILD_TESTS)
         stormengine_apply_warnings(stormengine_touch_input_game_loop_adapter_tests)
         add_test(NAME stormengine_touch_input_game_loop_adapter_tests
             COMMAND stormengine_touch_input_game_loop_adapter_tests)
+
+        add_executable(stormengine_gesture_action_input_pipeline_tests
+            tests/gesture_action_input_pipeline_tests.cpp
+        )
+        target_link_libraries(stormengine_gesture_action_input_pipeline_tests PRIVATE Storm::Runtime)
+        target_compile_features(stormengine_gesture_action_input_pipeline_tests PRIVATE cxx_std_20)
+        stormengine_apply_warnings(stormengine_gesture_action_input_pipeline_tests)
+        add_test(NAME stormengine_gesture_action_input_pipeline_tests
+            COMMAND stormengine_gesture_action_input_pipeline_tests)
     endif()
 endif()

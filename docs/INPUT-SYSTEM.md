@@ -125,18 +125,44 @@ or binding replacement.
 
 This is a portable mapping primitive, not yet a complete action-context
 system: context stacking, device-specific bindings, configurable dead zones,
-virtual joysticks/buttons, and a gameplay action consumer in the Android/iOS
-hosts remain unimplemented.
+virtual joysticks/buttons, and persistent user-configurable mappings remain
+unimplemented.
+
+## Runtime gesture/action pipeline
+
+Storm::Runtime::GestureActionInputPipeline composes the existing
+GestureRecognizer and InputActionMap as one bounded Runtime operation. An
+application-owned ITouchInputFrameConsumer can pass its TouchInputFrameView
+and current frame timestamp to process_frame(), then immediately consume the
+returned action span in game logic.
+
+The frame timestamp is mandatory and must share the monotonic clock domain
+used by native PointerEvent::timestamp_ns values. The Runtime pipeline does
+not read a platform clock. It processes empty touch frames too, so a stationary
+pointer can produce LongPress without requiring a new MotionEvent or UIKit
+touch callback. Gesture cancellation and surface-generation changes are
+converted to cancelled action events; input validation or configured capacity
+exhaustion returns a typed error without exposing partial action output.
+
+The action span is owned by the pipeline and remains valid only until its next
+process_frame() call or a successful rebinding operation. All constituent
+objects are single-thread-affine. See
+[ADR-0017](ADR-0017-RUNTIME-GESTURE-ACTION-INPUT-PIPELINE.md).
 
 ## Limitations
 
-The native callbacks update a portable TouchInput instance owned by each host;
-they are not yet exposed to Core game-loop phases or gameplay systems. Gesture recognition and portable action mapping now have host-tested
-implementations, but neither is connected to an application-owned gameplay
-consumer in the mobile hosts. Virtual controls, action contexts, device-specific
-bindings, sensor/haptics integration, and physical-device input tests remain
-unimplemented. The API is experimental and has
-no compatibility guarantee. See [ADR-0013](ADR-0013-NATIVE-TOUCH-ADAPTERS.md) for the native adapter boundary and clock/coordinate decisions. Gesture semantics and validation are recorded in [ADR-0015](ADR-0015-PORTABLE-TOUCH-GESTURE-RECOGNITION.md).
+The Android NativeActivity and iOS UIKit shells feed their TouchInput objects,
+and Runtime now provides a host-testable touch-to-gesture-to-action pipeline.
+However, the packaged host shells still do not construct an application-owned
+GameLoop, native frame source, or gameplay action consumer. Therefore no game
+action currently reaches playable game logic in those shells. Virtual controls,
+action contexts, device-specific bindings, sensor/haptics integration, and
+physical-device input verification remain unimplemented. The API is experimental
+and has no compatibility guarantee. See [ADR-0013](ADR-0013-NATIVE-TOUCH-ADAPTERS.md)
+for the native adapter boundary and clock/coordinate decisions,
+[ADR-0015](ADR-0015-PORTABLE-TOUCH-GESTURE-RECOGNITION.md) for gesture
+semantics, and [ADR-0017](ADR-0017-RUNTIME-GESTURE-ACTION-INPUT-PIPELINE.md)
+for Runtime composition.
 
 ## Example
 
