@@ -1255,7 +1255,7 @@ Result<StepResult2D> PhysicsWorld2D::step(
         // Merge the current and previous slot-ordered contact lists. A reused
         // slot with a new generation is an End for the old handle followed by
         // a Begin for the new handle, never a false Stay.
-        const auto pair_less = [](const Contact2D& left,
+        const auto contact_pair_less = [](const Contact2D& left,
                                   const Contact2D& right) noexcept {
             if (left.first.slot_index != right.first.slot_index) {
                 return left.first.slot_index < right.first.slot_index;
@@ -1287,12 +1287,12 @@ Result<StepResult2D> PhysicsWorld2D::step(
             const Contact2D& current = result.contacts[current_index];
             const Contact2D& previous = previous_contacts_[previous_index];
 
-            if (pair_less(current, previous)) {
+            if (contact_pair_less(current, previous)) {
                 append_event(ContactPhase2D::Begin, current);
                 ++current_index;
                 continue;
             }
-            if (pair_less(previous, current)) {
+            if (contact_pair_less(previous, current)) {
                 append_event(ContactPhase2D::End, previous);
                 ++previous_index;
                 continue;
