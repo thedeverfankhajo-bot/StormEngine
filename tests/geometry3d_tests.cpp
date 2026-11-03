@@ -89,7 +89,10 @@ namespace {
         {std::numeric_limits<float>::max(), 0.0F, 0.0F},
         {std::numeric_limits<float>::max(), 0.0F, 0.0F});
     EXPECT(!overflow);
-    EXPECT(!created.value().merged(Aabb3D{}));
+    EXPECT((!created.value().merged(Aabb3D{
+        .minimum = {1.0F, 0.0F, 0.0F},
+        .maximum = {-1.0F, 0.0F, 0.0F},
+    })));
     EXPECT(!Aabb3D::from_center_half_extents(
         Vector3{std::numeric_limits<float>::infinity(), 0.0F, 0.0F}, {}));
     return std::nullopt;
@@ -212,7 +215,10 @@ namespace {
         ray.value(), bounds, std::numeric_limits<double>::infinity());
     EXPECT(!invalid_distance);
     EXPECT(invalid_distance.error().code == Storm::ErrorCode::InvalidArgument);
-    EXPECT(!intersect_ray_aabb(ray.value(), Aabb3D{}, 1.0));
+    EXPECT((!intersect_ray_aabb(ray.value(), Aabb3D{
+        .minimum = {1.0F, 0.0F, 0.0F},
+        .maximum = {-1.0F, 0.0F, 0.0F},
+    }, 1.0)));
     return std::nullopt;
 }
 
