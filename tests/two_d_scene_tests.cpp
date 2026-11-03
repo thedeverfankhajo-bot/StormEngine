@@ -131,7 +131,9 @@ using Storm::Physics::TwoD::Vector2;
     EXPECT((physics.apply_force(scene, entity.value(), Vector2{0.0, 4.0})));
 
     auto stepped = physics.step(scene, 0.5);
-    EXPECT(stepped);
+    if (!stepped) {
+        return std::string("PhysicsWorld2D step failed: ") + stepped.error().message;
+    }
     auto body = physics.body_snapshot(scene, entity.value());
     EXPECT(body);
     EXPECT(std::abs(body.value().velocity.x - 2.0) < 1e-12);
@@ -291,7 +293,11 @@ using Storm::Physics::TwoD::Vector2;
     PhysicsScene2D moved(std::move(physics));
 
     EXPECT(destination.is_alive(entity.value()));
-    EXPECT((moved.set_position(destination, entity.value(), Vector2{3.0, 4.0})));
+    auto moved_position = moved.set_position(destination, entity.value(), Vector2{3.0, 4.0});
+    if (!moved_position) {
+        return std::string("PhysicsScene2D set_position after move failed: ") +
+            moved_position.error().message;
+    }
     EXPECT(!physics.attach(destination, entity.value()));
     auto state = moved.body_snapshot(destination, entity.value());
     EXPECT(state);
