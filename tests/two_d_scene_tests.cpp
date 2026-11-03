@@ -130,21 +130,21 @@ using Storm::Physics::TwoD::Vector2;
     EXPECT((physics.apply_impulse(scene, entity.value(), Vector2{2.0, 0.0})));
     EXPECT((physics.apply_force(scene, entity.value(), Vector2{0.0, 4.0})));
 
-    auto stepped = physics.step(scene, 0.5);
+    auto stepped = physics.step(scene, 0.25);
     if (!stepped) {
         return std::string("PhysicsWorld2D step failed: ") + stepped.error().message;
     }
     auto body = physics.body_snapshot(scene, entity.value());
     EXPECT(body);
     EXPECT(std::abs(body.value().velocity.x - 2.0) < 1e-12);
-    EXPECT(std::abs(body.value().velocity.y - 3.0) < 1e-12);
-    EXPECT(std::abs(body.value().position.x - 6.0) < 1e-12);
-    EXPECT(std::abs(body.value().position.y - 7.5) < 1e-12);
+    EXPECT(std::abs(body.value().velocity.y - 2.5) < 1e-12);
+    EXPECT(std::abs(body.value().position.x - 5.5) < 1e-12);
+    EXPECT(std::abs(body.value().position.y - 6.625) < 1e-12);
 
     const auto* updated = scene.try_get_component<Transform2D>(entity.value());
     EXPECT(updated != nullptr);
-    EXPECT(std::abs(updated->translation.x - 6.0F) < 1e-5F);
-    EXPECT(std::abs(updated->translation.y - 7.5F) < 1e-5F);
+    EXPECT(std::abs(updated->translation.x - 5.5F) < 1e-5F);
+    EXPECT(std::abs(updated->translation.y - 6.625F) < 1e-5F);
     return std::nullopt;
 }
 
@@ -289,6 +289,7 @@ using Storm::Physics::TwoD::Vector2;
     auto physics_result = PhysicsScene2D::create(source);
     EXPECT(physics_result);
     auto physics = std::move(physics_result).value();
+    EXPECT(physics.attach(source, entity.value()));
     Storm::Scene destination(std::move(source));
     PhysicsScene2D moved(std::move(physics));
 
