@@ -185,3 +185,27 @@ if (!result) {
     // Handle invalid input or capacity exhaustion.
 }
 ```
+
+
+## Gesture-to-gameplay Runtime adapter
+
+`GestureActionGameLoopAdapter` connects a `TouchInput` instance and
+`GestureActionInputPipeline` to an application-owned
+`IGameActionFrameConsumer`. It runs in the Core input phase after
+`MobileFrameDriver` supplies the absolute monotonic frame timestamp through
+`IGameLoopCallbacks::begin_frame()`. The timestamp is required even when a
+frame contains no pointer events, because LongPress recognition advances with
+frame time.
+
+The action consumer is invoked synchronously only for non-empty action
+batches, before the delegated application's `process_input()` callback.
+Action spans are non-owning and must be consumed during the callback. All
+callbacks, the input state, pipeline, and consumer are single-thread-affine
+and must outlive the adapter. The adapter clears frame events and deltas after
+consumption, including pipeline or consumer failures, so a failed action
+callback does not replay old touch transitions on a later frame.
+
+The adapter is an integration component, not a gameplay implementation. A
+game application supplies its own action consumer. The current Android/iOS
+host shells do not yet instantiate one or connect a native frame source to
+`MobileFrameDriver`.

@@ -13,6 +13,15 @@ class IGameLoopCallbacks {
 public:
     virtual ~IGameLoopCallbacks() = default;
 
+    // Called once for each eligible runtime frame before process_input().
+    // The timestamp uses the same monotonic nanosecond domain as native input.
+    // Direct GameLoop users may keep the default no-op implementation.
+    [[nodiscard]] virtual Result<void> begin_frame(
+        std::chrono::nanoseconds monotonic_timestamp) {
+        (void)monotonic_timestamp;
+        return Result<void>::success();
+    }
+
     [[nodiscard]] virtual Result<void> process_input() = 0;
     [[nodiscard]] virtual Result<void> process_events() = 0;
     [[nodiscard]] virtual Result<void> fixed_update(

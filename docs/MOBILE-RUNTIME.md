@@ -47,6 +47,31 @@ No native frame source, callback registration, renderer, or GameLoop integration
 
 The lifecycle state machine and surface contract remain owned by the platform/runtime host and must outlive the driver. The driver owns its `GameLoop` and stores non-owning references to those contracts. It is single-thread-affine: lifecycle/surface updates and `tick()` must be serialized on the same owning thread. A future dedicated render/engine thread must receive those changes through an explicitly bounded handoff rather than concurrently reading these unsynchronized contracts.
 
+## Frame timestamp callback and action input
+
+Before invoking the Core loop on each eligible frame, `MobileFrameDriver`
+calls `IGameLoopCallbacks::begin_frame()` with the same monotonic timestamp
+used to calculate the frame delta. The default callback is a no-op, so
+existing application callback implementations remain source-compatible. A
+callback error aborts the frame; the attempted timestamp has already been
+recorded and is not replayed.
+
+`GestureActionGameLoopAdapter` uses this hook to pass an absolute frame time
+to `GestureActionInputPipeline`. This is essential for time-based gestures:
+LongPress may be recognized on a frame with no new pointer events. Negative
+timestamps are rejected at this adapter boundary because pointer and gesture
+timestamps are represented as unsigned nanoseconds. The adapter runs gesture
+recognition and action mapping before the delegated application
+`process_input()` callback, then clears per-frame touch events/deltas on
+every exit path. Non-empty action batches are delivered synchronously to an
+application-owned `IGameActionFrameConsumer`; the consumer must not retain
+the non-owning span after its callback returns.
+
+This connects the portable touch, gesture, and action layers to a gameplay
+consumer contract. It does not instantiate a gameplay consumer in the Android
+or iOS host shells, create a native frame source, or claim physical-device
+validation.
+
 ## Current integration limits
 
 The driver is an orchestration component, not yet wired into the Android NativeActivity event pump or the iOS delegate host application. The Android bridge still runs an event pump and the iOS delegate still exposes overridable lifecycle hooks. No Android Choreographer, iOS CADisplayLink, native frame pacing, renderer, physics, installable app target, or physical-device run is included by this component.

@@ -2,6 +2,7 @@
 
 #include <cmath>
 #include <limits>
+#include <string>
 #include <utility>
 
 namespace Storm::Runtime {
@@ -119,6 +120,18 @@ Result<MobileFrameResult> MobileFrameDriver::tick_at_monotonic_nanoseconds(
     previous_frame_timestamp_ns_ = timestamp_nanoseconds;
     previous_lifecycle_revision_ = lifecycle_revision;
     previous_surface_generation_ = surface_generation;
+
+    // Give timestamp-aware input consumers the absolute time before Core's
+    // input phase. The timestamp is already recorded, so a hook failure cannot
+    // replay this elapsed interval on the next frame.
+    const Result<void> begin_frame_result = callbacks.begin_frame(
+        std::chrono::nanoseconds{timestamp_nanoseconds});
+    if (!begin_frame_result) {
+        return Result<MobileFrameResult>::failure(Storm::Error::make(
+            begin_frame_result.error().code,
+            "MobileFrameDriver::begin_frame failed: " +
+                begin_frame_result.error().message));
+    }
 
     const Result<FixedStepAdvance> frame = game_loop_.tick(frame_delta, callbacks);
     if (!frame) {

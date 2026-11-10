@@ -353,3 +353,24 @@ pointers on focus loss or surface detachment. They update a host-owned
 TouchInput instance only; no Core game-loop or gameplay consumer is connected.
 The CI cross-compilation jobs validate linkage and target compilation, not
 physical-device callback behavior.
+
+
+## GestureActionGameLoopAdapter integration coverage
+
+The `stormengine_gesture_action_game_loop_adapter_tests` CTest executable
+adds four integration cases:
+
+- Touch Down/Up events flow through GestureRecognizer and InputActionMap to
+  the game-action consumer before the application's existing input callback.
+- LongPress is recognized from absolute frame time on a frame with no new
+  pointer events.
+- A failing game-action consumer causes the frame to fail, clears the consumed
+  touch events, and does not replay the action on the next frame.
+- A negative frame timestamp is rejected before touch events are consumed;
+  the next valid frame can process the pending input.
+
+The executable links the production `Storm::Runtime` target and is included
+in the host CTest matrix. Android arm64-v8a and iOS device arm64 builds compile
+the same Runtime implementation through the existing target-library jobs.
+These tests do not instantiate Android/iOS host gameplay consumers or run on
+physical devices.
