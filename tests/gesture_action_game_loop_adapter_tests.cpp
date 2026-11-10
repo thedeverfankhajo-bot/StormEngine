@@ -13,6 +13,8 @@
 
 namespace {
 
+using namespace std::chrono_literals;
+
 using Storm::Input::GestureType;
 using Storm::Input::InputActionBinding;
 using Storm::Input::InputActionEvent;
