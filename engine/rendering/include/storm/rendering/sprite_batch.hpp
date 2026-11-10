@@ -38,6 +38,15 @@ struct Sprite2DComponent final {
     std::int32_t sorting_order{0};
 };
 
+// Scene-owned camera state. The Camera2D value is authoritative; the owner's
+// Transform2D is not implicitly applied. Higher priority wins when selecting
+// the active scene camera; equal priorities keep the first entity in Scene order.
+struct Camera2DComponent final {
+    Math::Camera2D camera{};
+    std::int32_t priority{0};
+    bool enabled{true};
+};
+
 struct SpriteVertex final {
     Math::Vector2 position{};
     Math::Vector2 uv{};
@@ -119,6 +128,11 @@ public:
     // Output positions are normalized device coordinates in [-1, 1].
     [[nodiscard]] static Result<SpriteBatchView> build(
         const Scene& scene, SpriteBatch& batch, const Math::Camera2D& camera);
+
+    // Selects the enabled Camera2DComponent with the highest priority.
+    // Returns InvalidState when the Scene has no enabled camera.
+    [[nodiscard]] static Result<SpriteBatchView> build_active_camera(
+        const Scene& scene, SpriteBatch& batch);
 };
 
 } // namespace Storm::Rendering

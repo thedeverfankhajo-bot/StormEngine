@@ -28,6 +28,14 @@ camera viewport is supplied in logical viewport units by the caller. Invalid
 camera parameters clear the previous batch and return a typed error. The
 existing overload continues to emit world-space positions.
 
+`Camera2DComponent` stores a complete Camera2D value on a Scene entity.
+`SpriteSceneCollector2D::build_active_camera` ignores disabled cameras and
+selects the enabled component with the greatest priority; ties are resolved by
+Scene entity iteration order. The component's camera position/rotation remain
+authoritative and are not implicitly taken from the owner's Transform2D. A
+Scene without an enabled camera returns `InvalidState` and exposes no partial
+batch.
+
 ## Geometry and painter order
 
 A sprite emits four vertices and six 32-bit indices. The local quad spans
@@ -63,7 +71,7 @@ surface lifecycle before this phase can be called a rendering vertical slice.
 
 ## Validation
 
-`stormengine_sprite_batch_tests` contains ten deterministic host cases.
+`stormengine_sprite_batch_tests` contains twelve deterministic host cases.
 The CMake target is also included in Android arm64-v8a and iOS device arm64
 cross-compilation. Cross-compilation is not physical-device rendering
 validation.

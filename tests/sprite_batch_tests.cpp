@@ -13,6 +13,7 @@ namespace {
 #define EXPECT(condition) do { if (!(condition)) return std::string("Expectation failed: ") + #condition; } while (false)
 using Storm::Math::Camera2D;
 using Storm::Math::Transform2D;
+using Storm::Rendering::Camera2DComponent;
 using Storm::Rendering::Sprite2DComponent;
 using Storm::Rendering::SpriteBatch;
 using Storm::Rendering::SpriteBatchConfig;
@@ -106,6 +107,37 @@ using Storm::Rendering::TextureKey;
  EXPECT(batch.pending_sprite_count()==0U);EXPECT(!batch.view());
  return {};
 }
+[[nodiscard]] std::optional<std::string> scene_active_camera_selection(){
+ auto s=Storm::Scene::create("Active camera");EXPECT(s);auto scene=std::move(s).value();
+ auto low=scene.create_entity("low-priority-camera"),high=scene.create_entity("high-priority-camera");
+ auto disabled=scene.create_entity("disabled-camera"),sprite_entity=scene.create_entity("sprite");
+ EXPECT(low);EXPECT(high);EXPECT(disabled);EXPECT(sprite_entity);
+ Camera2D low_camera{.position={0,0},.rotation_radians=0,.viewport_size={100,50},.zoom=1};
+ Camera2D high_camera{.position={50,25},.rotation_radians=0,.viewport_size={100,50},.zoom=1};
+ Camera2D invalid_camera{};invalid_camera.zoom=0;
+ EXPECT(scene.add_component<Camera2DComponent>(low.value(),
+     Camera2DComponent{.camera=low_camera,.priority=1,.enabled=true}));
+ EXPECT(scene.add_component<Camera2DComponent>(high.value(),
+     Camera2DComponent{.camera=high_camera,.priority=10,.enabled=true}));
+ EXPECT(scene.add_component<Camera2DComponent>(disabled.value(),
+     Camera2DComponent{.camera=invalid_camera,.priority=100,.enabled=false}));
+ auto sprite=make_sprite(89);sprite.size={20,10};
+ EXPECT(scene.add_component<Sprite2DComponent>(sprite_entity.value(),sprite));
+ EXPECT(Storm::TransformSystem2D::set_local_transform(
+     scene,sprite_entity.value(),Transform2D{.translation={55,30}}));
+ auto created=SpriteBatch::create();EXPECT(created);auto batch=std::move(created).value();
+ auto v=SpriteSceneCollector2D::build_active_camera(scene,batch);EXPECT(v);
+ EXPECT(near(v.value().vertices[0].position.x,-0.1F));
+ EXPECT(near(v.value().vertices[0].position.y,0.0F));
+ EXPECT(near(v.value().vertices[2].position.x,0.3F));
+ EXPECT(near(v.value().vertices[2].position.y,0.4F));
+ EXPECT(scene.remove_component<Camera2DComponent>(low.value()));
+ EXPECT(scene.remove_component<Camera2DComponent>(high.value()));
+ EXPECT(scene.remove_component<Camera2DComponent>(disabled.value()));
+ EXPECT(!SpriteSceneCollector2D::build_active_camera(scene,batch));
+ EXPECT(batch.pending_sprite_count()==0U);EXPECT(!batch.view());
+ return {};
+}
 [[nodiscard]] std::optional<std::string> scene_collection_is_transactional(){
  auto s=Storm::Scene::create("Bad");EXPECT(s);auto scene=std::move(s).value();auto e=scene.create_entity();EXPECT(e);
  EXPECT(scene.add_component<Sprite2DComponent>(e.value(),Sprite2DComponent{}));
@@ -134,6 +166,7 @@ int main(){
  TestCase{"failed_build_hides_partial_geometry",failed_build_hides_partial_geometry},
  TestCase{"scene_hierarchy_collection",scene_hierarchy_collection},
  TestCase{"scene_collection_applies_camera",scene_collection_applies_camera},
+ TestCase{"scene_active_camera_selection",scene_active_camera_selection},
  TestCase{"scene_collection_is_transactional",scene_collection_is_transactional},
  TestCase{"view_invalidation_and_moves",view_invalidation_and_moves},
  TestCase{"invalid_config",invalid_config}};

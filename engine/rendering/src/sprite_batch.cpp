@@ -324,4 +324,29 @@ Result<SpriteBatchView> SpriteSceneCollector2D::build(
     return collect_scene_sprites(scene, batch, &view_projection.value());
 }
 
+Result<SpriteBatchView> SpriteSceneCollector2D::build_active_camera(
+    const Scene& scene, SpriteBatch& batch) {
+    const Camera2DComponent* selected_camera = nullptr;
+    const auto cameras = scene.for_each_component<Camera2DComponent>(
+        [&selected_camera](EntityHandle, const Camera2DComponent& candidate) {
+            if (!candidate.enabled) return;
+            if (selected_camera == nullptr ||
+                candidate.priority > selected_camera->priority) {
+                selected_camera = &candidate;
+            }
+        });
+
+    if (!cameras) {
+        batch.clear();
+        return Result<SpriteBatchView>::failure(cameras.error());
+    }
+    if (selected_camera == nullptr) {
+        batch.clear();
+        return Result<SpriteBatchView>::failure(Error::make(
+            ErrorCode::InvalidState,
+            "Scene has no enabled Camera2DComponent"));
+    }
+    return build(scene, batch, selected_camera->camera);
+}
+
 } // namespace Storm::Rendering
