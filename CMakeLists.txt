@@ -121,6 +121,18 @@ target_link_libraries(storm_core PUBLIC Storm::Foundation Storm::Math)
 target_compile_features(storm_core PUBLIC cxx_std_20)
 stormengine_apply_warnings(storm_core)
 
+add_library(storm_rendering2d STATIC
+    engine/rendering/src/sprite_batch.cpp
+)
+add_library(Storm::Rendering2D ALIAS storm_rendering2d)
+target_include_directories(storm_rendering2d
+    PUBLIC
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/engine/rendering/include>
+)
+target_link_libraries(storm_rendering2d PUBLIC Storm::Core Storm::Math)
+target_compile_features(storm_rendering2d PUBLIC cxx_std_20)
+stormengine_apply_warnings(storm_rendering2d)
+
 add_library(storm_serialization STATIC
     engine/serialization/src/binary_archive.cpp
     engine/serialization/src/scene_serializer.cpp
@@ -493,5 +505,13 @@ if(STORMENGINE_BUILD_TESTS)
         stormengine_apply_warnings(stormengine_gesture_action_game_loop_adapter_tests)
         add_test(NAME stormengine_gesture_action_game_loop_adapter_tests
             COMMAND stormengine_gesture_action_game_loop_adapter_tests)
+
+        add_executable(stormengine_sprite_batch_tests
+            tests/sprite_batch_tests.cpp
+        )
+        target_link_libraries(stormengine_sprite_batch_tests PRIVATE Storm::Rendering2D)
+        target_compile_features(stormengine_sprite_batch_tests PRIVATE cxx_std_20)
+        stormengine_apply_warnings(stormengine_sprite_batch_tests)
+        add_test(NAME stormengine_sprite_batch_tests COMMAND stormengine_sprite_batch_tests)
     endif()
 endif()
