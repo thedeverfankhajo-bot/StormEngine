@@ -21,6 +21,13 @@ commands and returns the original typed error. Entities with no sprite are
 ignored; entities with no Transform2D use the existing identity-transform
 behavior.
 
+The camera-aware overload also accepts a validated `Math::Camera2D`. It composes
+the camera view-projection matrix with each entity's complete world transform
+and emits positions in normalized device coordinates (NDC, [-1, 1]). The
+camera viewport is supplied in logical viewport units by the caller. Invalid
+camera parameters clear the previous batch and return a typed error. The
+existing overload continues to emit world-space positions.
+
 ## Geometry and painter order
 
 A sprite emits four vertices and six 32-bit indices. The local quad spans

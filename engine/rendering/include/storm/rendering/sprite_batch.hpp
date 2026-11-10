@@ -111,8 +111,14 @@ private:
 class SpriteSceneCollector2D final {
 public:
     // Replaces the batch contents. On failure no partial geometry is exposed.
+    // The existing overload keeps positions in world space.
     [[nodiscard]] static Result<SpriteBatchView> build(
         const Scene& scene, SpriteBatch& batch);
+
+    // Applies Camera2D view-projection after each entity's world transform.
+    // Output positions are normalized device coordinates in [-1, 1].
+    [[nodiscard]] static Result<SpriteBatchView> build(
+        const Scene& scene, SpriteBatch& batch, const Math::Camera2D& camera);
 };
 
 } // namespace Storm::Rendering

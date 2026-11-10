@@ -11,6 +11,7 @@
 
 namespace {
 #define EXPECT(condition) do { if (!(condition)) return std::string("Expectation failed: ") + #condition; } while (false)
+using Storm::Math::Camera2D;
 using Storm::Math::Transform2D;
 using Storm::Rendering::Sprite2DComponent;
 using Storm::Rendering::SpriteBatch;
@@ -88,6 +89,23 @@ using Storm::Rendering::TextureKey;
  EXPECT(v.value().sprite_count==1U);EXPECT(near(v.value().vertices[0].position.x,9));EXPECT(near(v.value().vertices[0].position.y,1));
  EXPECT(near(v.value().vertices[2].position.x,11));EXPECT(near(v.value().vertices[2].position.y,3));return {};
 }
+[[nodiscard]] std::optional<std::string> scene_collection_applies_camera(){
+ auto s=Storm::Scene::create("Camera sprites");EXPECT(s);auto scene=std::move(s).value();
+ auto p=scene.create_entity("camera-relative-parent"),c=scene.create_entity("camera-relative-sprite");EXPECT(p);EXPECT(c);
+ EXPECT(scene.set_parent(c.value(),p.value()));
+ EXPECT(Storm::TransformSystem2D::set_local_transform(scene,p.value(),Transform2D{.translation={5,5}}));
+ EXPECT(Storm::TransformSystem2D::set_local_transform(scene,c.value(),Transform2D{.translation={50,25}}));
+ auto sprite=make_sprite(88);sprite.size={20,10};EXPECT(scene.add_component<Sprite2DComponent>(c.value(),sprite));
+ auto created=SpriteBatch::create();EXPECT(created);auto batch=std::move(created).value();
+ Camera2D camera{.position={50,25},.rotation_radians=0,.viewport_size={100,50},.zoom=1};
+ auto v=SpriteSceneCollector2D::build(scene,batch,camera);EXPECT(v);EXPECT(v.value().sprite_count==1U);
+ EXPECT(near(v.value().vertices[0].position.x,-0.1F));EXPECT(near(v.value().vertices[0].position.y,0.0F));
+ EXPECT(near(v.value().vertices[2].position.x,0.3F));EXPECT(near(v.value().vertices[2].position.y,0.4F));
+ camera.zoom=0.0F;
+ EXPECT(!SpriteSceneCollector2D::build(scene,batch,camera));
+ EXPECT(batch.pending_sprite_count()==0U);EXPECT(!batch.view());
+ return {};
+}
 [[nodiscard]] std::optional<std::string> scene_collection_is_transactional(){
  auto s=Storm::Scene::create("Bad");EXPECT(s);auto scene=std::move(s).value();auto e=scene.create_entity();EXPECT(e);
  EXPECT(scene.add_component<Sprite2DComponent>(e.value(),Sprite2DComponent{}));
@@ -115,6 +133,7 @@ int main(){
  TestCase{"invalid_values_and_capacity",invalid_values_and_capacity},
  TestCase{"failed_build_hides_partial_geometry",failed_build_hides_partial_geometry},
  TestCase{"scene_hierarchy_collection",scene_hierarchy_collection},
+ TestCase{"scene_collection_applies_camera",scene_collection_applies_camera},
  TestCase{"scene_collection_is_transactional",scene_collection_is_transactional},
  TestCase{"view_invalidation_and_moves",view_invalidation_and_moves},
  TestCase{"invalid_config",invalid_config}};

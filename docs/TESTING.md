@@ -378,11 +378,13 @@ physical devices.
 
 ## Scene-to-sprite submission coverage
 
-The `stormengine_sprite_batch_tests` CTest executable adds ten cases for the
-new `Storm::Rendering2D` CPU submission target: normalized UV and indexed
+The `stormengine_sprite_batch_tests` CTest executable adds eleven cases for
+the `Storm::Rendering2D` CPU submission target: normalized UV and indexed
 quad output, pivot/rotation, stable painter sorting, contiguous texture-key
 ranges, invalid data, capacity bounds, transactional build failure, Scene
-hierarchy collection, collection failure cleanup, and view/move lifetime.
+hierarchy collection, Camera2D view-projection integration through a parented
+entity, invalid-camera cleanup, collection failure cleanup, and view/move
+lifetime.
 
 The target is included in host CTest and Android arm64-v8a/iOS device arm64
 cross-compilation. This validates CPU geometry and target compilation only;

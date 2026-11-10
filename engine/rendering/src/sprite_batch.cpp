@@ -255,31 +255,73 @@ std::size_t SpriteBatch::capacity() const noexcept {
     return initialized_ ? config_.maximum_sprites : 0U;
 }
 
-Result<SpriteBatchView> SpriteSceneCollector2D::build(
-    const Scene& scene, SpriteBatch& batch) {
+namespace {
+[[nodiscard]] Result<SpriteBatchView> collect_scene_sprites(
+    const Scene& scene, SpriteBatch& batch,
+    const Math::Matrix3* view_projection) {
     batch.clear();
     std::optional<Error> collection_error;
-    const auto visited = scene.for_each_component<Sprite2DComponent>(
-        [&scene, &batch, &collection_error](
-            EntityHandle entity, const Sprite2DComponent& sprite) {
-            if (collection_error.has_value()) return;
-            const auto world = TransformSystem2D::world_matrix(scene, entity);
-            if (!world) {
-                collection_error = world.error();
-                return;
-            }
-            const auto appended = batch.append(sprite, world.value());
-            if (!appended) collection_error = appended.error();
-        });
-    if (!visited) {
+    try {
+        const auto visited = scene.for_each_component<Sprite2DComponent>(
+            [&scene, &batch, &collection_error, view_projection](
+                EntityHandle entity, const Sprite2DComponent& sprite) {
+                if (collection_error.has_value()) return;
+
+                const auto world = TransformSystem2D::world_matrix(scene, entity);
+                if (!world) {
+                    collection_error = world.error();
+                    return;
+                }
+
+                Math::Matrix3 sprite_transform = world.value();
+                if (view_projection != nullptr) {
+                    const auto camera_transform =
+                        Math::Matrix3::multiply_checked(*view_projection, sprite_transform);
+                    if (!camera_transform) {
+                        collection_error = camera_transform.error();
+                        return;
+                    }
+                    sprite_transform = camera_transform.value();
+                }
+
+                const auto appended = batch.append(sprite, sprite_transform);
+                if (!appended) collection_error = appended.error();
+            });
+
+        if (!visited) {
+            batch.clear();
+            return Result<SpriteBatchView>::failure(visited.error());
+        }
+        if (collection_error.has_value()) {
+            batch.clear();
+            return Result<SpriteBatchView>::failure(std::move(*collection_error));
+        }
+        return batch.build();
+    } catch (const std::bad_alloc&) {
         batch.clear();
-        return Result<SpriteBatchView>::failure(visited.error());
-    }
-    if (collection_error.has_value()) {
+        return Result<SpriteBatchView>::failure(exhausted(
+            "Unable to collect Scene sprite submissions"));
+    } catch (const std::length_error&) {
         batch.clear();
-        return Result<SpriteBatchView>::failure(std::move(*collection_error));
+        return Result<SpriteBatchView>::failure(exhausted(
+            "Scene sprite submission exceeded container limits"));
     }
-    return batch.build();
+}
+} // namespace
+
+Result<SpriteBatchView> SpriteSceneCollector2D::build(
+    const Scene& scene, SpriteBatch& batch) {
+    return collect_scene_sprites(scene, batch, nullptr);
+}
+
+Result<SpriteBatchView> SpriteSceneCollector2D::build(
+    const Scene& scene, SpriteBatch& batch, const Math::Camera2D& camera) {
+    const auto view_projection = camera.view_projection();
+    if (!view_projection) {
+        batch.clear();
+        return Result<SpriteBatchView>::failure(view_projection.error());
+    }
+    return collect_scene_sprites(scene, batch, &view_projection.value());
 }
 
 } // namespace Storm::Rendering
