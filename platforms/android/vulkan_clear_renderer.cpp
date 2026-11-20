@@ -497,7 +497,13 @@ Result<void> VulkanClearRenderer::recreate_swapchain() {
     }
     destroy_swapchain_resources();
     try {
-        return create_swapchain_resources();
+        auto recreated = create_swapchain_resources();
+        if (!recreated) {
+            // Swapchain construction is incremental; roll back every handle
+            // created before the failing Vulkan operation.
+            destroy_swapchain_resources();
+        }
+        return recreated;
     } catch (const std::bad_alloc&) {
         destroy_swapchain_resources();
         return Result<void>::failure(Error::make(
