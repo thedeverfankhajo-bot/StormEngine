@@ -17,6 +17,7 @@
 #include <cstring>
 #include <limits>
 #include <new>
+#include <stdexcept>
 
 namespace {
 
@@ -31,6 +32,28 @@ static_assert(sizeof(MetalSpriteVertex) == 32U);
 
 constexpr std::size_t kDemoSpriteCapacity = 8U;
 constexpr std::size_t kMetalFramesInFlight = 3U;
+
+struct MetalFrameSemaphoreReservation final {
+    dispatch_semaphore_t semaphore{nullptr};
+    bool active{true};
+
+    explicit MetalFrameSemaphoreReservation(dispatch_semaphore_t value) noexcept
+        : semaphore(value) {}
+
+    MetalFrameSemaphoreReservation(const MetalFrameSemaphoreReservation&) = delete;
+    MetalFrameSemaphoreReservation& operator=(
+        const MetalFrameSemaphoreReservation&) = delete;
+
+    ~MetalFrameSemaphoreReservation() {
+        if (active && semaphore != nullptr) {
+            dispatch_semaphore_signal(semaphore);
+        }
+    }
+
+    void transfer_to_command_buffer() noexcept {
+        active = false;
+    }
+};
 
 [[nodiscard]] bool timestamp_to_nanoseconds(double seconds, std::uint64_t& result) {
     if (!std::isfinite(seconds) || seconds < 0.0) return false;
@@ -48,6 +71,7 @@ constexpr std::size_t kMetalFramesInFlight = 3U;
     using namespace Storm::Math;
     using namespace Storm::Rendering;
 
+    try {
     auto camera_entity = scene.create_entity("Main Camera");
     if (!camera_entity) {
         return Result<void>::failure(camera_entity.error());
@@ -112,6 +136,15 @@ constexpr std::size_t kMetalFramesInFlight = 3U;
     return TransformSystem2D::set_local_transform(
         scene, right_entity.value(),
         Transform2D{.translation = {54.0F, 0.0F}});
+    } catch (const std::bad_alloc&) {
+        return Storm::Result<void>::failure(Storm::Error::make(
+            Storm::ErrorCode::ResourceExhausted,
+            "Unable to allocate the bounded iOS Metal demo Scene"));
+    } catch (const std::length_error&) {
+        return Storm::Result<void>::failure(Storm::Error::make(
+            Storm::ErrorCode::ResourceExhausted,
+            "The iOS Metal demo Scene exceeded a container limit"));
+    }
 }
 
 [[nodiscard]] Storm::Result<void> cancel_touch_input(
@@ -522,7 +555,7 @@ constexpr std::size_t kMetalFramesInFlight = 3U;
         (_metalQueue == nil
             ? @"Metal unavailable; presentation disabled"
             : (sprite_renderer_ready
-                ? @"Metal Scene/SpriteBatch renderer ready · GPU indexed draws active"
+                ? @"Metal Scene/SpriteBatch GPU indexed draw path ready"
                 : @"Metal sprite renderer resources unavailable"))];
 }
 
@@ -658,9 +691,6 @@ constexpr std::size_t kMetalFramesInFlight = 3U;
     auto *batch = static_cast<Storm::Rendering::SpriteBatch *>(_spriteBatchStorage);
     if (scene == nullptr || batch == nullptr) return;
 
-    const auto drawable = [(CAMetalLayer *)self.view.layer nextDrawable];
-    if (drawable == nil) return;
-
     auto sprite_view = Storm::Rendering::SpriteSceneCollector2D::build_active_camera(
         *scene, *batch);
     if (!sprite_view) {
@@ -677,6 +707,18 @@ constexpr std::size_t kMetalFramesInFlight = 3U;
     }
     if (geometry.sprite_count == 0U) return;
 
+    const NSUInteger frameIndex = _frameBufferIndex;
+    id<MTLBuffer> vertexBuffer = _spriteVertexBuffers[frameIndex];
+    id<MTLBuffer> indexBuffer = _spriteIndexBuffers[frameIndex];
+    if (vertexBuffer == nil || indexBuffer == nil) return;
+
+    dispatch_semaphore_wait(_inFlightSemaphore, DISPATCH_TIME_FOREVER);
+    MetalFrameSemaphoreReservation frame_slot{_inFlightSemaphore};
+    _frameBufferIndex = (_frameBufferIndex + 1U) % kMetalFramesInFlight;
+
+    const auto drawable = [(CAMetalLayer *)self.view.layer nextDrawable];
+    if (drawable == nil) return;
+
     MTLRenderPassDescriptor *pass = [MTLRenderPassDescriptor renderPassDescriptor];
     pass.colorAttachments[0].texture = drawable.texture;
     pass.colorAttachments[0].loadAction = MTLLoadActionClear;
@@ -689,19 +731,7 @@ constexpr std::size_t kMetalFramesInFlight = 3U;
         [command renderCommandEncoderWithDescriptor:pass];
     if (encoder == nil) return;
 
-    const NSUInteger frameIndex = _frameBufferIndex;
-    id<MTLBuffer> vertexBuffer = _spriteVertexBuffers[frameIndex];
-    id<MTLBuffer> indexBuffer = _spriteIndexBuffers[frameIndex];
-    if (vertexBuffer == nil || indexBuffer == nil) {
-        [encoder endEncoding];
-        NSLog(@"StormEngine: Metal frame buffers are unavailable.");
-        return;
-    }
-
-    dispatch_semaphore_wait(_inFlightSemaphore, DISPATCH_TIME_FOREVER);
-    _frameBufferIndex = (_frameBufferIndex + 1U) % kMetalFramesInFlight;
-
-    std::array<MetalSpriteVertex, kDemoSpriteCapacity * 4U> vertices{};
+        std::array<MetalSpriteVertex, kDemoSpriteCapacity * 4U> vertices{};
     for (std::size_t index = 0U; index < geometry.vertices.size(); ++index) {
         const auto &source = geometry.vertices[index];
         constexpr float inverse_channel = 1.0F / 255.0F;
@@ -753,7 +783,6 @@ constexpr std::size_t kMetalFramesInFlight = 3U;
     [encoder endEncoding];
 
     if (invalid_range) {
-        dispatch_semaphore_signal(_inFlightSemaphore);
         NSLog(@"StormEngine: SpriteBatch supplied an unsupported texture key or index range.");
         return;
     }
@@ -764,6 +793,7 @@ constexpr std::size_t kMetalFramesInFlight = 3U;
         (void)completedCommand;
         dispatch_semaphore_signal(semaphore);
     }];
+    frame_slot.transfer_to_command_buffer();
     [command commit];
 }
 
