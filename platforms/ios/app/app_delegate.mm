@@ -1,4 +1,6 @@
 #import <UIKit/UIKit.h>
+#import <Metal/Metal.h>
+#import <QuartzCore/CAMetalLayer.h>
 
 #import "storm/ios/scene_lifecycle_delegate.h"
 
@@ -58,14 +60,25 @@ constexpr Storm::Platform::NativeSurfaceId kIOSHostSurfaceId = 1U;
 
 } // namespace
 
+@interface StormEngineMetalView : UIView
+@end
+
+@implementation StormEngineMetalView
++ (Class)layerClass { return [CAMetalLayer class]; }
+@end
+
 @interface StormEngineHostViewController : UIViewController {
 @private
     void *_surfaceLifecycleStorage;
     void *_touchInputStorage;
     UILabel *_statusLabel;
+    id<MTLDevice> _metalDevice;
+    id<MTLCommandQueue> _metalQueue;
+    CADisplayLink *_displayLink;
 }
 
 - (void)_detachSurface;
+- (void)_renderMetalFrame;
 - (void)_cancelActiveTouches;
 - (void)_reportSurfaceError:(const Storm::Error &)error;
 - (void)_reportTouchError:(const Storm::Error &)error;
@@ -74,6 +87,12 @@ constexpr Storm::Platform::NativeSurfaceId kIOSHostSurfaceId = 1U;
 @end
 
 @implementation StormEngineHostViewController
+
+- (void)loadView {
+    StormEngineMetalView *metalView = [[StormEngineMetalView alloc] initWithFrame:UIScreen.mainScreen.bounds];
+    self.view = metalView;
+    [metalView release];
+}
 
 - (instancetype)init {
     self = [super initWithNibName:nil bundle:nil];
@@ -112,6 +131,18 @@ constexpr Storm::Platform::NativeSurfaceId kIOSHostSurfaceId = 1U;
     self.view.backgroundColor = [UIColor systemBackgroundColor];
     self.view.multipleTouchEnabled = YES;
 
+    _metalDevice = MTLCreateSystemDefaultDevice();
+    if (_metalDevice != nil) {
+        _metalQueue = [_metalDevice newCommandQueue];
+        CAMetalLayer *metalLayer = (CAMetalLayer *)self.view.layer;
+        metalLayer.device = _metalDevice;
+        metalLayer.pixelFormat = MTLPixelFormatBGRA8Unorm;
+        metalLayer.framebufferOnly = YES;
+        metalLayer.contentsScale = self.view.contentScaleFactor;
+    } else {
+        NSLog(@"StormEngine: Metal is unavailable on this device.");
+    }
+
     _statusLabel = [[UILabel alloc] initWithFrame:CGRectMake(0.0, 0.0, 0.0, 0.0)];
     _statusLabel.numberOfLines = 0;
     _statusLabel.textAlignment = NSTextAlignmentCenter;
@@ -145,6 +176,13 @@ constexpr Storm::Platform::NativeSurfaceId kIOSHostSurfaceId = 1U;
     }
 
     const CGRect bounds = self.view.bounds;
+    if (_metalDevice != nil) {
+        CAMetalLayer *metalLayer = (CAMetalLayer *)self.view.layer;
+        metalLayer.contentsScale = self.view.contentScaleFactor;
+        metalLayer.drawableSize = CGSizeMake(
+            bounds.size.width * self.view.contentScaleFactor,
+            bounds.size.height * self.view.contentScaleFactor);
+    }
     const double logicalWidth = static_cast<double>(bounds.size.width);
     const double logicalHeight = static_cast<double>(bounds.size.height);
     const double pixelScale = static_cast<double>(self.view.contentScaleFactor);
@@ -201,11 +239,12 @@ constexpr Storm::Platform::NativeSurfaceId kIOSHostSurfaceId = 1U;
     _statusLabel.text = [NSString stringWithFormat:
         @"StormEngine\n\nNative iOS view surface attached\n"
         "%u × %u pixels · %.2f pixels per point\n"
-        "Touch input bridge active.\n\n"
-        "Rendering and gameplay runtime are not integrated yet.",
+        "Touch input bridge active.\n"
+        "%@.",
         static_cast<unsigned int>(descriptor.extent.width),
         static_cast<unsigned int>(descriptor.extent.height),
-        descriptor.pixels_per_logical_unit];
+        descriptor.pixels_per_logical_unit,
+        (_metalQueue != nil ? @"Metal clear-frame presentation active" : @"Metal unavailable; presentation disabled")];
 }
 
 - (void)touchesBegan:(NSSet<UITouch *> *)touches withEvent:(UIEvent *)event {
@@ -313,8 +352,38 @@ constexpr Storm::Platform::NativeSurfaceId kIOSHostSurfaceId = 1U;
     if (!cancelled) [self _reportTouchError:cancelled.error()];
 }
 
+- (void)viewDidAppear:(BOOL)animated {
+    [super viewDidAppear:animated];
+    if (_metalQueue != nil && _displayLink == nil) {
+        _displayLink = [[CADisplayLink displayLinkWithTarget:self selector:@selector(_renderMetalFrame)] retain];
+        [_displayLink addToRunLoop:[NSRunLoop mainRunLoop] forMode:NSRunLoopCommonModes];
+    }
+}
+
+- (void)_renderMetalFrame {
+    if (_metalQueue == nil || UIApplication.sharedApplication.applicationState != UIApplicationStateActive) return;
+    CAMetalLayer *layer = (CAMetalLayer *)self.view.layer;
+    id<CAMetalDrawable> drawable = [layer nextDrawable];
+    if (drawable == nil) return;
+    MTLRenderPassDescriptor *pass = [MTLRenderPassDescriptor renderPassDescriptor];
+    pass.colorAttachments[0].texture = drawable.texture;
+    pass.colorAttachments[0].loadAction = MTLLoadActionClear;
+    pass.colorAttachments[0].storeAction = MTLStoreActionStore;
+    pass.colorAttachments[0].clearColor = MTLClearColorMake(0.035, 0.055, 0.09, 1.0);
+    id<MTLCommandBuffer> command = [_metalQueue commandBuffer];
+    if (command == nil) return;
+    id<MTLRenderCommandEncoder> encoder = [command renderCommandEncoderWithDescriptor:pass];
+    if (encoder == nil) return;
+    [encoder endEncoding];
+    [command presentDrawable:drawable];
+    [command commit];
+}
+
 - (void)viewWillDisappear:(BOOL)animated {
     [super viewWillDisappear:animated];
+    [_displayLink invalidate];
+    [_displayLink release];
+    _displayLink = nil;
     [self _detachSurface];
 }
 
@@ -381,6 +450,13 @@ constexpr Storm::Platform::NativeSurfaceId kIOSHostSurfaceId = 1U;
     _surfaceLifecycleStorage = nullptr;
     delete static_cast<Storm::Input::TouchInput *>(_touchInputStorage);
     _touchInputStorage = nullptr;
+    [_displayLink invalidate];
+    [_displayLink release];
+    _displayLink = nil;
+    [_metalQueue release];
+    _metalQueue = nil;
+    [_metalDevice release];
+    _metalDevice = nil;
     [_statusLabel release];
     _statusLabel = nil;
     [super dealloc];

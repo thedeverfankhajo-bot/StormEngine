@@ -216,6 +216,8 @@ stormengine_apply_warnings(storm_physics_scene2d)
 
 if(CMAKE_SYSTEM_NAME STREQUAL "iOS")
     find_library(STORMENGINE_UIKIT_FRAMEWORK UIKit REQUIRED)
+    find_library(STORMENGINE_METAL_FRAMEWORK Metal REQUIRED)
+    find_library(STORMENGINE_QUARTZCORE_FRAMEWORK QuartzCore REQUIRED)
 
     target_sources(storm_platform PRIVATE
         platforms/ios/scene_lifecycle_delegate.mm
@@ -244,6 +246,8 @@ if(CMAKE_SYSTEM_NAME STREQUAL "iOS")
         Storm::Physics1D
         Storm::Platform
         Storm::Input
+        "${STORMENGINE_METAL_FRAMEWORK}"
+        "${STORMENGINE_QUARTZCORE_FRAMEWORK}"
     )
     set_target_properties(storm_ios_app PROPERTIES
         MACOSX_BUNDLE TRUE
