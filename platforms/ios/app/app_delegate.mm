@@ -14,6 +14,7 @@
 #include <array>
 #include <cmath>
 #include <cstdint>
+#include <cstring>
 #include <limits>
 #include <new>
 
@@ -502,6 +503,14 @@ constexpr std::size_t kMetalFramesInFlight = 3U;
             return;
         }
     }
+    BOOL sprite_renderer_ready =
+        _metalQueue != nil && _metalPipeline != nil && _spriteTexture != nil &&
+        _spriteSampler != nil && _inFlightSemaphore != nil;
+    for (std::size_t index = 0U; index < kMetalFramesInFlight; ++index) {
+        if (_spriteVertexBuffers[index] == nil || _spriteIndexBuffers[index] == nil) {
+            sprite_renderer_ready = NO;
+        }
+    }
     _statusLabel.text = [NSString stringWithFormat:
         @"StormEngine\n\nNative iOS view surface attached\n"
         "%u × %u pixels · %.2f pixels per point\n"
@@ -512,9 +521,9 @@ constexpr std::size_t kMetalFramesInFlight = 3U;
         descriptor.pixels_per_logical_unit,
         (_metalQueue == nil
             ? @"Metal unavailable; presentation disabled"
-            : (_metalPipeline != nil
+            : (sprite_renderer_ready
                 ? @"Metal Scene/SpriteBatch renderer ready · GPU indexed draws active"
-                : @"Metal sprite pipeline unavailable"))];
+                : @"Metal sprite renderer resources unavailable"))];
 }
 
 - (void)touchesBegan:(NSSet<UITouch *> *)touches withEvent:(UIEvent *)event {
@@ -638,6 +647,11 @@ constexpr std::size_t kMetalFramesInFlight = 3U;
         _spriteSampler == nil || _inFlightSemaphore == nil ||
         UIApplication.sharedApplication.applicationState != UIApplicationStateActive) {
         return;
+    }
+    for (std::size_t index = 0U; index < kMetalFramesInFlight; ++index) {
+        if (_spriteVertexBuffers[index] == nil || _spriteIndexBuffers[index] == nil) {
+            return;
+        }
     }
 
     auto *scene = static_cast<Storm::Scene *>(_renderSceneStorage);
@@ -819,6 +833,9 @@ constexpr std::size_t kMetalFramesInFlight = 3U;
 }
 
 - (void)dealloc {
+    [_displayLink invalidate];
+    [_displayLink release];
+    _displayLink = nil;
     [self _detachSurface];
     delete static_cast<Storm::Platform::SurfaceLifecycle *>(_surfaceLifecycleStorage);
     _surfaceLifecycleStorage = nullptr;
@@ -852,8 +869,6 @@ constexpr std::size_t kMetalFramesInFlight = 3U;
     if (_inFlightSemaphore != nullptr) dispatch_release(_inFlightSemaphore);
 #endif
     _inFlightSemaphore = nil;
-    [_displayLink release];
-    _displayLink = nil;
     [_metalPipeline release];
     _metalPipeline = nil;
     [_metalQueue release];
