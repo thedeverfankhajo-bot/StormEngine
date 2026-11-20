@@ -393,8 +393,32 @@ it does not validate a graphics API, shader, texture upload, GPU draw call,
 surface presentation, or physical-device rendering.
 
 
-## Native GPU smoke-path validation
+## Native GPU rendering validation
 
-The iOS host app contains a Metal smoke path that compiles a small embedded MSL vertex/fragment program at view initialization, creates a render-pipeline state for the CAMetalLayer pixel format, submits a three-vertex draw, and presents the drawable on CADisplayLink. The smoke path reports shader/pipeline initialization failures and releases its pipeline state during view-controller teardown. It is intentionally not wired to Scene or SpriteBatch and does not validate texture upload, reusable GPU resource lifetime, or the engine's future GraphicsDevice API.
+The iOS host application now exercises a Scene-to-Metal SpriteBatch path. At
+controller initialization it creates a bounded Scene with an enabled
+Camera2DComponent and two Sprite2DComponent entities. Each display frame
+collects camera-space geometry through SpriteSceneCollector2D, validates the
+demo's sprite and geometry bounds, copies position/UV/tinted-color vertices
+and 32-bit indices into one of three frame-in-flight Metal shared-buffer
+pairs, binds a 1×1 RGBA8 white texture and linear sampler, submits indexed
+draws for contiguous SpriteBatch ranges with source-alpha blending, and
+presents the drawable through CAMetalLayer/CADisplayLink. Command completion
+signals the in-flight semaphore; controller teardown stops the display link,
+waits for in-flight slots, and releases the demo Scene, SpriteBatch, buffers,
+texture, sampler, pipeline, queue, and device.
 
-The Android NativeActivity remains clear-only on Vulkan. Host CTest does not execute Metal or Vulkan device commands. A successful iOS/Android cross-build validates compilation/linking only; simulator/device runtime validation is tracked separately and is still required before either backend is marked Device-Verified.
+This is a native iOS host-app integration slice, not an automated host CTest.
+The current demo only maps TextureKey { id=1, generation=1 } to the white
+texture. It does not test arbitrary texture upload, texture atlases, asset
+lifetime, reusable GraphicsDevice/GraphicsContext APIs, or RenderGraph GPU
+execution. Android NativeActivity remains Vulkan clear-only and does not yet
+submit SpriteBatch geometry.
+
+Host CTest does not execute Metal or Vulkan device commands. The existing
+iOS target cross-compilation job, when run against the changed commit, can
+validate Objective-C++ compilation/linking and app-bundle production but not
+Metal shader execution, GPU resource creation, indexed drawing, or frame
+presentation. An iOS Simulator or physical-device run is still required
+before this path is marked Simulator-Validated or Device-Verified. No such
+runtime verification is claimed by this documentation update.
