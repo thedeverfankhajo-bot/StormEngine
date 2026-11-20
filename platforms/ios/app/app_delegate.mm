@@ -13,6 +13,7 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <cstddef>
 #include <cstdint>
 #include <cstring>
 #include <limits>
@@ -29,6 +30,9 @@ struct alignas(16) MetalSpriteVertex final {
     float color[4];
 };
 static_assert(sizeof(MetalSpriteVertex) == 32U);
+static_assert(offsetof(MetalSpriteVertex, position) == 0U);
+static_assert(offsetof(MetalSpriteVertex, uv) == 8U);
+static_assert(offsetof(MetalSpriteVertex, color) == 16U);
 
 constexpr std::size_t kDemoSpriteCapacity = 8U;
 constexpr std::size_t kMetalFramesInFlight = 3U;
@@ -712,7 +716,9 @@ struct MetalFrameSemaphoreReservation final {
     id<MTLBuffer> indexBuffer = _spriteIndexBuffers[frameIndex];
     if (vertexBuffer == nil || indexBuffer == nil) return;
 
-    dispatch_semaphore_wait(_inFlightSemaphore, DISPATCH_TIME_FOREVER);
+    if (dispatch_semaphore_wait(_inFlightSemaphore, DISPATCH_TIME_FOREVER) != 0L) {
+        return;
+    }
     MetalFrameSemaphoreReservation frame_slot{_inFlightSemaphore};
     _frameBufferIndex = (_frameBufferIndex + 1U) % kMetalFramesInFlight;
 
@@ -731,7 +737,7 @@ struct MetalFrameSemaphoreReservation final {
         [command renderCommandEncoderWithDescriptor:pass];
     if (encoder == nil) return;
 
-        std::array<MetalSpriteVertex, kDemoSpriteCapacity * 4U> vertices{};
+    std::array<MetalSpriteVertex, kDemoSpriteCapacity * 4U> vertices{};
     for (std::size_t index = 0U; index < geometry.vertices.size(); ++index) {
         const auto &source = geometry.vertices[index];
         constexpr float inverse_channel = 1.0F / 255.0F;
@@ -765,15 +771,25 @@ struct MetalFrameSemaphoreReservation final {
 
     bool invalid_range = false;
     for (const auto &range : geometry.ranges) {
+        const std::size_t first_index = static_cast<std::size_t>(range.first_index);
+        const std::size_t index_count = static_cast<std::size_t>(range.index_count);
         if (range.texture.id != 1U || range.texture.generation != 1U ||
-            static_cast<std::size_t>(range.first_index) > geometry.indices.size() ||
-            static_cast<std::size_t>(range.index_count) >
-                geometry.indices.size() - static_cast<std::size_t>(range.first_index)) {
+            index_count == 0U || index_count % 3U != 0U ||
+            first_index > geometry.indices.size() ||
+            index_count > geometry.indices.size() - first_index) {
             invalid_range = true;
             break;
         }
+        for (std::size_t index = first_index; index < first_index + index_count; ++index) {
+            if (static_cast<std::size_t>(geometry.indices[index]) >=
+                geometry.vertices.size()) {
+                invalid_range = true;
+                break;
+            }
+        }
+        if (invalid_range) break;
         const NSUInteger offset = static_cast<NSUInteger>(
-            static_cast<std::size_t>(range.first_index) * sizeof(std::uint32_t));
+            first_index * sizeof(std::uint32_t));
         [encoder drawIndexedPrimitives:MTLPrimitiveTypeTriangle
                             indexCount:static_cast<NSUInteger>(range.index_count)
                              indexType:MTLIndexTypeUInt32
