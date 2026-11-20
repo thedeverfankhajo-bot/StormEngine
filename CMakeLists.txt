@@ -244,6 +244,7 @@ if(CMAKE_SYSTEM_NAME STREQUAL "iOS")
     )
     target_link_libraries(storm_ios_app PRIVATE
         Storm::Runtime
+        Storm::Rendering2D
         Storm::Serialization
         Storm::Physics1D
         Storm::Platform
