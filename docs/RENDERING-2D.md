@@ -60,18 +60,36 @@ The batch is single-thread-affine and owns no Scene or GPU objects.
 `SpriteBatchView` contains non-owning spans invalidated by append, clear,
 build, move, or destruction.
 
-## Current boundary
+## GPU integration boundary
 
-This is CPU scene collection and draw-geometry construction, not a GPU
-renderer. It does not create a graphics instance/device, swapchain or
-`CAMetalLayer` drawable, shader/pipeline, GPU vertex/index buffer, texture,
-render pass, synchronization primitive, draw call, or presented frame.
-iOS Metal and an Android graphics backend must be connected to the native
-surface lifecycle before this phase can be called a rendering vertical slice.
+The `Storm::Rendering2D` library remains platform-neutral CPU submission:
+it owns no graphics API device, native surface, GPU buffers, textures, shader
+objects, synchronization primitives, or presentation lifecycle. This keeps
+Scene collection, camera math, painter sorting, and geometry generation
+independent from Metal and Vulkan headers.
+
+The iOS host application now contains a deliberately bounded Metal adapter
+that consumes `SpriteSceneCollector2D::build_active_camera` output. Its demo
+Scene has one enabled Camera2D and two Sprite2D entities. The adapter uploads
+the four-vertex/six-index sprite geometry into three frame-in-flight shared
+Metal buffer pairs, uses a 1×1 white RGBA texture plus a linear sampler, applies
+vertex tint and source-alpha blending, submits one indexed draw per contiguous
+SpriteBatch range, and presents the CAMetalLayer drawable. Only the demo
+texture key (id 1, generation 1) is currently mapped; arbitrary AssetManager
+textures, atlas resource binding, public GraphicsDevice/GraphicsContext APIs,
+and backend-neutral GPU resource ownership are not implemented by this slice.
+
+Android currently retains a Vulkan clear-only presentation path. It does not
+consume SpriteBatch geometry. RenderGraph is still a validated scheduling and
+resource-lifetime plan; there is no GPU pass executor or resource-barrier
+translation yet.
 
 ## Validation
 
-`stormengine_sprite_batch_tests` contains twelve deterministic host cases.
-The CMake target is also included in Android arm64-v8a and iOS device arm64
-cross-compilation. Cross-compilation is not physical-device rendering
-validation.
+`stormengine_sprite_batch_tests` contains twelve deterministic host cases
+for CPU geometry and Scene collection. The target is included in Android
+arm64-v8a and iOS device arm64 cross-compilation. Those checks validate the
+portable library's target compilation, not Metal/Vulkan runtime execution.
+The iOS host Metal adapter additionally requires an iOS Simulator or physical
+device run to validate shader compilation, resource creation, indexed drawing,
+and drawable presentation. No such simulator/device result is claimed here.
