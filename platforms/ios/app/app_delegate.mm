@@ -18,6 +18,12 @@ namespace {
 
 constexpr Storm::Platform::NativeSurfaceId kIOSHostSurfaceId = 1U;
 
+struct alignas(16) MetalSmokeVertex final {
+    float position[4];
+    float color[4];
+};
+static_assert(sizeof(MetalSmokeVertex) == 32U);
+
 [[nodiscard]] bool timestamp_to_nanoseconds(double seconds, std::uint64_t& result) {
     if (!std::isfinite(seconds) || seconds < 0.0) return false;
     const long double nanoseconds = static_cast<long double>(seconds) * 1000000000.0L;
@@ -74,6 +80,7 @@ constexpr Storm::Platform::NativeSurfaceId kIOSHostSurfaceId = 1U;
     UILabel *_statusLabel;
     id<MTLDevice> _metalDevice;
     id<MTLCommandQueue> _metalQueue;
+    id<MTLRenderPipelineState> _metalPipeline;
     CADisplayLink *_displayLink;
 }
 
@@ -139,6 +146,64 @@ constexpr Storm::Platform::NativeSurfaceId kIOSHostSurfaceId = 1U;
         metalLayer.pixelFormat = MTLPixelFormatBGRA8Unorm;
         metalLayer.framebufferOnly = YES;
         metalLayer.contentsScale = self.view.contentScaleFactor;
+
+        if (_metalQueue == nil) {
+            NSLog(@"StormEngine: Metal command queue creation failed.");
+        } else {
+            NSString *shaderSource =
+                @"#include <metal_stdlib>\n"
+                 "using namespace metal;\n"
+                 "struct VertexData { float4 position; float4 color; };\n"
+                 "struct RasterData { float4 position [[position]]; float4 color; };\n"
+                 "vertex RasterData storm_vertex(\n"
+                 "    uint vertex_id [[vertex_id]],\n"
+                 "    const device VertexData* vertices [[buffer(0)]]) {\n"
+                 "    RasterData output;\n"
+                 "    output.position = vertices[vertex_id].position;\n"
+                 "    output.color = vertices[vertex_id].color;\n"
+                 "    return output;\n"
+                 "}\n"
+                 "fragment float4 storm_fragment(RasterData input [[stage_in]]) {\n"
+                 "    return input.color;\n"
+                 "}\n";
+
+            NSError *libraryError = nil;
+            id<MTLLibrary> library = [_metalDevice
+                newLibraryWithSource:shaderSource options:nil error:&libraryError];
+            if (library == nil) {
+                NSLog(@"StormEngine: Metal shader compilation failed: %@",
+                      libraryError);
+            } else {
+                id<MTLFunction> vertexFunction =
+                    [library newFunctionWithName:@"storm_vertex"];
+                id<MTLFunction> fragmentFunction =
+                    [library newFunctionWithName:@"storm_fragment"];
+
+                if (vertexFunction == nil || fragmentFunction == nil) {
+                    NSLog(@"StormEngine: Metal shader library is missing an entry point.");
+                } else {
+                    MTLRenderPipelineDescriptor *descriptor =
+                        [[MTLRenderPipelineDescriptor alloc] init];
+                    descriptor.vertexFunction = vertexFunction;
+                    descriptor.fragmentFunction = fragmentFunction;
+                    descriptor.colorAttachments[0].pixelFormat = metalLayer.pixelFormat;
+
+                    NSError *pipelineError = nil;
+                    _metalPipeline = [_metalDevice
+                        newRenderPipelineStateWithDescriptor:descriptor
+                                                       error:&pipelineError];
+                    if (_metalPipeline == nil) {
+                        NSLog(@"StormEngine: Metal render-pipeline creation failed: %@",
+                              pipelineError);
+                    }
+                    [descriptor release];
+                }
+
+                [vertexFunction release];
+                [fragmentFunction release];
+                [library release];
+            }
+        }
     } else {
         NSLog(@"StormEngine: Metal is unavailable on this device.");
     }
@@ -244,7 +309,11 @@ constexpr Storm::Platform::NativeSurfaceId kIOSHostSurfaceId = 1U;
         static_cast<unsigned int>(descriptor.extent.width),
         static_cast<unsigned int>(descriptor.extent.height),
         descriptor.pixels_per_logical_unit,
-        (_metalQueue != nil ? @"Metal clear-frame presentation active" : @"Metal unavailable; presentation disabled")];
+        (_metalQueue == nil
+            ? @"Metal unavailable; presentation disabled"
+            : (_metalPipeline != nil
+                ? @"Metal pipeline ready · GPU triangle draw active"
+                : @"Metal clear-only fallback · pipeline unavailable"))];
 }
 
 - (void)touchesBegan:(NSSet<UITouch *> *)touches withEvent:(UIEvent *)event {
@@ -328,8 +397,11 @@ constexpr Storm::Platform::NativeSurfaceId kIOSHostSurfaceId = 1U;
     if (_statusLabel != nil) {
         _statusLabel.text = [NSString stringWithFormat:
             @"StormEngine\n\nNative iOS touch input active · %lu pointers\n\n"
-            "Rendering and gameplay runtime are not integrated yet.",
-            static_cast<unsigned long>(touch_input->active_pointer_count())];
+            "%@ · gameplay runtime is not integrated yet.",
+            static_cast<unsigned long>(touch_input->active_pointer_count()),
+            (_metalPipeline != nil
+                ? @"Metal GPU triangle draw active"
+                : @"Metal graphics pipeline unavailable")];
     }
 }
 
@@ -361,19 +433,50 @@ constexpr Storm::Platform::NativeSurfaceId kIOSHostSurfaceId = 1U;
 }
 
 - (void)_renderMetalFrame {
-    if (_metalQueue == nil || UIApplication.sharedApplication.applicationState != UIApplicationStateActive) return;
+    if (_metalQueue == nil ||
+        UIApplication.sharedApplication.applicationState != UIApplicationStateActive) {
+        return;
+    }
+
     CAMetalLayer *layer = (CAMetalLayer *)self.view.layer;
     id<CAMetalDrawable> drawable = [layer nextDrawable];
     if (drawable == nil) return;
+
     MTLRenderPassDescriptor *pass = [MTLRenderPassDescriptor renderPassDescriptor];
     pass.colorAttachments[0].texture = drawable.texture;
     pass.colorAttachments[0].loadAction = MTLLoadActionClear;
     pass.colorAttachments[0].storeAction = MTLStoreActionStore;
     pass.colorAttachments[0].clearColor = MTLClearColorMake(0.035, 0.055, 0.09, 1.0);
+
     id<MTLCommandBuffer> command = [_metalQueue commandBuffer];
     if (command == nil) return;
-    id<MTLRenderCommandEncoder> encoder = [command renderCommandEncoderWithDescriptor:pass];
+    id<MTLRenderCommandEncoder> encoder =
+        [command renderCommandEncoderWithDescriptor:pass];
     if (encoder == nil) return;
+
+    if (_metalPipeline != nil) {
+        constexpr std::array<MetalSmokeVertex, 3U> vertices{{
+            {{0.0F, 0.62F, 0.0F, 1.0F}, {1.0F, 0.32F, 0.18F, 1.0F}},
+            {{-0.58F, -0.48F, 0.0F, 1.0F}, {0.18F, 0.78F, 0.98F, 1.0F}},
+            {{0.58F, -0.48F, 0.0F, 1.0F}, {0.58F, 0.42F, 0.98F, 1.0F}}
+        }};
+
+        [encoder setRenderPipelineState:_metalPipeline];
+        [encoder setVertexBytes:vertices.data()
+                         length:sizeof(vertices)
+                        atIndex:0U];
+        const MTLViewport viewport{
+            0.0, 0.0,
+            static_cast<double>(drawable.texture.width),
+            static_cast<double>(drawable.texture.height),
+            0.0, 1.0
+        };
+        [encoder setViewport:viewport];
+        [encoder drawPrimitives:MTLPrimitiveTypeTriangle
+                   vertexStart:0U
+                   vertexCount:static_cast<NSUInteger>(vertices.size())];
+    }
+
     [encoder endEncoding];
     [command presentDrawable:drawable];
     [command commit];
@@ -453,6 +556,8 @@ constexpr Storm::Platform::NativeSurfaceId kIOSHostSurfaceId = 1U;
     [_displayLink invalidate];
     [_displayLink release];
     _displayLink = nil;
+    [_metalPipeline release];
+    _metalPipeline = nil;
     [_metalQueue release];
     _metalQueue = nil;
     [_metalDevice release];

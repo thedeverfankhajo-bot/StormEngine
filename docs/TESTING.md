@@ -391,3 +391,10 @@ The target is included in host CTest and Android arm64-v8a/iOS device arm64
 cross-compilation. This validates CPU geometry and target compilation only;
 it does not validate a graphics API, shader, texture upload, GPU draw call,
 surface presentation, or physical-device rendering.
+
+
+## Native GPU smoke-path validation
+
+The iOS host app contains a Metal smoke path that compiles a small embedded MSL vertex/fragment program at view initialization, creates a render-pipeline state for the CAMetalLayer pixel format, submits a three-vertex draw, and presents the drawable on CADisplayLink. The smoke path reports shader/pipeline initialization failures and releases its pipeline state during view-controller teardown. It is intentionally not wired to Scene or SpriteBatch and does not validate texture upload, reusable GPU resource lifetime, or the engine's future GraphicsDevice API.
+
+The Android NativeActivity remains clear-only on Vulkan. Host CTest does not execute Metal or Vulkan device commands. A successful iOS/Android cross-build validates compilation/linking only; simulator/device runtime validation is tracked separately and is still required before either backend is marked Device-Verified.
