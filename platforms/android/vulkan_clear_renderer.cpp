@@ -1,13 +1,24 @@
 #include "vulkan_clear_renderer.hpp"
 
+#include "storm/rendering/presentation_policy.hpp"
+
 #include <algorithm>
 #include <array>
+#include <cstring>
 #include <limits>
+#include <new>
+#include <stdexcept>
 #include <string>
 #include <utility>
 
 namespace Storm::Platform::Android {
 namespace {
+
+constexpr std::uint32_t kMaximumPhysicalDevices = 64U;
+constexpr std::uint32_t kMaximumQueueFamilies = 64U;
+constexpr std::uint32_t kMaximumDeviceExtensions = 1024U;
+constexpr std::uint32_t kMaximumSurfaceFormats = 256U;
+constexpr std::uint32_t kMaximumSwapchainImages = 8U;
 
 [[nodiscard]] Error vk_error(const char* operation, VkResult result) {
     return Error::make(
@@ -19,16 +30,20 @@ namespace {
 [[nodiscard]] bool has_extension(
     VkPhysicalDevice device, const char* requested) {
     std::uint32_t count = 0U;
-    if (vkEnumerateDeviceExtensionProperties(device, nullptr, &count, nullptr) != VK_SUCCESS) {
+    if (vkEnumerateDeviceExtensionProperties(device, nullptr, &count, nullptr) != VK_SUCCESS ||
+        count == 0U || count > kMaximumDeviceExtensions) {
         return false;
     }
     std::vector<VkExtensionProperties> extensions(count);
-    if (vkEnumerateDeviceExtensionProperties(device, nullptr, &count, extensions.data()) != VK_SUCCESS) {
+    const VkResult result =
+        vkEnumerateDeviceExtensionProperties(device, nullptr, &count, extensions.data());
+    if (result != VK_SUCCESS || count > extensions.size()) {
         return false;
     }
+    extensions.resize(count);
     return std::any_of(extensions.begin(), extensions.end(),
         [requested](const VkExtensionProperties& extension) {
-            return std::string{extension.extensionName} == requested;
+            return std::strcmp(extension.extensionName, requested) == 0;
         });
 }
 
@@ -54,12 +69,24 @@ Result<void> VulkanClearRenderer::initialize(ANativeWindow* window) {
 
     window_ = window;
     ANativeWindow_acquire(window_);
-    auto result = create_instance_and_surface();
-    if (result) result = select_physical_device();
-    if (result) result = create_device();
-    if (result) result = create_swapchain_resources();
-    if (!result) shutdown();
-    return result;
+    try {
+        auto result = create_instance_and_surface();
+        if (result) result = select_physical_device();
+        if (result) result = create_device();
+        if (result) result = create_swapchain_resources();
+        if (!result) shutdown();
+        return result;
+    } catch (const std::bad_alloc&) {
+        shutdown();
+        return Result<void>::failure(Error::make(
+            ErrorCode::ResourceExhausted,
+            "Vulkan initialization exceeded the available host memory"));
+    } catch (const std::length_error&) {
+        shutdown();
+        return Result<void>::failure(Error::make(
+            ErrorCode::ResourceExhausted,
+            "Vulkan initialization exceeded a container capacity"));
+    }
 }
 
 Result<void> VulkanClearRenderer::create_instance_and_surface() {
@@ -97,17 +124,26 @@ Result<void> VulkanClearRenderer::select_physical_device() {
     if (result != VK_SUCCESS) return Result<void>::failure(vk_error("vkEnumeratePhysicalDevices", result));
     if (count == 0U) return Result<void>::failure(Error::make(
         ErrorCode::Unsupported, "No Vulkan physical device is available"));
+    if (count > kMaximumPhysicalDevices) return Result<void>::failure(Error::make(
+        ErrorCode::ResourceExhausted,
+        "Vulkan driver reported an unreasonable physical-device count"));
 
     std::vector<VkPhysicalDevice> devices(count);
     result = vkEnumeratePhysicalDevices(instance_, &count, devices.data());
     if (result != VK_SUCCESS) return Result<void>::failure(vk_error("vkEnumeratePhysicalDevices", result));
+    if (count > devices.size()) return Result<void>::failure(Error::make(
+        ErrorCode::ResourceExhausted,
+        "Vulkan physical-device count changed beyond the allocated bound"));
+    devices.resize(count);
 
     for (VkPhysicalDevice candidate : devices) {
         if (!has_extension(candidate, VK_KHR_SWAPCHAIN_EXTENSION_NAME)) continue;
         std::uint32_t family_count = 0U;
         vkGetPhysicalDeviceQueueFamilyProperties(candidate, &family_count, nullptr);
+        if (family_count == 0U || family_count > kMaximumQueueFamilies) continue;
         std::vector<VkQueueFamilyProperties> families(family_count);
         vkGetPhysicalDeviceQueueFamilyProperties(candidate, &family_count, families.data());
+        if (family_count > families.size()) continue;
         for (std::uint32_t index = 0U; index < family_count; ++index) {
             VkBool32 supported = VK_FALSE;
             const VkResult support_result = vkGetPhysicalDeviceSurfaceSupportKHR(
@@ -158,38 +194,73 @@ Result<void> VulkanClearRenderer::create_swapchain_resources() {
         result == VK_SUCCESS
             ? Error::make(ErrorCode::Unsupported, "Android Vulkan surface has no formats")
             : vk_error("vkGetPhysicalDeviceSurfaceFormatsKHR", result));
+    if (format_count > kMaximumSurfaceFormats) return Result<void>::failure(Error::make(
+        ErrorCode::ResourceExhausted,
+        "Vulkan driver reported an unreasonable surface-format count"));
     std::vector<VkSurfaceFormatKHR> formats(format_count);
     result = vkGetPhysicalDeviceSurfaceFormatsKHR(physical_device_, surface_, &format_count, formats.data());
     if (result != VK_SUCCESS) return Result<void>::failure(vk_error("vkGetPhysicalDeviceSurfaceFormatsKHR", result));
+    if (format_count > formats.size()) return Result<void>::failure(Error::make(
+        ErrorCode::ResourceExhausted,
+        "Vulkan surface-format count changed beyond the allocated bound"));
+    formats.resize(format_count);
 
-    VkSurfaceFormatKHR selected = formats.front();
-    for (const auto& format : formats) {
-        if (format.format == VK_FORMAT_R8G8B8A8_UNORM ||
-            format.format == VK_FORMAT_B8G8R8A8_UNORM) {
-            selected = format;
-            break;
+    if ((capabilities.supportedUsageFlags & VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT) == 0U) {
+        return Result<void>::failure(Error::make(
+            ErrorCode::Unsupported,
+            "Android Vulkan surface images cannot be used as color attachments"));
+    }
+
+    VkSurfaceFormatKHR selected{};
+    if (formats.size() == 1U && formats.front().format == VK_FORMAT_UNDEFINED) {
+        selected = VkSurfaceFormatKHR{
+            VK_FORMAT_R8G8B8A8_UNORM, formats.front().colorSpace};
+    } else {
+        constexpr std::array<VkFormat, 2U> preferred_formats{
+            VK_FORMAT_R8G8B8A8_UNORM, VK_FORMAT_B8G8R8A8_UNORM};
+        for (const VkFormat preferred : preferred_formats) {
+            const auto match = std::find_if(formats.begin(), formats.end(),
+                [preferred](const VkSurfaceFormatKHR& format) {
+                    return format.format == preferred;
+                });
+            if (match != formats.end()) {
+                selected = *match;
+                break;
+            }
         }
     }
     if (selected.format == VK_FORMAT_UNDEFINED) {
-        return Result<void>::failure(Error::make(ErrorCode::Unsupported, "Vulkan surface format is undefined"));
+        return Result<void>::failure(Error::make(
+            ErrorCode::Unsupported,
+            "Android Vulkan surface exposes no supported 8-bit RGBA/BGRA format"));
     }
 
-    VkExtent2D extent = capabilities.currentExtent;
-    if (extent.width == std::numeric_limits<std::uint32_t>::max()) {
-        const std::int32_t width = ANativeWindow_getWidth(window_);
-        const std::int32_t height = ANativeWindow_getHeight(window_);
-        if (width <= 0 || height <= 0) return Result<void>::failure(Error::make(
-            ErrorCode::InvalidState, "Android window has an invalid drawable extent"));
-        extent.width = std::clamp(static_cast<std::uint32_t>(width),
-            capabilities.minImageExtent.width, capabilities.maxImageExtent.width);
-        extent.height = std::clamp(static_cast<std::uint32_t>(height),
-            capabilities.minImageExtent.height, capabilities.maxImageExtent.height);
+    const std::int32_t window_width = ANativeWindow_getWidth(window_);
+    const std::int32_t window_height = ANativeWindow_getHeight(window_);
+    if (window_width <= 0 || window_height <= 0) return Result<void>::failure(Error::make(
+        ErrorCode::InvalidState, "Android window has an invalid drawable extent"));
+    const auto selected_extent = Storm::Rendering::resolve_presentation_extent(
+        Storm::Rendering::PresentationExtent{
+            static_cast<std::uint32_t>(window_width),
+            static_cast<std::uint32_t>(window_height)},
+        Storm::Rendering::PresentationExtent{
+            capabilities.currentExtent.width, capabilities.currentExtent.height},
+        Storm::Rendering::PresentationExtent{
+            capabilities.minImageExtent.width, capabilities.minImageExtent.height},
+        Storm::Rendering::PresentationExtent{
+            capabilities.maxImageExtent.width, capabilities.maxImageExtent.height});
+    if (!selected_extent) {
+        return Result<void>::failure(selected_extent.error());
     }
-    if (extent.width == 0U || extent.height == 0U) return Result<void>::failure(Error::make(
-        ErrorCode::InvalidState, "Vulkan swapchain extent is empty"));
+    const VkExtent2D extent{
+        selected_extent.value().width, selected_extent.value().height};
 
-    std::uint32_t image_count = capabilities.minImageCount + 1U;
-    if (capabilities.maxImageCount > 0U) image_count = std::min(image_count, capabilities.maxImageCount);
+    const auto selected_image_count = Storm::Rendering::choose_presentation_image_count(
+        capabilities.minImageCount, capabilities.maxImageCount, kMaximumSwapchainImages);
+    if (!selected_image_count) {
+        return Result<void>::failure(selected_image_count.error());
+    }
+    std::uint32_t image_count = selected_image_count.value();
 
     VkCompositeAlphaFlagBitsKHR composite = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
     constexpr std::array<VkCompositeAlphaFlagBitsKHR, 4> composite_options{
@@ -198,11 +269,18 @@ Result<void> VulkanClearRenderer::create_swapchain_resources() {
         VK_COMPOSITE_ALPHA_POST_MULTIPLIED_BIT_KHR,
         VK_COMPOSITE_ALPHA_INHERIT_BIT_KHR
     };
+    bool composite_alpha_selected = false;
     for (const auto option : composite_options) {
         if ((capabilities.supportedCompositeAlpha & option) != 0U) {
             composite = option;
+            composite_alpha_selected = true;
             break;
         }
+    }
+    if (!composite_alpha_selected) {
+        return Result<void>::failure(Error::make(
+            ErrorCode::Unsupported,
+            "Android Vulkan surface exposes no supported composite-alpha mode"));
     }
 
     VkSwapchainCreateInfoKHR swapchain_info{VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR};
@@ -227,9 +305,16 @@ Result<void> VulkanClearRenderer::create_swapchain_resources() {
     if (result != VK_SUCCESS || image_count == 0U) return Result<void>::failure(
         result == VK_SUCCESS ? Error::make(ErrorCode::Internal, "Vulkan swapchain returned no images")
                              : vk_error("vkGetSwapchainImagesKHR", result));
+    if (image_count > kMaximumSwapchainImages) return Result<void>::failure(Error::make(
+        ErrorCode::ResourceExhausted,
+        "Vulkan swapchain image count exceeds the configured mobile bound"));
     images_.resize(image_count);
     result = vkGetSwapchainImagesKHR(device_, swapchain_, &image_count, images_.data());
     if (result != VK_SUCCESS) return Result<void>::failure(vk_error("vkGetSwapchainImagesKHR", result));
+    if (image_count == 0U || image_count > images_.size()) return Result<void>::failure(Error::make(
+        ErrorCode::ResourceExhausted,
+        "Vulkan swapchain image count changed beyond the allocated bound"));
+    images_.resize(image_count);
 
     image_views_.reserve(images_.size());
     framebuffers_.reserve(images_.size());
@@ -320,6 +405,12 @@ Result<void> VulkanClearRenderer::render_frame() {
     result = vkAcquireNextImageKHR(device_, swapchain_, UINT64_MAX, image_available_, VK_NULL_HANDLE, &image_index);
     if (result == VK_ERROR_OUT_OF_DATE_KHR) return recreate_swapchain();
     if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR) return Result<void>::failure(vk_error("vkAcquireNextImageKHR", result));
+    const bool acquired_suboptimal = result == VK_SUBOPTIMAL_KHR;
+    if (static_cast<std::size_t>(image_index) >= framebuffers_.size()) {
+        return Result<void>::failure(Error::make(
+            ErrorCode::Internal,
+            "Vulkan acquired an image index outside the swapchain framebuffer range"));
+    }
 
     result = vkResetFences(device_, 1U, &frame_fence_);
     if (result != VK_SUCCESS) return Result<void>::failure(vk_error("vkResetFences", result));
@@ -362,7 +453,8 @@ Result<void> VulkanClearRenderer::render_frame() {
     present.pSwapchains = &swapchain_;
     present.pImageIndices = &image_index;
     result = vkQueuePresentKHR(queue_, &present);
-    if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR) {
+    if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR ||
+        acquired_suboptimal) {
         return recreate_swapchain();
     }
     if (result != VK_SUCCESS) return Result<void>::failure(vk_error("vkQueuePresentKHR", result));
@@ -404,7 +496,19 @@ Result<void> VulkanClearRenderer::recreate_swapchain() {
         return Result<void>::failure(Error::make(ErrorCode::InvalidState, "Cannot recreate Vulkan swapchain for an empty Android window"));
     }
     destroy_swapchain_resources();
-    return create_swapchain_resources();
+    try {
+        return create_swapchain_resources();
+    } catch (const std::bad_alloc&) {
+        destroy_swapchain_resources();
+        return Result<void>::failure(Error::make(
+            ErrorCode::ResourceExhausted,
+            "Vulkan swapchain recreation exceeded the available host memory"));
+    } catch (const std::length_error&) {
+        destroy_swapchain_resources();
+        return Result<void>::failure(Error::make(
+            ErrorCode::ResourceExhausted,
+            "Vulkan swapchain recreation exceeded a container capacity"));
+    }
 }
 
 void VulkanClearRenderer::shutdown() noexcept {
