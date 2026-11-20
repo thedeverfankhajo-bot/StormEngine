@@ -1,11 +1,14 @@
 #import <UIKit/UIKit.h>
 #import <Metal/Metal.h>
 #import <QuartzCore/CAMetalLayer.h>
+#import <dispatch/dispatch.h>
 
 #import "storm/ios/scene_lifecycle_delegate.h"
 
 #include "storm/platform/surface_lifecycle.hpp"
 #include "storm/input/touch_input.hpp"
+#include "storm/core/transform_system_2d.hpp"
+#include "storm/rendering/sprite_batch.hpp"
 
 #include <algorithm>
 #include <array>
@@ -18,11 +21,15 @@ namespace {
 
 constexpr Storm::Platform::NativeSurfaceId kIOSHostSurfaceId = 1U;
 
-struct alignas(16) MetalSmokeVertex final {
-    float position[4];
+struct alignas(16) MetalSpriteVertex final {
+    float position[2];
+    float uv[2];
     float color[4];
 };
-static_assert(sizeof(MetalSmokeVertex) == 32U);
+static_assert(sizeof(MetalSpriteVertex) == 32U);
+
+constexpr std::size_t kDemoSpriteCapacity = 8U;
+constexpr std::size_t kMetalFramesInFlight = 3U;
 
 [[nodiscard]] bool timestamp_to_nanoseconds(double seconds, std::uint64_t& result) {
     if (!std::isfinite(seconds) || seconds < 0.0) return false;
@@ -33,6 +40,77 @@ static_assert(sizeof(MetalSmokeVertex) == 32U);
     }
     result = static_cast<std::uint64_t>(nanoseconds);
     return true;
+}
+
+[[nodiscard]] Storm::Result<void> create_demo_scene(Storm::Scene& scene) {
+    using namespace Storm;
+    using namespace Storm::Math;
+    using namespace Storm::Rendering;
+
+    auto camera_entity = scene.create_entity("Main Camera");
+    if (!camera_entity) {
+        return Result<void>::failure(camera_entity.error());
+    }
+
+    Camera2D camera{
+        .position = {0.0F, 0.0F},
+        .rotation_radians = 0.0F,
+        .viewport_size = {1.0F, 1.0F},
+        .zoom = 1.0F,
+    };
+    auto camera_component = scene.add_component<Camera2DComponent>(
+        camera_entity.value(),
+        Camera2DComponent{.camera = camera, .priority = 100, .enabled = true});
+    if (!camera_component) {
+        return Result<void>::failure(camera_component.error());
+    }
+
+    auto left_entity = scene.create_entity("Coral Sprite");
+    if (!left_entity) {
+        return Result<void>::failure(left_entity.error());
+    }
+    Sprite2DComponent left_sprite{
+        .texture = TextureKey{1U, 1U},
+        .size = {92.0F, 92.0F},
+        .pivot = {0.5F, 0.5F},
+        .uv = {},
+        .color = SpriteColor{255U, 104U, 82U, 255U},
+        .sorting_layer = 0,
+        .sorting_order = 0,
+    };
+    auto left_component = scene.add_component<Sprite2DComponent>(
+        left_entity.value(), left_sprite);
+    if (!left_component) {
+        return Result<void>::failure(left_component.error());
+    }
+    const auto left_transform = TransformSystem2D::set_local_transform(
+        scene, left_entity.value(),
+        Transform2D{.translation = {-54.0F, 0.0F}});
+    if (!left_transform) {
+        return left_transform;
+    }
+
+    auto right_entity = scene.create_entity("Blue Sprite");
+    if (!right_entity) {
+        return Result<void>::failure(right_entity.error());
+    }
+    Sprite2DComponent right_sprite{
+        .texture = TextureKey{1U, 1U},
+        .size = {92.0F, 92.0F},
+        .pivot = {0.5F, 0.5F},
+        .uv = {},
+        .color = SpriteColor{75U, 188U, 245U, 255U},
+        .sorting_layer = 0,
+        .sorting_order = 1,
+    };
+    auto right_component = scene.add_component<Sprite2DComponent>(
+        right_entity.value(), right_sprite);
+    if (!right_component) {
+        return Result<void>::failure(right_component.error());
+    }
+    return TransformSystem2D::set_local_transform(
+        scene, right_entity.value(),
+        Transform2D{.translation = {54.0F, 0.0F}});
 }
 
 [[nodiscard]] Storm::Result<void> cancel_touch_input(
@@ -81,6 +159,14 @@ static_assert(sizeof(MetalSmokeVertex) == 32U);
     id<MTLDevice> _metalDevice;
     id<MTLCommandQueue> _metalQueue;
     id<MTLRenderPipelineState> _metalPipeline;
+    id<MTLTexture> _spriteTexture;
+    id<MTLSamplerState> _spriteSampler;
+    id<MTLBuffer> _spriteVertexBuffers[3];
+    id<MTLBuffer> _spriteIndexBuffers[3];
+    dispatch_semaphore_t _inFlightSemaphore;
+    NSUInteger _frameBufferIndex;
+    void *_renderSceneStorage;
+    void *_spriteBatchStorage;
     CADisplayLink *_displayLink;
 }
 
@@ -127,8 +213,52 @@ static_assert(sizeof(MetalSmokeVertex) == 32U);
         return nil;
     }
 
+    auto scene_result = Storm::Scene::create("StormEngine Metal Demo");
+    if (!scene_result) {
+        delete touch_input;
+        delete surface;
+        [self release];
+        return nil;
+    }
+    auto *scene = new (std::nothrow) Storm::Scene(std::move(scene_result).value());
+    if (scene == nullptr) {
+        delete touch_input;
+        delete surface;
+        [self release];
+        return nil;
+    }
+    const auto scene_setup = create_demo_scene(*scene);
+    if (!scene_setup) {
+        delete scene;
+        delete touch_input;
+        delete surface;
+        [self release];
+        return nil;
+    }
+
+    auto batch_result = Storm::Rendering::SpriteBatch::create(
+        Storm::Rendering::SpriteBatchConfig{.maximum_sprites = kDemoSpriteCapacity});
+    if (!batch_result) {
+        delete scene;
+        delete touch_input;
+        delete surface;
+        [self release];
+        return nil;
+    }
+    auto *batch = new (std::nothrow)
+        Storm::Rendering::SpriteBatch(std::move(batch_result).value());
+    if (batch == nullptr) {
+        delete scene;
+        delete touch_input;
+        delete surface;
+        [self release];
+        return nil;
+    }
+
     _surfaceLifecycleStorage = surface;
     _touchInputStorage = touch_input;
+    _renderSceneStorage = scene;
+    _spriteBatchStorage = batch;
     return self;
 }
 
@@ -153,32 +283,32 @@ static_assert(sizeof(MetalSmokeVertex) == 32U);
             NSString *shaderSource =
                 @"#include <metal_stdlib>\n"
                  "using namespace metal;\n"
-                 "struct VertexData { float4 position; float4 color; };\n"
-                 "struct RasterData { float4 position [[position]]; float4 color; };\n"
+                 "struct VertexData { float2 position; float2 uv; float4 color; };\n"
+                 "struct RasterData { float4 position [[position]]; float2 uv; float4 color; };\n"
                  "vertex RasterData storm_vertex(\n"
                  "    uint vertex_id [[vertex_id]],\n"
                  "    const device VertexData* vertices [[buffer(0)]]) {\n"
                  "    RasterData output;\n"
-                 "    output.position = vertices[vertex_id].position;\n"
+                 "    output.position = float4(vertices[vertex_id].position, 0.0, 1.0);\n"
+                 "    output.uv = vertices[vertex_id].uv;\n"
                  "    output.color = vertices[vertex_id].color;\n"
                  "    return output;\n"
                  "}\n"
-                 "fragment float4 storm_fragment(RasterData input [[stage_in]]) {\n"
-                 "    return input.color;\n"
+                 "fragment float4 storm_fragment(\n"
+                 "    RasterData input [[stage_in]],\n"
+                 "    texture2d<float> color_texture [[texture(0)]],\n"
+                 "    sampler color_sampler [[sampler(0)]]) {\n"
+                 "    return color_texture.sample(color_sampler, input.uv) * input.color;\n"
                  "}\n";
 
             NSError *libraryError = nil;
             id<MTLLibrary> library = [_metalDevice
                 newLibraryWithSource:shaderSource options:nil error:&libraryError];
             if (library == nil) {
-                NSLog(@"StormEngine: Metal shader compilation failed: %@",
-                      libraryError);
+                NSLog(@"StormEngine: Metal shader compilation failed: %@", libraryError);
             } else {
-                id<MTLFunction> vertexFunction =
-                    [library newFunctionWithName:@"storm_vertex"];
-                id<MTLFunction> fragmentFunction =
-                    [library newFunctionWithName:@"storm_fragment"];
-
+                id<MTLFunction> vertexFunction = [library newFunctionWithName:@"storm_vertex"];
+                id<MTLFunction> fragmentFunction = [library newFunctionWithName:@"storm_fragment"];
                 if (vertexFunction == nil || fragmentFunction == nil) {
                     NSLog(@"StormEngine: Metal shader library is missing an entry point.");
                 } else {
@@ -186,22 +316,77 @@ static_assert(sizeof(MetalSmokeVertex) == 32U);
                         [[MTLRenderPipelineDescriptor alloc] init];
                     descriptor.vertexFunction = vertexFunction;
                     descriptor.fragmentFunction = fragmentFunction;
-                    descriptor.colorAttachments[0].pixelFormat = metalLayer.pixelFormat;
+                    MTLRenderPipelineColorAttachmentDescriptor *colorAttachment =
+                        descriptor.colorAttachments[0];
+                    colorAttachment.pixelFormat = metalLayer.pixelFormat;
+                    colorAttachment.blendingEnabled = YES;
+                    colorAttachment.rgbBlendOperation = MTLBlendOperationAdd;
+                    colorAttachment.alphaBlendOperation = MTLBlendOperationAdd;
+                    colorAttachment.sourceRGBBlendFactor = MTLBlendFactorSourceAlpha;
+                    colorAttachment.destinationRGBBlendFactor =
+                        MTLBlendFactorOneMinusSourceAlpha;
+                    colorAttachment.sourceAlphaBlendFactor = MTLBlendFactorOne;
+                    colorAttachment.destinationAlphaBlendFactor =
+                        MTLBlendFactorOneMinusSourceAlpha;
 
                     NSError *pipelineError = nil;
                     _metalPipeline = [_metalDevice
-                        newRenderPipelineStateWithDescriptor:descriptor
-                                                       error:&pipelineError];
+                        newRenderPipelineStateWithDescriptor:descriptor error:&pipelineError];
                     if (_metalPipeline == nil) {
                         NSLog(@"StormEngine: Metal render-pipeline creation failed: %@",
                               pipelineError);
                     }
                     [descriptor release];
                 }
-
                 [vertexFunction release];
                 [fragmentFunction release];
                 [library release];
+            }
+
+            if (_metalPipeline != nil) {
+                MTLTextureDescriptor *textureDescriptor =
+                    [MTLTextureDescriptor texture2DDescriptorWithPixelFormat:
+                        MTLPixelFormatRGBA8Unorm width:1 height:1 mipmapped:NO];
+                textureDescriptor.usage = MTLTextureUsageShaderRead;
+                _spriteTexture = [_metalDevice newTextureWithDescriptor:textureDescriptor];
+                if (_spriteTexture != nil) {
+                    const std::uint32_t whitePixel = 0xffffffffU;
+                    [_spriteTexture replaceRegion:MTLRegionMake2D(0U, 0U, 1U, 1U)
+                                      mipmapLevel:0U
+                                        withBytes:&whitePixel
+                                      bytesPerRow:sizeof(whitePixel)];
+                }
+
+                MTLSamplerDescriptor *samplerDescriptor = [[MTLSamplerDescriptor alloc] init];
+                samplerDescriptor.minFilter = MTLSamplerMinMagFilterLinear;
+                samplerDescriptor.magFilter = MTLSamplerMinMagFilterLinear;
+                samplerDescriptor.sAddressMode = MTLSamplerAddressModeClampToEdge;
+                samplerDescriptor.tAddressMode = MTLSamplerAddressModeClampToEdge;
+                _spriteSampler = [_metalDevice newSamplerStateWithDescriptor:samplerDescriptor];
+                [samplerDescriptor release];
+
+                const NSUInteger vertexBytes = static_cast<NSUInteger>(
+                    sizeof(MetalSpriteVertex) * 4U * kDemoSpriteCapacity);
+                const NSUInteger indexBytes = static_cast<NSUInteger>(
+                    sizeof(std::uint32_t) * 6U * kDemoSpriteCapacity);
+                for (std::size_t index = 0U; index < kMetalFramesInFlight; ++index) {
+                    _spriteVertexBuffers[index] = [_metalDevice
+                        newBufferWithLength:vertexBytes options:MTLResourceStorageModeShared];
+                    _spriteIndexBuffers[index] = [_metalDevice
+                        newBufferWithLength:indexBytes options:MTLResourceStorageModeShared];
+                }
+                _inFlightSemaphore = dispatch_semaphore_create(
+                    static_cast<long>(kMetalFramesInFlight));
+                if (_spriteTexture == nil || _spriteSampler == nil ||
+                    _inFlightSemaphore == nil) {
+                    NSLog(@"StormEngine: Metal sprite texture, sampler, or frame semaphore creation failed.");
+                }
+                for (std::size_t index = 0U; index < kMetalFramesInFlight; ++index) {
+                    if (_spriteVertexBuffers[index] == nil ||
+                        _spriteIndexBuffers[index] == nil) {
+                        NSLog(@"StormEngine: Metal sprite buffer allocation failed.");
+                    }
+                }
             }
         }
     } else {
@@ -286,6 +471,22 @@ static_assert(sizeof(MetalSmokeVertex) == 32U);
     }
 
     const Storm::Platform::SurfaceDescriptor &descriptor = updated.value();
+    auto *render_scene = static_cast<Storm::Scene *>(_renderSceneStorage);
+    if (render_scene != nullptr) {
+        const float viewport_width = static_cast<float>(logicalWidth);
+        const float viewport_height = static_cast<float>(logicalHeight);
+        const auto cameras_updated =
+            render_scene->for_each_component<Storm::Rendering::Camera2DComponent>(
+                [viewport_width, viewport_height](
+                    Storm::EntityHandle, Storm::Rendering::Camera2DComponent& component) {
+                    component.camera.viewport_size = {viewport_width, viewport_height};
+                });
+        if (!cameras_updated) {
+            NSLog(@"StormEngine: Could not update the Scene camera viewport: %s",
+                  cameras_updated.error().message.c_str());
+            return;
+        }
+    }
     if (!current.has_value()) {
         auto *touch_input = static_cast<Storm::Input::TouchInput *>(_touchInputStorage);
         if (touch_input == nullptr) {
@@ -312,8 +513,8 @@ static_assert(sizeof(MetalSmokeVertex) == 32U);
         (_metalQueue == nil
             ? @"Metal unavailable; presentation disabled"
             : (_metalPipeline != nil
-                ? @"Metal pipeline ready · GPU triangle draw active"
-                : @"Metal clear-only fallback · pipeline unavailable"))];
+                ? @"Metal Scene/SpriteBatch renderer ready · GPU indexed draws active"
+                : @"Metal sprite pipeline unavailable"))];
 }
 
 - (void)touchesBegan:(NSSet<UITouch *> *)touches withEvent:(UIEvent *)event {
@@ -400,7 +601,7 @@ static_assert(sizeof(MetalSmokeVertex) == 32U);
             "%@ · gameplay runtime is not integrated yet.",
             static_cast<unsigned long>(touch_input->active_pointer_count()),
             (_metalPipeline != nil
-                ? @"Metal GPU triangle draw active"
+                ? @"Metal Scene/SpriteBatch GPU rendering active"
                 : @"Metal graphics pipeline unavailable")];
     }
 }
@@ -433,14 +634,34 @@ static_assert(sizeof(MetalSmokeVertex) == 32U);
 }
 
 - (void)_renderMetalFrame {
-    if (_metalQueue == nil ||
+    if (_metalQueue == nil || _metalPipeline == nil || _spriteTexture == nil ||
+        _spriteSampler == nil || _inFlightSemaphore == nil ||
         UIApplication.sharedApplication.applicationState != UIApplicationStateActive) {
         return;
     }
 
-    CAMetalLayer *layer = (CAMetalLayer *)self.view.layer;
-    id<CAMetalDrawable> drawable = [layer nextDrawable];
+    auto *scene = static_cast<Storm::Scene *>(_renderSceneStorage);
+    auto *batch = static_cast<Storm::Rendering::SpriteBatch *>(_spriteBatchStorage);
+    if (scene == nullptr || batch == nullptr) return;
+
+    const auto drawable = [(CAMetalLayer *)self.view.layer nextDrawable];
     if (drawable == nil) return;
+
+    auto sprite_view = Storm::Rendering::SpriteSceneCollector2D::build_active_camera(
+        *scene, *batch);
+    if (!sprite_view) {
+        NSLog(@"StormEngine: Scene-to-SpriteBatch collection failed: %s",
+              sprite_view.error().message.c_str());
+        return;
+    }
+    const auto &geometry = sprite_view.value();
+    if (geometry.sprite_count > kDemoSpriteCapacity ||
+        geometry.vertices.size() > kDemoSpriteCapacity * 4U ||
+        geometry.indices.size() > kDemoSpriteCapacity * 6U) {
+        NSLog(@"StormEngine: SpriteBatch exceeded the bounded Metal demo buffer capacity.");
+        return;
+    }
+    if (geometry.sprite_count == 0U) return;
 
     MTLRenderPassDescriptor *pass = [MTLRenderPassDescriptor renderPassDescriptor];
     pass.colorAttachments[0].texture = drawable.texture;
@@ -454,31 +675,81 @@ static_assert(sizeof(MetalSmokeVertex) == 32U);
         [command renderCommandEncoderWithDescriptor:pass];
     if (encoder == nil) return;
 
-    if (_metalPipeline != nil) {
-        constexpr std::array<MetalSmokeVertex, 3U> vertices{{
-            {{0.0F, 0.62F, 0.0F, 1.0F}, {1.0F, 0.32F, 0.18F, 1.0F}},
-            {{-0.58F, -0.48F, 0.0F, 1.0F}, {0.18F, 0.78F, 0.98F, 1.0F}},
-            {{0.58F, -0.48F, 0.0F, 1.0F}, {0.58F, 0.42F, 0.98F, 1.0F}}
-        }};
-
-        [encoder setRenderPipelineState:_metalPipeline];
-        [encoder setVertexBytes:vertices.data()
-                         length:sizeof(vertices)
-                        atIndex:0U];
-        const MTLViewport viewport{
-            0.0, 0.0,
-            static_cast<double>(drawable.texture.width),
-            static_cast<double>(drawable.texture.height),
-            0.0, 1.0
-        };
-        [encoder setViewport:viewport];
-        [encoder drawPrimitives:MTLPrimitiveTypeTriangle
-                   vertexStart:0U
-                   vertexCount:static_cast<NSUInteger>(vertices.size())];
+    const NSUInteger frameIndex = _frameBufferIndex;
+    id<MTLBuffer> vertexBuffer = _spriteVertexBuffers[frameIndex];
+    id<MTLBuffer> indexBuffer = _spriteIndexBuffers[frameIndex];
+    if (vertexBuffer == nil || indexBuffer == nil) {
+        [encoder endEncoding];
+        NSLog(@"StormEngine: Metal frame buffers are unavailable.");
+        return;
     }
 
+    dispatch_semaphore_wait(_inFlightSemaphore, DISPATCH_TIME_FOREVER);
+    _frameBufferIndex = (_frameBufferIndex + 1U) % kMetalFramesInFlight;
+
+    std::array<MetalSpriteVertex, kDemoSpriteCapacity * 4U> vertices{};
+    for (std::size_t index = 0U; index < geometry.vertices.size(); ++index) {
+        const auto &source = geometry.vertices[index];
+        constexpr float inverse_channel = 1.0F / 255.0F;
+        vertices[index] = MetalSpriteVertex{
+            .position = {source.position.x, source.position.y},
+            .uv = {source.uv.x, source.uv.y},
+            .color = {
+                static_cast<float>(source.color.r) * inverse_channel,
+                static_cast<float>(source.color.g) * inverse_channel,
+                static_cast<float>(source.color.b) * inverse_channel,
+                static_cast<float>(source.color.a) * inverse_channel,
+            },
+        };
+    }
+    std::memcpy([vertexBuffer contents], vertices.data(),
+                geometry.vertices.size() * sizeof(MetalSpriteVertex));
+    std::memcpy([indexBuffer contents], geometry.indices.data(),
+                geometry.indices.size_bytes());
+
+    [encoder setRenderPipelineState:_metalPipeline];
+    [encoder setVertexBuffer:vertexBuffer offset:0U atIndex:0U];
+    [encoder setFragmentSamplerState:_spriteSampler atIndex:0U];
+    [encoder setFragmentTexture:_spriteTexture atIndex:0U];
+    const MTLViewport viewport{
+        0.0, 0.0,
+        static_cast<double>(drawable.texture.width),
+        static_cast<double>(drawable.texture.height),
+        0.0, 1.0
+    };
+    [encoder setViewport:viewport];
+
+    bool invalid_range = false;
+    for (const auto &range : geometry.ranges) {
+        if (range.texture.id != 1U || range.texture.generation != 1U ||
+            static_cast<std::size_t>(range.first_index) > geometry.indices.size() ||
+            static_cast<std::size_t>(range.index_count) >
+                geometry.indices.size() - static_cast<std::size_t>(range.first_index)) {
+            invalid_range = true;
+            break;
+        }
+        const NSUInteger offset = static_cast<NSUInteger>(
+            static_cast<std::size_t>(range.first_index) * sizeof(std::uint32_t));
+        [encoder drawIndexedPrimitives:MTLPrimitiveTypeTriangle
+                            indexCount:static_cast<NSUInteger>(range.index_count)
+                             indexType:MTLIndexTypeUInt32
+                           indexBuffer:indexBuffer
+                     indexBufferOffset:offset];
+    }
     [encoder endEncoding];
+
+    if (invalid_range) {
+        dispatch_semaphore_signal(_inFlightSemaphore);
+        NSLog(@"StormEngine: SpriteBatch supplied an unsupported texture key or index range.");
+        return;
+    }
+
     [command presentDrawable:drawable];
+    dispatch_semaphore_t semaphore = _inFlightSemaphore;
+    [command addCompletedHandler:^(id<MTLCommandBuffer> completedCommand) {
+        (void)completedCommand;
+        dispatch_semaphore_signal(semaphore);
+    }];
     [command commit];
 }
 
@@ -553,7 +824,34 @@ static_assert(sizeof(MetalSmokeVertex) == 32U);
     _surfaceLifecycleStorage = nullptr;
     delete static_cast<Storm::Input::TouchInput *>(_touchInputStorage);
     _touchInputStorage = nullptr;
+
     [_displayLink invalidate];
+    [_displayLink release];
+    _displayLink = nil;
+    if (_inFlightSemaphore != nil) {
+        for (std::size_t frame = 0U; frame < kMetalFramesInFlight; ++frame) {
+            dispatch_semaphore_wait(_inFlightSemaphore, DISPATCH_TIME_FOREVER);
+        }
+    }
+    delete static_cast<Storm::Scene *>(_renderSceneStorage);
+    _renderSceneStorage = nullptr;
+    delete static_cast<Storm::Rendering::SpriteBatch *>(_spriteBatchStorage);
+    _spriteBatchStorage = nullptr;
+
+    for (std::size_t index = 0U; index < kMetalFramesInFlight; ++index) {
+        [_spriteVertexBuffers[index] release];
+        _spriteVertexBuffers[index] = nil;
+        [_spriteIndexBuffers[index] release];
+        _spriteIndexBuffers[index] = nil;
+    }
+    [_spriteTexture release];
+    _spriteTexture = nil;
+    [_spriteSampler release];
+    _spriteSampler = nil;
+#if !OS_OBJECT_USE_OBJC
+    if (_inFlightSemaphore != nullptr) dispatch_release(_inFlightSemaphore);
+#endif
+    _inFlightSemaphore = nil;
     [_displayLink release];
     _displayLink = nil;
     [_metalPipeline release];
