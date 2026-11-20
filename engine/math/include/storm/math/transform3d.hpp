@@ -4,6 +4,7 @@
 
 #include <array>
 #include <cstddef>
+#include <cstdint>
 
 namespace Storm::Math {
 
@@ -81,6 +82,40 @@ public:
 private:
     friend struct Transform3D;
     std::array<float, 16U> values_{};
+};
+
+
+// A platform-neutral 3D camera. View space is right-handed and looks down -Z;
+// perspective and orthographic depth both use the zero-to-one [near, far] range.
+// position/target/up describe the camera pose in world space. For perspective
+// cameras, aspect_ratio is the logical viewport width divided by its height.
+enum class Camera3DProjection : std::uint8_t {
+    Perspective,
+    Orthographic,
+};
+
+struct Camera3D final {
+    Vector3 position{};
+    Vector3 target{0.0F, 0.0F, -1.0F};
+    Vector3 up{0.0F, 1.0F, 0.0F};
+    Camera3DProjection projection{Camera3DProjection::Perspective};
+
+    float vertical_fov_radians{1.0471975512F};
+    float aspect_ratio{1.0F};
+    float near_plane{0.1F};
+    float far_plane{1000.0F};
+
+    // Used only when projection == Orthographic.
+    float left{-1.0F};
+    float right{1.0F};
+    float bottom{-1.0F};
+    float top{1.0F};
+
+    [[nodiscard]] bool is_valid() const noexcept;
+    [[nodiscard]] Result<Matrix4> view_matrix() const;
+    [[nodiscard]] Result<Matrix4> projection_matrix() const;
+    [[nodiscard]] Result<Matrix4> view_projection_matrix() const;
+    [[nodiscard]] Result<Vector3> world_to_ndc(Vector3 world_position) const;
 };
 
 struct Transform3D final {

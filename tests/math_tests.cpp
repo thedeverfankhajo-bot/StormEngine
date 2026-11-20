@@ -335,6 +335,104 @@ namespace {
     return std::nullopt;
 }
 
+
+[[nodiscard]] std::optional<std::string> test_camera3d_perspective_maps_near_and_far_to_zero_one() {
+    Storm::Math::Camera3D camera;
+    camera.vertical_fov_radians = 1.57079632679F;
+    camera.aspect_ratio = 1.0F;
+    camera.near_plane = 1.0F;
+    camera.far_plane = 10.0F;
+    EXPECT(camera.is_valid());
+    const auto near_center = camera.world_to_ndc({0.0F, 0.0F, -1.0F});
+    const auto far_center = camera.world_to_ndc({0.0F, 0.0F, -10.0F});
+    const auto right_edge = camera.world_to_ndc({1.0F, 0.0F, -1.0F});
+    EXPECT(near_center);
+    EXPECT(far_center);
+    EXPECT(right_edge);
+    EXPECT(nearly_equal(near_center.value().z, 0.0F));
+    EXPECT(nearly_equal(far_center.value().z, 1.0F));
+    EXPECT(nearly_equal(right_edge.value().x, 1.0F));
+    EXPECT(nearly_equal(right_edge.value().y, 0.0F));
+    return std::nullopt;
+}
+
+[[nodiscard]] std::optional<std::string> test_camera3d_view_uses_world_pose() {
+    Storm::Math::Camera3D camera;
+    camera.position = {1.0F, 2.0F, 3.0F};
+    camera.target = {1.0F, 2.0F, 2.0F};
+    const auto view = camera.view_matrix();
+    EXPECT(view);
+    const auto eye = view.value().transform_point(camera.position);
+    const auto target = view.value().transform_point(camera.target);
+    EXPECT(eye);
+    EXPECT(target);
+    EXPECT(nearly_equal(eye.value().x, 0.0F));
+    EXPECT(nearly_equal(eye.value().y, 0.0F));
+    EXPECT(nearly_equal(eye.value().z, 0.0F));
+    EXPECT(nearly_equal(target.value().x, 0.0F));
+    EXPECT(nearly_equal(target.value().y, 0.0F));
+    EXPECT(nearly_equal(target.value().z, -1.0F));
+    return std::nullopt;
+}
+
+[[nodiscard]] std::optional<std::string> test_camera3d_orthographic_maps_bounds_and_depth() {
+    Storm::Math::Camera3D camera;
+    camera.projection = Storm::Math::Camera3DProjection::Orthographic;
+    camera.left = -2.0F;
+    camera.right = 2.0F;
+    camera.bottom = -1.0F;
+    camera.top = 1.0F;
+    camera.near_plane = 1.0F;
+    camera.far_plane = 11.0F;
+    EXPECT(camera.is_valid());
+    const auto near_corner = camera.world_to_ndc({2.0F, 1.0F, -1.0F});
+    const auto far_center = camera.world_to_ndc({0.0F, 0.0F, -11.0F});
+    EXPECT(near_corner);
+    EXPECT(far_center);
+    EXPECT(nearly_equal(near_corner.value().x, 1.0F));
+    EXPECT(nearly_equal(near_corner.value().y, 1.0F));
+    EXPECT(nearly_equal(near_corner.value().z, 0.0F));
+    EXPECT(nearly_equal(far_center.value().z, 1.0F));
+    return std::nullopt;
+}
+
+[[nodiscard]] std::optional<std::string> test_camera3d_rejects_invalid_pose_and_projection() {
+    Storm::Math::Camera3D camera;
+    camera.target = camera.position;
+    EXPECT(!camera.is_valid());
+    EXPECT(!camera.view_matrix());
+    camera.target = {0.0F, 0.0F, -1.0F};
+    camera.up = {0.0F, 0.0F, -2.0F};
+    EXPECT(!camera.is_valid());
+    camera.up = {0.0F, 1.0F, 0.0F};
+    camera.vertical_fov_radians = 0.0F;
+    EXPECT(!camera.is_valid());
+    camera.vertical_fov_radians = 1.0F;
+    camera.aspect_ratio = 0.0F;
+    EXPECT(!camera.is_valid());
+    camera.aspect_ratio = 1.0F;
+    camera.near_plane = 0.0F;
+    EXPECT(!camera.is_valid());
+    camera.near_plane = 0.1F;
+    camera.far_plane = 0.1F;
+    EXPECT(!camera.is_valid());
+    camera.far_plane = 100.0F;
+    camera.projection = static_cast<Storm::Math::Camera3DProjection>(0xffU);
+    EXPECT(!camera.is_valid());
+    camera.projection = Storm::Math::Camera3DProjection::Orthographic;
+    camera.right = camera.left;
+    EXPECT(!camera.is_valid());
+    return std::nullopt;
+}
+
+[[nodiscard]] std::optional<std::string> test_camera3d_rejects_points_on_perspective_eye_plane() {
+    Storm::Math::Camera3D camera;
+    const auto result = camera.world_to_ndc({0.0F, 0.0F, 0.0F});
+    EXPECT(!result);
+    EXPECT(result.error().code == Storm::ErrorCode::InvalidArgument);
+    return std::nullopt;
+}
+
 struct TestCase final {
     const char* name;
     std::optional<std::string> (*run)();
@@ -362,6 +460,11 @@ int main() {
         TestCase{"transform_point_and_direction_are_distinct", &test_transform_point_and_direction_are_distinct},
         TestCase{"matrix_accessor_checks_bounds", &test_matrix_accessor_checks_bounds},
         TestCase{"checked_matrix_multiplication_validates_inputs_and_overflow", &test_checked_matrix_multiplication_validates_inputs_and_overflow},
+        TestCase{"camera3d_perspective_maps_near_and_far_to_zero_one", &test_camera3d_perspective_maps_near_and_far_to_zero_one},
+        TestCase{"camera3d_view_uses_world_pose", &test_camera3d_view_uses_world_pose},
+        TestCase{"camera3d_orthographic_maps_bounds_and_depth", &test_camera3d_orthographic_maps_bounds_and_depth},
+        TestCase{"camera3d_rejects_invalid_pose_and_projection", &test_camera3d_rejects_invalid_pose_and_projection},
+        TestCase{"camera3d_rejects_points_on_perspective_eye_plane", &test_camera3d_rejects_points_on_perspective_eye_plane},
     };
 
     std::size_t failures = 0U;

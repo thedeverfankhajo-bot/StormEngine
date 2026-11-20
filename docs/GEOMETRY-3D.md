@@ -3,7 +3,7 @@
 ## Scope and status
 
 The platform-neutral `Storm::Math` target now includes validated 3D geometry
-primitives alongside `Vector3`, `Quaternion`, `Matrix4`, and `Transform3D`:
+primitives alongside `Vector3`, `Quaternion`, `Matrix4`, `Transform3D`, and `Camera3D`:
 
 - `Aabb3D`: finite axis-aligned minimum/maximum bounds, inclusive containment
   and overlap, checked construction from center/half-extents, and union.
@@ -87,3 +87,23 @@ physical device.
 Oriented boxes, rays against meshes, swept-volume queries, collision
 manifolds, 3D physics, camera culling integration, GPU resources, and device
 rendering remain separate future work.
+
+## 3D camera math
+
+The platform-neutral `Camera3D` value type combines the existing checked
+`Matrix4::look_at_rh`, perspective, and orthographic projection builders.
+It supports a world-space eye/target/up pose, perspective vertical field of
+view and viewport aspect ratio, or explicit orthographic bounds. The
+`view_projection_matrix()` method composes projection * view using checked
+matrix multiplication, and `world_to_ndc()` performs homogeneous division
+through the checked point-transform path.
+
+Both projection modes retain the ADR-0019 right-handed -Z view convention and
+zero-to-one depth interval (near -> 0, far -> 1). Invalid poses, parallel up
+vectors, invalid projection settings, and points on the perspective eye plane
+return typed errors. Aspect ratio remains an explicit caller-owned value; this
+type does not own a mobile surface, Scene component, or viewport lifecycle.
+
+This is camera math only. It does not yet provide a Scene-owned Camera3D
+component, automatic active-camera selection, frustum-culling integration,
+GPU uniforms, or 3D rendering.

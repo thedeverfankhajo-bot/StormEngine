@@ -56,6 +56,7 @@ add_library(storm_math STATIC
     engine/math/src/camera2d.cpp
     engine/math/src/geometry3d.cpp
     engine/math/src/transform3d.cpp
+    engine/math/src/camera3d.cpp
 )
 add_library(Storm::Math ALIAS storm_math)
 target_include_directories(storm_math
