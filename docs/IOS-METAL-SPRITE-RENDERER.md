@@ -12,8 +12,8 @@ integration slice, not a general-purpose graphics API abstraction.
    Sprite2DComponent entities. Their Transform2D values are stored through
    TransformSystem2D.
 2. Each CADisplayLink callback asks
-   SpriteSceneCollector2D::build_active_camera to collect visible sprite
-   geometry and apply the active camera view-projection transform.
+   SpriteSceneCollector2D::build_active_camera to collect sprite geometry
+   and apply the active camera view-projection transform.
 3. The host validates the fixed demo capacity and the returned range bounds.
    The current demo binds TextureKey { id=1, generation=1 } to a 1×1
    RGBA8 white texture; vertex tint supplies the two sprite colors.
@@ -55,8 +55,8 @@ Scene, SpriteBatch, and Metal resources are released.
   asset pipeline, offline compiler, shader cache, or shared shader IR.
 - RenderGraph remains a backend-independent scheduling/lifetime plan; no
   Metal/Vulkan executor or resource-barrier translation exists.
-- No renderer performance counters, GPU timestamp queries, or 3D pipeline
-  are included in this slice.
+- No renderer performance counters, GPU timestamp queries, frustum culling,
+  or 3D pipeline are included in this slice.
 
 ## Validation status
 
