@@ -47,7 +47,9 @@ The current `engine/platform` module depends only on Foundation and exposes norm
 
 ## Rendering direction
 
-Rendering will use a backend interface rather than exposing API-specific handles to gameplay code. Android and iOS have different native graphics environments; backend selection and fallback behavior must be based on device capability checks and documented minimum requirements. A backend is not considered implemented until it builds for its target, renders a test scene, and has validation evidence from physical devices.
+Rendering uses a backend-neutral scheduling layer rather than exposing API-specific handles to gameplay code. The initial Storm::Rendering2D target contains CPU sprite submission and RenderGraph: bounded resource/pass declarations, explicit and inferred dependencies, stable topological ordering, cycle and uninitialized-read validation, resource lifetime calculation, and conservative transient-slot alias analysis. This is a scheduling plan only; it does not allocate GPU objects, issue resource barriers, execute passes, or present a frame. See [Render Graph](RENDER-GRAPH.md) and [ADR-0023](ADR-0023-RENDER-GRAPH-FOUNDATION.md).
+
+Android and iOS have different native graphics environments; backend selection and fallback behavior must be based on device capability checks and documented minimum requirements. A backend is not considered implemented until it builds for its target, renders a test scene, and has validation evidence from physical devices. Vulkan/Metal device, surface, shader, command submission, synchronization, and presentation integration remain unimplemented.
 
 ## Dimensional models
 

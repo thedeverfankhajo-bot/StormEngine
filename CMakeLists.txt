@@ -123,6 +123,7 @@ stormengine_apply_warnings(storm_core)
 
 add_library(storm_rendering2d STATIC
     engine/rendering/src/sprite_batch.cpp
+    engine/rendering/src/render_graph.cpp
 )
 add_library(Storm::Rendering2D ALIAS storm_rendering2d)
 target_include_directories(storm_rendering2d
@@ -513,5 +514,13 @@ if(STORMENGINE_BUILD_TESTS)
         target_compile_features(stormengine_sprite_batch_tests PRIVATE cxx_std_20)
         stormengine_apply_warnings(stormengine_sprite_batch_tests)
         add_test(NAME stormengine_sprite_batch_tests COMMAND stormengine_sprite_batch_tests)
+
+        add_executable(stormengine_render_graph_tests
+            tests/render_graph_tests.cpp
+        )
+        target_link_libraries(stormengine_render_graph_tests PRIVATE Storm::Rendering2D)
+        target_compile_features(stormengine_render_graph_tests PRIVATE cxx_std_20)
+        stormengine_apply_warnings(stormengine_render_graph_tests)
+        add_test(NAME stormengine_render_graph_tests COMMAND stormengine_render_graph_tests)
     endif()
 endif()
