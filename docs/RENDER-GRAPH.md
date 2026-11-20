@@ -28,6 +28,6 @@ The graph is single-thread-affine. It bounds persistent declarations and catches
 
 ## Validation status
 
-Twelve deterministic cases are registered in stormengine_render_graph_tests: inferred ordering, external inputs, transient read-before-write rejection, multiple-writer rejection, explicit dependencies, cycle detection, duplicate/invalid access rejection, disjoint lifetime aliasing, overlapping lifetime non-aliasing, description limits, bounded capacities/names, and moved-from object handling.
+Eleven deterministic test cases are registered in stormengine_render_graph_tests: inferred ordering, external inputs, transient read-before-write rejection, multiple-writer rejection, explicit dependency ordering and cycle detection, duplicate/invalid access rejection, disjoint lifetime aliasing, overlapping lifetime non-aliasing, description limits, bounded capacities/names, and moved-from object handling.
 
 No GPU backend, resource transition, render-pass execution, frame submission, or presentation is claimed by this module.
