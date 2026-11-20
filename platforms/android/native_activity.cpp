@@ -1,6 +1,7 @@
 #include "storm/platform/android/lifecycle_adapter.hpp"
 #include "storm/platform/surface_lifecycle.hpp"
 #include "storm/input/touch_input.hpp"
+#include "vulkan_clear_renderer.hpp"
 
 #include <android/configuration.h>
 #include <android/input.h>
@@ -14,6 +15,7 @@
 #include <cstdint>
 #include <limits>
 #include <optional>
+#include <memory>
 #include <span>
 #include <time.h>
 #include <utility>
@@ -26,6 +28,7 @@ struct NativeActivityState final {
     Storm::Platform::LifecycleStateMachine lifecycle;
     Storm::Platform::SurfaceLifecycle surface;
     std::optional<Storm::Input::TouchInput> touch_input;
+    std::unique_ptr<Storm::Platform::Android::VulkanClearRenderer> renderer;
     Storm::Platform::NativeSurfaceId next_surface_id{1U};
     bool surface_ids_exhausted{false};
     bool failed{false};
@@ -413,13 +416,22 @@ void handle_app_command(android_app* app, std::int32_t command) {
             break;
         }
         case APP_CMD_INIT_WINDOW:
-            static_cast<void>(attach_surface(app, *state));
+            if (attach_surface(app, *state)) {
+                auto renderer = std::make_unique<Storm::Platform::Android::VulkanClearRenderer>();
+                const auto initialized = renderer->initialize(app->window);
+                if (!initialized) fail(*state, initialized.error());
+                else state->renderer = std::move(renderer);
+            }
             break;
         case APP_CMD_WINDOW_RESIZED:
         case APP_CMD_CONFIG_CHANGED:
-            static_cast<void>(resize_surface(app, *state));
+            if (resize_surface(app, *state) && state->renderer) {
+                const auto recreated = state->renderer->recreate_swapchain();
+                if (!recreated) fail(*state, recreated.error());
+            }
             break;
         case APP_CMD_TERM_WINDOW:
+            state->renderer.reset();
             static_cast<void>(detach_surface(*state));
             break;
         case APP_CMD_DESTROY:
@@ -458,7 +470,7 @@ extern "C" void android_main(android_app* app) {
     while (app->destroyRequested == 0 && !state.failed) {
         android_poll_source* source = nullptr;
         const int identifier = ALooper_pollOnce(
-            -1,
+            state.renderer && state.lifecycle.can_run_game_loop() ? 16 : -1,
             nullptr,
             nullptr,
             reinterpret_cast<void**>(&source));
@@ -474,8 +486,14 @@ extern "C" void android_main(android_app* app) {
         if (identifier >= 0 && source != nullptr) {
             source->process(app, source);
         }
+        if (state.renderer && state.lifecycle.can_run_game_loop() &&
+            (identifier == ALOOPER_POLL_TIMEOUT || identifier >= 0)) {
+            const auto rendered = state.renderer->render_frame();
+            if (!rendered) fail(state, rendered.error());
+        }
     }
 
+    state.renderer.reset();
     static_cast<void>(detach_surface(state));
     app->onInputEvent = nullptr;
     app->onAppCmd = nullptr;

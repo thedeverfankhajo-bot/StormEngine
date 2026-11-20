@@ -280,6 +280,7 @@ if(ANDROID)
 
     add_library(storm_android_native_activity SHARED
         platforms/android/native_activity.cpp
+        platforms/android/vulkan_clear_renderer.cpp
         "${STORM_ANDROID_NATIVE_APP_GLUE_DIR}/android_native_app_glue.c"
     )
     target_include_directories(storm_android_native_activity
@@ -292,6 +293,7 @@ if(ANDROID)
             Storm::Input
             android
             log
+            vulkan
     )
     target_compile_features(storm_android_native_activity PRIVATE cxx_std_20)
     stormengine_apply_warnings(storm_android_native_activity)
