@@ -449,8 +449,9 @@ struct MetalFrameSemaphoreReservation final {
                                       constant:-24.0],
         [_statusLabel.centerXAnchor
             constraintEqualToAnchor:self.view.safeAreaLayoutGuide.centerXAnchor],
-        [_statusLabel.centerYAnchor
-            constraintEqualToAnchor:self.view.safeAreaLayoutGuide.centerYAnchor]
+        [_statusLabel.topAnchor
+            constraintEqualToAnchor:self.view.safeAreaLayoutGuide.topAnchor
+                              constant:20.0]
     ]];
 }
 
